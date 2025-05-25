@@ -1,4 +1,7 @@
-const BACKEND_URL = "https://irricontrol-test.onrender.com"; // Mude se necessário (ex: http://127.0.0.1:8000)
+// ATENÇÃO AQUI: Verifique se esta URL é EXATAMENTE a URL do seu serviço no Render.
+// Se o seu serviço no Render se chama 'meu-simulador-irrigacao',
+// a URL seria 'https://meu-simulador-irrigacao.onrender.com'
+const BACKEND_URL = "https://meu-irricontrol-api.onrender.com";
 
 /**
  * Envia o arquivo KMZ para processamento no backend.
@@ -7,18 +10,22 @@ const BACKEND_URL = "https://irricontrol-test.onrender.com"; // Mude se necessá
  */
 async function processKmz(formData) {
   try {
-    const response = await fetch(`${BACKEND_URL}/processar_kmz`, {
+    // A URL final será: BACKEND_URL + "/kmz/processar"
+    // Ex: "https://meu-servico.onrender.com/kmz/processar"
+    const response = await fetch(`${BACKEND_URL}/kmz/processar`, {
       method: "POST",
       body: formData,
     });
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro ${response.status}: ${errorData.erro || response.statusText}`);
+        // Se for "Not Found" (404), o erro cairá aqui.
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
     }
     return await response.json();
   } catch (error) {
     console.error("Erro ao processar KMZ:", error);
-    throw error; // Re-lança o erro para ser tratado por quem chamou
+    mostrarMensagem(`Falha ao carregar KMZ: ${error.message}`, "erro"); // Adiciona feedback visual
+    throw error;
   }
 }
 
@@ -29,18 +36,20 @@ async function processKmz(formData) {
  */
 async function simulateSignal(payload) {
   try {
-    const response = await fetch(`${BACKEND_URL}/simular_sinal`, {
+    // A URL final será: BACKEND_URL + "/simulation/run_main"
+    const response = await fetch(`${BACKEND_URL}/simulation/run_main`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro ${response.status}: ${errorData.erro || response.statusText}`);
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
     }
     return await response.json();
   } catch (error) {
     console.error("Erro ao simular sinal:", error);
+    mostrarMensagem(`Falha na simulação: ${error.message}`, "erro");
     throw error;
   }
 }
@@ -52,18 +61,20 @@ async function simulateSignal(payload) {
  */
 async function simulateManual(payload) {
   try {
-    const response = await fetch(`${BACKEND_URL}/simular_manual`, {
+    // A URL final será: BACKEND_URL + "/simulation/run_manual"
+    const response = await fetch(`${BACKEND_URL}/simulation/run_manual`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro ${response.status}: ${errorData.erro || response.statusText}`);
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
     }
     return await response.json();
   } catch (error) {
     console.error("Erro ao simular manual:", error);
+    mostrarMensagem(`Falha na simulação manual: ${error.message}`, "erro");
     throw error;
   }
 }
@@ -75,18 +86,20 @@ async function simulateManual(payload) {
  */
 async function reevaluatePivots(payload) {
   try {
-    const response = await fetch(`${BACKEND_URL}/reavaliar_pivos`, {
+    // A URL final será: BACKEND_URL + "/simulation/reevaluate"
+    const response = await fetch(`${BACKEND_URL}/simulation/reevaluate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro ${response.status}: ${errorData.erro || response.statusText}`);
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
     }
     return await response.json();
   } catch (error) {
     console.error("Erro ao reavaliar pivôs:", error);
+    mostrarMensagem(`Falha ao reavaliar cobertura: ${error.message}`, "erro");
     throw error;
   }
 }
@@ -97,13 +110,16 @@ async function reevaluatePivots(payload) {
  */
 async function getTemplates() {
   try {
-    const response = await fetch(`${BACKEND_URL}/templates`);
+    // A URL final será: BACKEND_URL + "/simulation/templates"
+    const response = await fetch(`${BACKEND_URL}/simulation/templates`);
     if (!response.ok) {
-        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        // Se o templates não carregar, o erro pode ser aqui.
+        throw new Error(`Erro ${response.status}: ${response.statusText} ao buscar templates.`);
     }
     return await response.json();
   } catch (error) {
     console.error("Erro ao buscar templates:", error);
+    mostrarMensagem(`Falha ao buscar templates: ${error.message}`, "erro");
     throw error;
   }
 }
@@ -115,18 +131,20 @@ async function getTemplates() {
  */
 async function getElevationProfile(payload) {
   try {
-    const response = await fetch(`${BACKEND_URL}/perfil_elevacao`, {
+    // A URL final será: BACKEND_URL + "/simulation/elevation_profile"
+    const response = await fetch(`${BACKEND_URL}/simulation/elevation_profile`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Erro ${response.status}: ${errorData.erro || response.statusText}`);
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
     }
     return await response.json();
   } catch (error) {
     console.error("Erro ao buscar perfil de elevação:", error);
+    mostrarMensagem(`Falha no diagnóstico de visada: ${error.message}`, "erro");
     throw error;
   }
 }
@@ -138,23 +156,16 @@ async function getElevationProfile(payload) {
  * @returns {string} - A URL completa para download.
  */
 function getExportKmzUrl(imagem, boundsFile) {
-    // A função original formatava aqui, mas agora recebe os nomes prontos.
-    // Apenas montamos a URL.
-    return `${BACKEND_URL}/exportar_kmz?imagem=${encodeURIComponent(imagem)}&bounds_file=${encodeURIComponent(boundsFile)}`;
+    // A URL final será: BACKEND_URL + "/kmz/exportar?imagem=...&bounds_file=..."
+    return `${BACKEND_URL}/kmz/exportar?imagem=${encodeURIComponent(imagem)}&bounds_file=${encodeURIComponent(boundsFile)}`;
 }
 
-/**
- * Retorna a URL para o ícone da torre.
- * @returns {string} - URL do ícone.
- */
 function getTowerIconUrl() {
-    return `${BACKEND_URL}/icone-torre`; // Usava /icone-torre antes
+    // A URL final será: BACKEND_URL + "/kmz/icone-torre"
+    return `${BACKEND_URL}/kmz/icone-torre`;
 }
 
-/**
- * Retorna a URL para o ícone da bomba.
- * @returns {string} - URL do ícone.
- */
 function getPumpIconUrl() {
+    // A URL final será: BACKEND_URL + "/static/imagens/homegardenbusiness.png"
     return `${BACKEND_URL}/static/imagens/homegardenbusiness.png`;
 }
