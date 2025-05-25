@@ -3,25 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-# Importa os routers usando o caminho absoluto a partir de 'backend'
-from backend.routers import kmz, simulation
-# Importa config usando o caminho absoluto
-from backend import config
+from backend.routers import kmz, simulation # Correto
+from backend import config # Correto
 
-# Cria a instância principal da aplicação FastAPI
 app = FastAPI(
     title="Irricontrol Signal Simulator API",
     description="API para processar KMZ e simular cobertura de sinal.",
     version="1.0.0"
 )
 
-# --- Configuração do CORS ---
 origins = [
     "http://localhost",
     "http://localhost:8080",
     "http://127.0.0.1",
     "http://127.0.0.1:8080",
-    "https://irricontrol-test.netlify.app", # Adicione a URL do seu Netlify aqui
+    "https://irricontrol-test.netlify.app/", # MUITO IMPORTANTE: Adicione a URL do seu site Netlify aqui
     "null"
 ]
 
@@ -33,19 +29,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Montagem de Arquivos Estáticos ---
-# O 'backend' não está mais no caminho porque o Render roda a partir da raiz
-static_path = os.path.join(os.path.dirname(__file__), "static")
-app.mount("/static", StaticFiles(directory=static_path), name="static")
+# Define o caminho para a pasta static DENTRO da pasta backend
+# __file__ é o caminho para o main.py atual
+# os.path.dirname(__file__) é a pasta 'backend'
+# os.path.join junta com 'static' para formar 'backend/static'
+static_files_path = os.path.join(os.path.dirname(__file__), "static")
+
+# Monta a pasta 'static' para ser servida em '/static'
+# Ex: BACKEND_URL/static/imagens/arquivo.png
+app.mount("/static", StaticFiles(directory=static_files_path), name="static")
 
 
-# --- Inclusão dos Routers ---
-app.include_router(kmz.router)
-app.include_router(simulation.router)
+# Inclui os routers. Eles já têm seus próprios prefixos.
+app.include_router(kmz.router) # kmz.router tem prefix="/kmz"
+app.include_router(simulation.router) # simulation.router tem prefix="/simulation"
 
 
-# --- Endpoint Raiz (Opcional) ---
 @app.get("/")
 def read_root():
-    """Endpoint raiz para verificar se a API está funcionando."""
     return {"message": "Bem-vindo à API do Simulador de Sinal Irricontrol!"}
