@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Simulador de Sinal - Irricontrol</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+</head>
+
+<body class="bg-black text-white h-screen w-screen overflow-hidden">
+
+  <div class="absolute top-0 left-0 right-0 h-14 bg-black border-b-[2px] border-white/15 z-50 flex items-center px-4">
+      <div class="flex items-center gap-3">
+        <button class="hover:scale-110 transition" title="Português (BR)">
+          <img src="assets/images/br.svg" class="w-6 h-4" alt="Português">
+        </button>
+        <button class="hover:scale-110 transition" title="Español">
+          <img src="assets/images/es.svg" class="w-6 h-4" alt="Español">
+        </button>
+        <button class="hover:scale-110 transition" title="Deutsch">
+          <img src="assets/images/de.svg" class="w-6 h-4" alt="Deutsch">
+        </button>
+        <button class="hover:scale-110 transition" title="English">
+          <img src="assets/images/uk.svg" class="w-6 h-4" alt="English">
+        </button>
+        <button class="hover:scale-110 transition" title="Русский">
+          <img src="assets/images/ru.svg" class="w-6 h-4" alt="Russian">
+        </button>
+      </div>
+  </div>
+
+  <div class="absolute top-14 bottom-14 left-0 w-[280px] bg-black z-40 p-4">
+
+      <div class="mb-6 backdrop-blur bg-white/5 border border-white/15 px-3 py-3 rounded-lg shadow-sm flex items-center gap-2">
+        <label for="template-modelo" class="text-sm text-white/70">🌐 Template:</label>
+        <select id="template-modelo"
+                class="px-2 py-1 rounded-lg bg-black/70 border border-white/15 text-white/80 text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition w-full">
+          </select>
+      </div>
+
+      <div class="flex flex-col gap-3">
+
+        <form id="formulario" enctype="multipart/form-data" class="flex flex-col gap-3">
+            <label for="arquivo" class="w-60 h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4-4m0 0l4 4m-4-4v12"/>
+                </svg>
+                <span id="nome-arquivo-label" class="text-sm font-medium truncate">Escolher Arquivo KMZ</span>
+            </label>
+            <input type="file" id="arquivo" accept=".kmz" required class="hidden" />
+
+            <button type="submit" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v4H4V4zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/>
+                </svg>
+                <span class="text-sm font-medium">Carregar KMZ</span>
+            </button>
+        </form>
+
+        <button id="simular-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4-4m0 0l4 4m-4-4v12"/>
+            </svg>
+            <span class="text-sm font-medium">Rodar Estudo de Sinal</span>
+        </button>
+
+        <button id="btn-diagnostico" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h6v6h5v2H4v-2h5z"/>
+            </svg>
+            <span class="text-sm font-medium">Diagnóstico de Visada</span>
+        </button>
+
+        <button id="exportar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span class="text-sm font-medium">Exportar KMZ</span>
+        </button>
+
+        <button id="resetar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582a9 9 0 0115.249 5.93M20 20v-5h-.581a9 9 0 00-15.249-5.93"/>
+            </svg>
+            <span class="text-sm font-medium">Resetar</span>
+        </button>
+
+      </div>
+
+      <div id="painel-repetidora" class="mt-6 bg-white/5 border border-white/15 backdrop-blur-md rounded-xl shadow-lg w-60 p-4 hidden">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="font-semibold text-sm text-white/80">➕ Configurar Repetidora</h2>
+          <button id="fechar-painel-rep" class="text-red-400 hover:text-red-500 font-bold text-lg">✖</button>
+        </div>
+        <label class="text-xs text-white/60 mb-1 block">Altura da Antena (m)</label>
+        <input id="altura-antena-rep" type="number" value="5" class="w-full h-9 px-3 rounded-lg border border-white/20 bg-black/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
+        <label class="text-xs text-white/60 mb-1 block">Altura do Receiver (m)</label>
+        <input id="altura-receiver-rep" type="number" value="3" class="w-full h-9 px-3 rounded-lg border border-white/20 bg-black/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-4" />
+        <button id="confirmar-repetidora" class="w-full h-10 flex items-center justify-center gap-2 border border-white/15 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4-4m0 0l4 4m-4-4v12"/></svg>
+            <span class="text-sm font-medium">📡 Simular</span>
+        </button>
+      </div>
+
+  </div>
+
+  <div class="absolute top-14 bottom-14 right-0 w-72 bg-black z-40 p-4 space-y-4">
+
+      <div id="painel-dados" class="bg-black/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4">
+        <h2 class="text-sm font-semibold text-white/80 mb-3">📊 Dados da Simulação</h2>
+        <div class="flex justify-between items-center mb-3">
+          <span id="template-info" class="font-medium text-sm text-green-300">🌐 Template: --</span>
+        </div>
+        <p id="total-pivos" class="text-sm text-white/70 mb-1">Pivôs: --</p>
+        <p id="fora-cobertura" class="text-sm text-white/70 mb-1">Fora da cobertura: --</p>
+        <p id="altura-antena-info" class="text-sm text-white/70 mb-1">Antena principal: -- m</p>
+        <p id="altura-receiver-info" class="text-sm text-white/70 mb-1">Receiver: -- m</p>
+        <p id="total-repetidoras" class="text-sm text-white/70 mb-1">Total Repetidoras: --</p>
+        <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden">Casas de bomba: --</p>
+      </div>
+
+      <div id="painel-repetidoras" class="bg-black/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4">
+        <h2 class="text-sm font-semibold text-white/80 mb-3">📍 Repetidoras</h2>
+        <div id="lista-repetidoras" class="space-y-2 text-sm max-h-48 overflow-y-auto">
+            </div>
+      </div>
+
+      <div id="painel-opacidade" class="bg-black/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 hidden">
+        <h2 class="text-sm font-semibold text-white/80 mb-3">🌫️ Opacidade</h2>
+        <input id="range-opacidade" type="range" min="0" max="1" step="0.1" value="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer" />
+      </div>
+
+  </div>
+
+  <div class="absolute bottom-0 left-0 right-0 h-14 bg-black z-50 flex items-center justify-center">
+    <span class="text-gray-500 text-xs">Powered by Irricontrol</span>
+  </div>
+
+  <div class="absolute top-14 bottom-14 left-[280px] right-72 z-10">
+      <div id="map" class="w-full h-full bg-neutral-900">
+        </div>
+
+      <div class="absolute top-2 right-2 z-[9999] flex flex-col items-end gap-3">
+          <button id="toggle-painel" class="glass-button" title="Toggle simulation data">📊</button>
+          <button id="toggle-repetidoras" class="glass-button" title="Manage repeaters">📡</button>
+          <button id="btn-visada" class="glass-button" title="Toggle line of sight">⛰️</button>
+          <button id="toggle-legenda" class="glass-button" title="Toggle labels">🏷️</button>
+          <button id="toggle-opacidade" class="glass-button" title="Controle de opacidade">🌫️</button>
+          <button id="editar-pivos" class="glass-button" title="Edit pivot centers">✏️</button>
+          <button id="desfazer-edicao" class="glass-button hidden" title="Reset">↩️</button>
+      </div>
+  </div>
+
+  <div id="mensagem" class="hidden absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"></div>
+
+  <div id="loader" class="hidden absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center z-[10001]">
+    <svg class="animate-spin h-12 w-12 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+    </svg>
+    <span class="mt-4 text-lg font-bold text-green-300">Processando...</span>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/map.js"></script>
+  <script src="assets/js/drawing.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/main.js"></script>
+
+</body>
+</html>

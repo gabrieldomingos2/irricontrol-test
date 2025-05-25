@@ -1,0 +1,208 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif; /* Adicionado para consistência */
+}
+
+#map {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  z-index: 0;
+}
+
+.glass-button {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem; /* 20px */
+  color: white;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex; /* Para alinhar ícones se houver */
+  align-items: center; /* Para alinhar ícones se houver */
+  justify-content: center; /* Para alinhar ícones se houver */
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.glass-button.hidden {
+    display: none;
+}
+
+#mensagem {
+  transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#mensagem.hidden {
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none; /* Evita cliques quando escondido */
+}
+
+/* Efeito pulsante nos círculos vermelhos */
+@keyframes pulseGlow {
+  0%   { filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.7)); }
+  50%  { filter: drop-shadow(0 0 14px rgba(255, 0, 0, 1)); }
+  100% { filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.7)); }
+}
+
+.leaflet-interactive.circulo-vermelho-pulsante {
+  stroke: #ff3b3b; /* Vermelho mais vibrante */
+  stroke-width: 2; /* Mais fino */
+  fill-opacity: 0.1; /* Preenchimento sutil */
+  fill-color: #ff3b3b;
+  animation: pulseGlow 1.8s infinite ease-in-out;
+  transition: filter 0.3s ease;
+}
+
+/* Estilo para pivôs verdes */
+.leaflet-interactive.circulo-verde {
+  stroke: #34c759; /* Verde */
+  stroke-width: 1;
+  fill-opacity: 0.5;
+  fill-color: #34c759;
+}
+
+
+.label-pivo {
+  color: white;
+  font-size: 0.75rem; /* 12px */
+  font-weight: bold;
+  text-shadow: 0 0 3px black, 0 0 5px black; /* Sombra mais forte */
+  pointer-events: none; /* Não interfere com cliques no mapa */
+  white-space: nowrap; /* Evita quebra de linha */
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.5); /* Fundo sutil */
+  text-align: center;
+}
+
+/* Popups personalizados */
+.popup-glass {
+  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6); /* Fundo mais escuro */
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.8rem; /* Um pouco maior */
+  color: #FFF; /* Texto branco */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.leaflet-popup-content-wrapper {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.leaflet-popup-tip-container {
+  display: none; /* Esconde a seta padrão */
+}
+
+/* Transições suaves para painéis */
+#painel-dados,
+#painel-repetidoras,
+#painel-opacidade {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#painel-dados.hidden,
+#painel-repetidoras.hidden,
+#painel-opacidade.hidden {
+    opacity: 0;
+    transform: translateX(20px); /* Anima para a direita ao sumir */
+    pointer-events: none;
+}
+
+/* Linha de visada animada */
+.linha-futurista {
+  stroke: #00ffff; /* Ciano */
+  stroke-width: 2;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: growLine 1.5s ease-out forwards;
+  opacity: 0.8; /* Um pouco mais sutil */
+  filter: drop-shadow(0 0 3px #00ffff); /* Brilho */
+}
+
+@keyframes growLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Estilo para marcadores de bloqueio */
+.label-bloqueio {
+  color: #ffcc00; /* Amarelo */
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-shadow: 0 0 3px black;
+  pointer-events: none;
+  white-space: nowrap;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background-color: rgba(50, 0, 0, 0.6); /* Fundo avermelhado */
+  border: 1px solid #ffcc00;
+}
+
+/* Esconde o input de arquivo original */
+input[type="file"].hidden {
+    display: none;
+}
+
+/* Ajusta o range de opacidade */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #3B82F6; /* Azul */
+  cursor: pointer;
+  border-radius: 50%;
+  margin-top: -6px; /* Centraliza */
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #3B82F6;
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+}
+
+/* Scrollbar customizado para a lista de repetidoras */
+#lista-repetidoras::-webkit-scrollbar {
+  width: 6px;
+}
+#lista-repetidoras::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+#lista-repetidoras::-webkit-scrollbar-thumb {
+  background-color: rgba(59, 130, 246, 0.6); /* Azul com transparência */
+  border-radius: 3px;
+}
+#lista-repetidoras::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(59, 130, 246, 0.9);
+}
+
+/* Placeholder para o nome do arquivo */
+#nome-arquivo-label {
+    max-width: 160px; /* Limita a largura para evitar que empurre o ícone */
+}
