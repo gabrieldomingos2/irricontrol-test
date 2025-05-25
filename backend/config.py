@@ -1,8 +1,6 @@
 import os
 
 # --- Configurações da API CloudRF ---
-# !! ATENÇÃO: É mais seguro carregar a chave de variáveis de ambiente !!
-# !! Ex: API_KEY = os.getenv("CLOUDRF_API_KEY", "SUA_CHAVE_PADRAO_SE_NAO_ENCONTRAR")
 API_KEY = "35113-e181126d4af70994359d767890b3a4f2604eb0ef"
 API_URL = "https://api.cloudrf.com/area"
 
@@ -61,25 +59,35 @@ TEMPLATES_DISPONIVEIS = [
 ]
 
 # --- Funções Auxiliares de Configuração ---
-
 def obter_template(template_id: str):
-    """Retorna os dados de um template pelo seu ID."""
     template = next((t for t in TEMPLATES_DISPONIVEIS if t["id"] == template_id), None)
     if not template:
-        # Retorna o primeiro template como padrão se o ID não for encontrado
-        print(f"⚠️ Template '{template_id}' não encontrado. Usando padrão.")
+        print(f"⚠️ Template '{template_id}' não encontrado. Usando padrão '{TEMPLATES_DISPONIVEIS[0]['id']}'.")
         return TEMPLATES_DISPONIVEIS[0]
     return template
 
 def listar_templates_ids():
-    """Retorna uma lista com os IDs de todos os templates disponíveis."""
     return [t["id"] for t in TEMPLATES_DISPONIVEIS]
 
-# --- Caminhos ---
-STATIC_DIR = "static"
-IMAGENS_DIR = os.path.join(STATIC_DIR, "imagens")
-ARQUIVOS_DIR = "arquivos"
+# --- Caminhos (Usando __file__ para referência absoluta DENTRO do pacote backend) ---
 
-# Garante que os diretórios existam
-os.makedirs(IMAGENS_DIR, exist_ok=True)
-os.makedirs(ARQUIVOS_DIR, exist_ok=True)
+# Diretório raiz do pacote 'backend' (onde este config.py está)
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+
+STATIC_DIR_NAME = "static"          # Apenas o nome da pasta
+IMAGENS_DIR_NAME = "imagens"        # Apenas o nome da subpasta
+ARQUIVOS_DIR_NAME = "arquivos"      # Apenas o nome da pasta
+
+# Caminhos absolutos construídos a partir de BACKEND_DIR
+# Ex: /opt/render/project/src/backend/static
+STATIC_DIR_PATH = os.path.join(BACKEND_DIR, STATIC_DIR_NAME)
+# Ex: /opt/render/project/src/backend/static/imagens
+IMAGENS_DIR_PATH = os.path.join(STATIC_DIR_PATH, IMAGENS_DIR_NAME)
+# Ex: /opt/render/project/src/backend/arquivos
+ARQUIVOS_DIR_PATH = os.path.join(BACKEND_DIR, ARQUIVOS_DIR_NAME)
+
+# Garante que os diretórios existam no servidor DENTRO da pasta backend
+print(f"INFO: Criando diretório de imagens em: {IMAGENS_DIR_PATH}")
+os.makedirs(IMAGENS_DIR_PATH, exist_ok=True)
+print(f"INFO: Criando diretório de arquivos em: {ARQUIVOS_DIR_PATH}")
+os.makedirs(ARQUIVOS_DIR_PATH, exist_ok=True)
