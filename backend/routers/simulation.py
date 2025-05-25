@@ -1,167 +1,110 @@
-from fastapi import APIRouter, HTTPException, Body
-from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Tuple
+import httpx
+import json
+import os
+# Usa import absoluto
+from backend import config
 
-from ..services import cloudrf_service, analysis_service
-from .. import config
-import os # Precisamos para construir o caminho da imagem no reavaliar
+# --- Funções Auxiliares ---
 
-router = APIRouter(
-    prefix="/simulation", # Adiciona /simulation antes de cada endpoint aqui
-    tags=["Simulation & Analysis"], # Agrupa na documentação /docs
-)
+def format_coord(coord: float) -> str:
+    """Formata coordenada para nomes de arquivos (igual ao JS)."""
+    return f"{coord:.6f}".replace(".", "_").replace("-", "m")
 
-# --- Modelos Pydantic para Validação ---
+async def get_http_client() -> httpx.AsyncClient:
+    """Retorna um cliente HTTP assíncrono com timeout global."""
+    return httpx.AsyncClient(timeout=httpx.Timeout(config.HTTP_TIMEOUT))
 
-class PivoData(BaseModel):
-    nome: str
-    lat: float
-    lon: float
-    fora: Optional[bool] = None
-
-class AntenaSimPayload(BaseModel):
-    lat: float
-    lon: float
-    altura: int
-    altura_receiver: Optional[int] = 3
-    nome: Optional[str] = "Antena Principal"
-    template: str
-    pivos_atuais: List[PivoData]
-
-class ManualSimPayload(BaseModel):
-    lat: float
-    lon: float
-    altura: float
-    altura_receiver: float
-    template: str
-    pivos_atuais: List[PivoData]
-
-class OverlayData(BaseModel):
-    imagem: str # Caminho relativo: 'static/imagens/...'
-    bounds: Tuple[float, float, float, float] # S, W, N, E
-
-class ReavaliarPayload(BaseModel):
-    pivos: List[PivoData]
-    overlays: List[OverlayData]
-
-class PerfilPayload(BaseModel):
-    pontos: List[Tuple[float, float]]
-    altura_antena: float
-    altura_receiver: float
-
-# --- Endpoints ---
-
-@router.get("/templates")
-def get_templates_endpoint():
-    """Retorna a lista de IDs dos templates disponíveis."""
-    return config.listar_templates_ids()
-
-@router.post("/run_main")
-async def run_main_simulation_endpoint(payload: AntenaSimPayload):
-    """Executa a simulação principal a partir da antena."""
+async def download_image(url: str, local_path: str):
+    """Baixa uma imagem de uma URL e salva localmente."""
+    print(f"   -> Baixando imagem de: {url}")
     try:
-        sim_result = await cloudrf_service.run_cloudrf_simulation(
-            lat=payload.lat,
-            lon=payload.lon,
-            altura=payload.altura,
-            template_id=payload.template,
-            is_repeater=False
-        )
-        
-        # Pega o caminho local da imagem gerada para análise
-        imagem_nome = os.path.basename(sim_result["imagem_url"].split('?')[0]) # Remove query params se houver
-        caminho_imagem_local = os.path.join(config.IMAGENS_DIR, imagem_nome)
-        
-        # Verifica a cobertura usando a imagem recém-gerada
-        pivos_com_status = analysis_service.verificar_cobertura_pivos(
-            pivos=[p.dict() for p in payload.pivos_atuais],
-            overlays_info=[{
-                "imagem": os.path.join(config.STATIC_DIR, "imagens", imagem_nome),
-                "bounds": sim_result["bounds"]
-            }]
-        )
+        async with await get_http_client() as client:
+            r = await client.get(url)
+            r.raise_for_status()
 
-        return {
-            "imagem_salva": sim_result["imagem_url"],
-            "bounds": sim_result["bounds"],
-            "status": "Simulação principal concluída",
-            "pivos": pivos_com_status
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        with open(local_path, "wb") as f:
+            f.write(r.content)
+        print(f"   -> Imagem salva em: {local_path}")
+        return True
+    except httpx.HTTPStatusError as e:
+        print(f"   -> ❌ Erro HTTP ao baixar imagem: {e.response.status_code} - {e.response.text}")
+        raise ValueError(f"Falha ao baixar imagem de sinal. Status {e.response.status_code}")
     except Exception as e:
-        print(f"❌ Erro em /run_main: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro interno na simulação principal: {e}")
+        print(f"   -> ❌ Erro crítico no download: {e}")
+        raise ValueError(f"Falha crítica ao baixar imagem: {e}")
 
-@router.post("/run_manual")
-async def run_manual_simulation_endpoint(payload: ManualSimPayload):
-    """Executa uma simulação para uma repetidora manual."""
+def save_bounds(bounds: list, local_path: str):
+    """Salva os dados de bounds em um arquivo JSON."""
+    json_path = local_path.replace(".png", ".json")
     try:
-        sim_result = await cloudrf_service.run_cloudrf_simulation(
-            lat=payload.lat,
-            lon=payload.lon,
-            altura=int(payload.altura), # CloudRF espera int? Se não, use float.
-            template_id=payload.template,
-            is_repeater=True
-        )
-
-        # Pega o caminho local da imagem gerada para análise
-        imagem_nome = os.path.basename(sim_result["imagem_url"].split('?')[0])
-        caminho_imagem_local = os.path.join(config.IMAGENS_DIR, imagem_nome)
-
-        # Verifica a cobertura (poderia ser feito no frontend ou aqui)
-        # Por enquanto, retornamos a imagem e o frontend pode chamar /reavaliar
-        # Ou, podemos reavaliar aqui mesmo, mas precisaríamos dos overlays existentes.
-        # Vamos retornar como no original e deixar /reavaliar fazer o trabalho cumulativo.
-        
-        # No entanto, o original *fazia* uma detecção inicial. Vamos replicar isso.
-        pivos_com_status = analysis_service.verificar_cobertura_pivos(
-            pivos=[p.dict() for p in payload.pivos_atuais],
-            overlays_info=[{
-                "imagem": os.path.join(config.STATIC_DIR, "imagens", imagem_nome),
-                "bounds": sim_result["bounds"]
-            }]
-        )
-        
-        return {
-            "imagem_salva": sim_result["imagem_url"],
-            "bounds": sim_result["bounds"],
-            "status": "Simulação manual concluída",
-            "pivos": pivos_com_status # Retorna pivôs com status *apenas* desta repetidora
-        }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        with open(json_path, "w") as f:
+            json.dump({"bounds": bounds}, f)
+        print(f"   -> Bounds salvos em: {json_path}")
     except Exception as e:
-        print(f"❌ Erro em /run_manual: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro interno na simulação manual: {e}")
+        print(f"   -> ❌ Erro ao salvar bounds: {e}")
 
+# --- Função Principal de Simulação ---
 
-@router.post("/reevaluate")
-async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
-    """Reavalia a cobertura dos pivôs com base nos overlays fornecidos."""
-    try:
-        pivos_atualizados = analysis_service.verificar_cobertura_pivos(
-            pivos=[p.dict() for p in payload.pivos],
-            overlays_info=[o.dict() for o in payload.overlays]
-        )
-        return {"pivos": pivos_atualizados}
-    except Exception as e:
-        print(f"❌ Erro em /reevaluate: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao reavaliar pivôs: {e}")
+async def run_cloudrf_simulation(
+    lat: float,
+    lon: float,
+    altura: int,
+    template_id: str,
+    is_repeater: bool = False
+) -> dict:
+    """
+    Executa uma simulação na CloudRF, baixa a imagem e retorna os dados.
+    """
+    print(f"📡 Iniciando simulação CloudRF para ({lat:.6f}, {lon:.6f}) - Template: {template_id}")
 
+    tpl = config.obter_template(template_id)
 
-@router.post("/elevation_profile")
-async def get_elevation_profile_endpoint(payload: PerfilPayload):
-    """Calcula e retorna o perfil de elevação e o ponto de bloqueio."""
-    try:
-        resultado = await analysis_service.obter_perfil_elevacao(
-            pontos=payload.pontos,
-            alt1=payload.altura_antena,
-            alt2=payload.altura_receiver
-        )
-        return resultado
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        print(f"❌ Erro em /elevation_profile: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar perfil de elevação: {e}")
+    payload = { # Payload original...
+        "version": "CloudRF-API-v3.24", "site": tpl["site"], "network": f"Irricontrol Sim - {'Rep' if is_repeater else 'Main'}",
+        "engine": 2, "coordinates": 1,
+        "transmitter": { "lat": lat, "lon": lon, "alt": altura, "frq": tpl["frq"], "txw": tpl["transmitter"]["txw"], "bwi": tpl["transmitter"]["bwi"], "powerUnit": "W" },
+        "receiver": { "lat": tpl["receiver"]["lat"], "lon": tpl["receiver"]["lon"], "alt": tpl["receiver"]["alt"], "rxg": tpl["receiver"]["rxg"], "rxs": tpl["receiver"]["rxs"] },
+        "feeder": {"flt": 1, "fll": 0, "fcc": 0},
+        "antenna": { "mode": "template", "txg": tpl["antenna"]["txg"], "txl": 0, "ant": 1, "azi": 0, "tlt": 0, "hbw": 360, "vbw": 90, "fbr": tpl["antenna"]["fbr"], "pol": "v" },
+        "model": {"pm": 1, "pe": 2, "ked": 4, "rel": 95, "rcs": 1}, "environment": {"elevation": 1, "landcover": 1, "buildings": 0, "clt": "Minimal.clt"},
+        "output": { "units": "m", "col": tpl["col"], "out": 2, "ber": 1, "mod": 7, "nf": -120, "res": 30, "rad": 10 }
+    }
+
+    headers = {"key": config.API_KEY, "Content-Type": "application/json"}
+
+    print("   -> Enviando payload para CloudRF...")
+    async with await get_http_client() as client:
+        try:
+            resposta = await client.post(config.API_URL, headers=headers, json=payload)
+            resposta.raise_for_status()
+            data = resposta.json()
+            print("   -> Resposta recebida da CloudRF.")
+        except httpx.HTTPStatusError as e:
+            print(f"   -> ❌ Erro HTTP na API CloudRF: {e.response.status_code} - {e.response.text}")
+            raise ValueError(f"Erro na API CloudRF: {e.response.text}")
+        except Exception as e:
+            print(f"   -> ❌ Erro ao chamar CloudRF: {e}")
+            raise ValueError(f"Erro de comunicação com a API: {e}")
+
+    imagem_url_api = data.get("PNG_WGS84")
+    bounds = data.get("bounds")
+
+    if not imagem_url_api or not bounds:
+        print("   -> ❌ Resposta inválida da CloudRF:", data)
+        raise ValueError("Resposta inválida da API CloudRF (sem URL ou bounds).")
+
+    lat_str = format_coord(lat)
+    lon_str = format_coord(lon)
+    prefix = "repetidora" if is_repeater else "sinal"
+    nome_arquivo = f"{prefix}_{tpl['id'].lower()}_{lat_str}_{lon_str}.png"
+    # Salva dentro da pasta 'backend/static/imagens'
+    caminho_local = os.path.join(config.IMAGENS_DIR, nome_arquivo)
+
+    await download_image(imagem_url_api, caminho_local)
+    save_bounds(bounds, caminho_local)
+
+    backend_public_url = os.getenv("BACKEND_URL", "https://irricontrol-test.onrender.com") # Exemplo
+    # Retorna a URL pública
+    imagem_servida_url = f"{backend_public_url}/static/imagens/{nome_arquivo}"
+
+    return {"imagem_url": imagem_servida_url, "bounds": bounds}
