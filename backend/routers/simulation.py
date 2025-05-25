@@ -33,7 +33,7 @@ class AntenaSimPayload(BaseModel):
 class ManualSimPayload(BaseModel):
     lat: float
     lon: float
-    altura: float # Originalmente era float, mantendo
+    altura: float
     altura_receiver: float
     template: str
     pivos_atuais: List[PivoData]
@@ -69,13 +69,9 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
             template_id=payload.template,
             is_repeater=False
         )
-        
-        # Pega o nome do arquivo da URL retornada pelo serviço
+
         imagem_nome_com_query = os.path.basename(sim_result["imagem_url"])
-        imagem_nome = imagem_nome_com_query.split('?')[0] # Remove query params se houver
-        
-        # O path relativo que analysis_service espera é a partir da raiz do projeto
-        # mas dentro da pasta 'backend' para construção do caminho absoluto
+        imagem_nome = imagem_nome_com_query.split('?')[0]
         caminho_relativo_para_analise = os.path.join("static", "imagens", imagem_nome)
 
         pivos_com_status = analysis_service.verificar_cobertura_pivos(
@@ -87,7 +83,7 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
         )
 
         return {
-            "imagem_salva": sim_result["imagem_url"], # URL pública para o frontend
+            "imagem_salva": sim_result["imagem_url"],
             "bounds": sim_result["bounds"],
             "status": "Simulação principal concluída",
             "pivos": pivos_com_status
@@ -105,7 +101,7 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
         sim_result = await cloudrf_service.run_cloudrf_simulation(
             lat=payload.lat,
             lon=payload.lon,
-            altura=int(payload.altura), 
+            altura=int(payload.altura),
             template_id=payload.template,
             is_repeater=True
         )
@@ -113,7 +109,7 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
         imagem_nome_com_query = os.path.basename(sim_result["imagem_url"])
         imagem_nome = imagem_nome_com_query.split('?')[0]
         caminho_relativo_para_analise = os.path.join("static", "imagens", imagem_nome)
-        
+
         pivos_com_status = analysis_service.verificar_cobertura_pivos(
             pivos=[p.dict() for p in payload.pivos_atuais],
             overlays_info=[{
@@ -121,9 +117,9 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
                 "bounds": sim_result["bounds"]
             }]
         )
-        
+
         return {
-            "imagem_salva": sim_result["imagem_url"], # URL pública para o frontend
+            "imagem_salva": sim_result["imagem_url"],
             "bounds": sim_result["bounds"],
             "status": "Simulação manual concluída",
             "pivos": pivos_com_status
@@ -139,24 +135,22 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
 async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
     """Reavalia a cobertura dos pivôs com base nos overlays fornecidos."""
     try:
-        # Garante que os caminhos das imagens em payload.overlays
-        # sejam relativos à pasta 'backend' para a função verificar_cobertura_pivos
-        # A função verificar_cobertura_pivos espera 'static/imagens/nome.png'
-        # O frontend já deve estar enviando o path da imagem como ele recebeu (ex: 'static/imagens/sinal_brazil_v6_m15_000000_m55_000000.png')
-        
         overlays_para_analise = []
         for o in payload.overlays:
-            # Se a URL da imagem for completa, tenta extrair o caminho relativo
-            if o.imagem.startswith("http"):
+            img_path = o.imagem
+            # Garante que o caminho da imagem para analysis_service seja relativo à pasta 'backend'
+            # Ex: 'static/imagens/nome.png'
+            if o.imagem.startswith("http"): # Se for uma URL completa vinda do frontend
                 # Tenta extrair 'static/imagens/...' da URL
-                path_part = o.imagem.split("/static/imagens/", 1)
+                # Assume que config.STATIC_DIR é 'static'
+                path_part = o.imagem.split(f"/{config.STATIC_DIR}/imagens/", 1)
                 if len(path_part) > 1:
-                    img_path = os.path.join("static", "imagens", path_part[1].split('?')[0])
+                    img_path = os.path.join(config.STATIC_DIR, "imagens", path_part[1].split('?')[0])
                 else: # Fallback se não conseguir extrair
-                    img_path = os.path.basename(o.imagem.split('?')[0])
-                    img_path = os.path.join("static", "imagens", img_path) # Supõe que está na pasta
-            else: # Se já for um caminho relativo
-                img_path = o.imagem
+                    img_path = os.path.join(config.STATIC_DIR, "imagens", os.path.basename(o.imagem.split('?')[0]))
+            elif not o.imagem.startswith(config.STATIC_DIR): # Se for um nome de arquivo e não um path relativo
+                 img_path = os.path.join(config.STATIC_DIR, "imagens", o.imagem)
+
 
             overlays_para_analise.append({
                 "imagem": img_path,
