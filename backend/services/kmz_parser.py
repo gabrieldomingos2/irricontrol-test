@@ -3,8 +3,9 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from statistics import mean
-from shapely.geometry import Polygon # Certifique-se que 'shapely' está no requirements.txt
+from shapely.geometry import Polygon, Point
 from math import sqrt
+import uuid
 
 # --- Funções Auxiliares ---
 
@@ -13,18 +14,16 @@ def normalizar_nome(nome: str) -> str:
     if not nome:
         return ""
     nome = nome.lower()
-    nome = re.sub(r'[^a-z0-9À-ú ]', '', nome) # Mantém letras acentuadas e espaços
-    nome = re.sub(r'\s+', ' ', nome).strip() # Remove espaços extras
+    nome = re.sub(r'[^a-z0-9À-ú ]', '', nome)  # Mantém letras acentuadas e espaços
+    nome = re.sub(r'\s+', ' ', nome).strip()  # Remove espaços extras
     return nome
 
-# --- Função Principal de Parsing ---
+
+# --- Função Principal ---
 
 def parse_kmz(caminho_kmz: str, pasta_extracao: str) -> tuple:
-    """
-    Processa um arquivo KMZ, extrai o KML e retorna os dados geográficos.
-    """
     antena = None
-    pivos_de_pontos = [] # Pivôs explicitamente definidos como <Point>
+    pivos_de_pontos = []
     ciclos = []
     bombas = []
 
@@ -76,11 +75,11 @@ def parse_kmz(caminho_kmz: str, pasta_extracao: str) -> tuple:
                     for c_str in coords_texto_lista:
                         partes = c_str.split(",")
                         if len(partes) >= 2:
-                            coords_para_ciclo.append([float(partes[1]), float(partes[0])]) # [lat, lon]
+                            coords_para_ciclo.append([float(partes[1]), float(partes[0])])  # [lat, lon]
                     if coords_para_ciclo:
                         ciclos.append({"nome_original_circulo": nome_texto_original, "coordenadas": coords_para_ciclo})
                         print(f"   -> Círculo encontrado: {nome_texto_original}")
-            
+
             if os.path.exists(caminho_kml_completo):
                 os.remove(caminho_kml_completo)
 
@@ -88,82 +87,66 @@ def parse_kmz(caminho_kmz: str, pasta_extracao: str) -> tuple:
         print(f"❌ Erro ao processar KMZ: {e}")
         raise
 
-    # --- Consolidação dos Pivôs (Pontos + Virtuais dos Círculos) ---
-    final_pivos_list = list(pivos_de_pontos) # Começa com os pivôs de pontos
-    # Nomes normalizados de todos os pivôs já adicionados (para garantir unicidade)
+    # --- Consolidação dos Pivôs ---
+
+    final_pivos_list = list(pivos_de_pontos)
     todos_nomes_pivos_finais_normalizados = {normalizar_nome(p["nome"]) for p in final_pivos_list}
-    
+
+    pivos_pontos_geom = [Point(p['lon'], p['lat']) for p in pivos_de_pontos]
     virtual_pivot_counter = 1
 
     for ciclo_data in ciclos:
         nome_circulo = ciclo_data["nome_original_circulo"]
         coordenadas_ciclo = ciclo_data["coordenadas"]
 
-        # Tenta derivar um nome de pivô a partir do nome do círculo
-        # Remove "medida do círculo" e ajusta para ter "Pivô " no início se não tiver
-        nome_pivo_derivado = re.sub(r'medida do círculo\s*', '', nome_circulo, flags=re.IGNORECASE).strip()
-        if nome_pivo_derivado and not (nome_pivo_derivado.lower().startswith("pivô ") or nome_pivo_derivado.lower().startswith("pivo ")):
-            nome_pivo_derivado = f"Pivô {nome_pivo_derivado}"
-        elif not nome_pivo_derivado: # Se ficou vazio, não tem nome derivável
-             nome_pivo_derivado = ""
+        try:
+            poligono_ciclo = Polygon([(lon, lat) for lat, lon in coordenadas_ciclo])
+        except Exception as e:
+            print(f"   -> ⚠️ Erro criando polígono do círculo '{nome_circulo}': {e}")
+            poligono_ciclo = None
 
+        tem_pivo_dentro = False
+        if poligono_ciclo and poligono_ciclo.is_valid:
+            for ponto_pivo in pivos_pontos_geom:
+                if poligono_ciclo.contains(ponto_pivo):
+                    print(f"   -> 🔍 Círculo '{nome_circulo}' já possui pivô dentro. Pulando criação.")
+                    tem_pivo_dentro = True
+                    break
 
-        nome_pivo_derivado_normalizado = normalizar_nome(nome_pivo_derivado)
-
-        # 1. Verifica se já existe um Pivô de PONTO com este nome derivado
-        if nome_pivo_derivado_normalizado and nome_pivo_derivado_normalizado in {normalizar_nome(p["nome"]) for p in pivos_de_pontos}:
-            print(f"   -> Círculo '{nome_circulo}' corresponde ao Pivô de Ponto explícito '{nome_pivo_derivado}'. Pulando criação virtual.")
+        if tem_pivo_dentro:
             continue
 
-        # Se chegamos aqui, o círculo não corresponde a um Pivô de Ponto existente pelo nome.
-        # Então, vamos criar um pivô virtual. Primeiro, calcular o centroide.
+        # Cálculo do centro
         centro_lat, centro_lon = 0.0, 0.0
         try:
             coords_lonlat = [(lon, lat) for lat, lon in coordenadas_ciclo]
-            num_pontos_no_ciclo = len(coords_lonlat)
-            if num_pontos_no_ciclo == 0:
-                print(f"   -> ⚠️ Círculo '{nome_circulo}' sem coordenadas válidas.")
-                continue
-            if num_pontos_no_ciclo >= 3 and Polygon(coords_lonlat).is_valid: # Precisa de pelo menos 3 para polígono
+            if len(coords_lonlat) >= 3 and Polygon(coords_lonlat).is_valid:
                 poligono = Polygon(coords_lonlat)
                 centroide = poligono.centroid
                 centro_lat, centro_lon = centroide.y, centroide.x
-            else: # Média para linhas ou poucos pontos
+            else:
                 centro_lat = mean([lat for lat, lon in coordenadas_ciclo])
                 centro_lon = mean([lon for lat, lon in coordenadas_ciclo])
         except Exception as e:
-            print(f"   -> ⚠️ Erro no cálculo do centroide para '{nome_circulo}', usando média: {e}")
+            print(f"   -> ⚠️ Erro no cálculo do centroide para '{nome_circulo}': {e}")
             if not coordenadas_ciclo: continue
             centro_lat = mean([lat for lat, lon in coordenadas_ciclo])
             centro_lon = mean([lon for lat, lon in coordenadas_ciclo])
 
-        # Determina o nome final para o pivô virtual
-        nome_final_para_virtual = ""
-        if nome_pivo_derivado_normalizado and nome_pivo_derivado_normalizado not in todos_nomes_pivos_finais_normalizados:
-            nome_final_para_virtual = nome_pivo_derivado
-        else:
-            # Se o nome derivado não for útil ou já existir, usa nomenclatura padrão "Pivô N"
-            while True:
-                nome_tentativa = f"Pivô {virtual_pivot_counter}"
-                nome_tentativa_normalizado = normalizar_nome(nome_tentativa)
-                if nome_tentativa_normalizado not in todos_nomes_pivos_finais_normalizados:
-                    nome_final_para_virtual = nome_tentativa
-                    virtual_pivot_counter += 1
-                    break
-                virtual_pivot_counter += 1
-                if virtual_pivot_counter > len(ciclos) + len(pivos_de_pontos) + 100: # Safety break
-                    print(f"Erro: Loop infinito ao tentar nomear pivô virtual para '{nome_circulo}'")
-                    nome_final_para_virtual = f"Pivô Erro {uuid.uuid4().hex[:6]}" # Nome único de fallback
-                    break
-        
+        # Definindo nome do pivô virtual
+        nome_final_para_virtual = f"Pivô {virtual_pivot_counter}"
+        while normalizar_nome(nome_final_para_virtual) in todos_nomes_pivos_finais_normalizados:
+            virtual_pivot_counter += 1
+            nome_final_para_virtual = f"Pivô {virtual_pivot_counter}"
+
         final_pivos_list.append({"nome": nome_final_para_virtual, "lat": centro_lat, "lon": centro_lon})
         todos_nomes_pivos_finais_normalizados.add(normalizar_nome(nome_final_para_virtual))
-        print(f"   -> Pivô virtual criado: '{nome_final_para_virtual}' ({centro_lat:.6f}, {centro_lon:.6f}) a partir de '{nome_circulo}'")
+        print(f"   -> Pivô virtual criado: '{nome_final_para_virtual}' ({centro_lat:.6f}, {centro_lon:.6f})")
+
+        virtual_pivot_counter += 1
 
     if not antena:
-        print("   -> ⚠️ Nenhuma antena (torre, etc.) encontrada no KMZ.")
-        # Você pode querer lançar um erro se a antena for absolutamente necessária
-        # raise ValueError("Antena principal não encontrada no KMZ.")
+        print("   -> ⚠️ Nenhuma antena encontrada no KMZ.")
 
-    print(f"   -> Processamento KMZ concluído: {len(final_pivos_list)} pivôs totais, {len(bombas)} bombas.")
-    return antena, final_pivos_list, ciclos, bombas # Retorna a lista consolidada
+    print(f"   -> ✅ Processamento KMZ concluído: {len(final_pivos_list)} pivôs totais, {len(bombas)} bombas.")
+    return antena, final_pivos_list, ciclos, bombas
