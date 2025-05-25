@@ -1,7 +1,7 @@
 import httpx
 import json
 import os
-from . import config  # Importa as configurações (API_KEY, URL, etc.)
+from backend import config  # Importa as configurações (API_KEY, URL, etc.)
 
 # --- Funções Auxiliares ---
 
