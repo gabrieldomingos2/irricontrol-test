@@ -15,7 +15,8 @@ router = APIRouter(
     tags=["KMZ Operations"],
 )
 
-INPUT_KMZ_PATH = os.path.join(config.ARQUIVOS_DIR, "entrada.kmz")
+# Usa a variável de caminho absoluto do config.py
+INPUT_KMZ_PATH = os.path.join(config.ARQUIVOS_DIR_PATH, "entrada.kmz")
 
 @router.post("/processar")
 async def processar_kmz_endpoint(file: UploadFile = File(...)):
@@ -26,12 +27,14 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         print("📥 Recebendo arquivo KMZ...")
         conteudo = await file.read()
 
+        # Garante que o diretório de arquivos exista (config.py já faz isso, mas é uma segurança extra)
+        os.makedirs(config.ARQUIVOS_DIR_PATH, exist_ok=True)
         with open(INPUT_KMZ_PATH, "wb") as f:
             f.write(conteudo)
         print(f"   -> KMZ salvo em: {INPUT_KMZ_PATH}")
 
-        # Chama o parser com o caminho completo
-        antena, pivos, ciclos, bombas = kmz_parser.parse_kmz(INPUT_KMZ_PATH, config.ARQUIVOS_DIR)
+        # Chama o parser, passando o caminho absoluto para extração se necessário (embora config.py já crie)
+        antena, pivos, ciclos, bombas = kmz_parser.parse_kmz(INPUT_KMZ_PATH, config.ARQUIVOS_DIR_PATH)
 
         if not antena:
              raise HTTPException(status_code=404, detail="Antena principal (torre, barracão, etc.) não encontrada no KMZ.")
@@ -47,7 +50,7 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         print(f"❌ Erro de Validação KMZ: {ve}")
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        print(f"❌ Erro Interno em /processar_kmz: {e}")
+        print(f"❌ Erro Interno em /kmz/processar: {e}")
         raise HTTPException(status_code=500, detail=f"Erro interno ao processar KMZ: {str(e)}")
 
 
@@ -65,17 +68,17 @@ def exportar_kmz_endpoint(
     if not os.path.exists(INPUT_KMZ_PATH):
          raise HTTPException(status_code=400, detail="Nenhum KMZ foi processado ainda. Faça o upload primeiro.")
 
-    # Constrói caminhos absolutos para verificar existência
-    caminho_imagem_principal = os.path.join(config.IMAGENS_DIR, imagem)
-    caminho_bounds_principal = os.path.join(config.IMAGENS_DIR, bounds_file)
+    # Usa os caminhos absolutos do config.py
+    caminho_imagem_principal = os.path.join(config.IMAGENS_DIR_PATH, imagem)
+    caminho_bounds_principal = os.path.join(config.IMAGENS_DIR_PATH, bounds_file)
 
     if not os.path.exists(caminho_imagem_principal):
-        raise HTTPException(status_code=404, detail=f"Imagem principal '{imagem}' não encontrada em {config.IMAGENS_DIR}.")
+        raise HTTPException(status_code=404, detail=f"Imagem principal '{imagem}' não encontrada em {config.IMAGENS_DIR_PATH}.")
     if not os.path.exists(caminho_bounds_principal):
-        raise HTTPException(status_code=404, detail=f"Bounds '{bounds_file}' não encontrados em {config.IMAGENS_DIR}.")
+        raise HTTPException(status_code=404, detail=f"Bounds '{bounds_file}' não encontrados em {config.IMAGENS_DIR_PATH}.")
 
     try:
-        antena, pivos, ciclos, bombas = kmz_parser.parse_kmz(INPUT_KMZ_PATH, config.ARQUIVOS_DIR)
+        antena, pivos, ciclos, _ = kmz_parser.parse_kmz(INPUT_KMZ_PATH, config.ARQUIVOS_DIR_PATH)
 
         with open(caminho_bounds_principal, "r") as f:
             bounds_principal = json.load(f).get("bounds")
@@ -87,10 +90,10 @@ def exportar_kmz_endpoint(
         doc = kml.document
 
         torre_style = simplekml.Style()
-        torre_style.iconstyle.icon.href = "cloudrf.png"
+        torre_style.iconstyle.icon.href = "cloudrf.png" # Nome do arquivo que estará na raiz do KMZ
         torre_style.iconstyle.scale = 1.2
-        pivo_style = simplekml.Style()
-        pivo_style.iconstyle.scale = 0.8
+        # pivo_style = simplekml.Style() # Removido se não estiver sendo usado
+        # pivo_style.iconstyle.scale = 0.8
 
         print("   -> Adicionando elementos ao KML...")
         pnt_antena = doc.newpoint(name=antena["nome"], coords=[(antena["lon"], antena["lat"])])
@@ -109,49 +112,58 @@ def exportar_kmz_endpoint(
 
         print("   -> Adicionando overlays...")
         ground_main = doc.newgroundoverlay(name="Cobertura Principal")
-        ground_main.icon.href = imagem
+        ground_main.icon.href = imagem # Nome do arquivo que estará na raiz do KMZ
         b = bounds_principal
         ground_main.latlonbox.north, ground_main.latlonbox.south = b[2], b[0]
         ground_main.latlonbox.east, ground_main.latlonbox.west = b[3], b[1]
-        ground_main.color = "aaffffff"
+        ground_main.color = "aaffffff" # Adiciona transparência
 
-        arquivos_a_adicionar = [(caminho_imagem_principal, imagem)]
+        arquivos_a_adicionar_ao_kmz = [(caminho_imagem_principal, imagem)] # (caminho_no_servidor, nome_no_kmz)
 
-        for arq in os.listdir(config.IMAGENS_DIR):
-            if arq.startswith("repetidora_") and arq.endswith(".png"):
-                caminho_rep_img = os.path.join(config.IMAGENS_DIR, arq)
-                caminho_rep_json = caminho_rep_img.replace(".png", ".json")
+        # Lista arquivos da pasta de imagens no servidor
+        for arq_nome_no_servidor in os.listdir(config.IMAGENS_DIR_PATH):
+            if arq_nome_no_servidor.startswith("repetidora_") and arq_nome_no_servidor.endswith(".png"):
+                caminho_rep_img_servidor = os.path.join(config.IMAGENS_DIR_PATH, arq_nome_no_servidor)
+                caminho_rep_json_servidor = caminho_rep_img_servidor.replace(".png", ".json")
 
-                if os.path.exists(caminho_rep_json):
-                    with open(caminho_rep_json, "r") as f:
+                if os.path.exists(caminho_rep_json_servidor):
+                    with open(caminho_rep_json_servidor, "r") as f:
                         bounds_rep = json.load(f).get("bounds")
 
                     if bounds_rep:
-                        ground_rep = doc.newgroundoverlay(name=f"Repetidora {arq}")
-                        ground_rep.icon.href = arq
+                        ground_rep = doc.newgroundoverlay(name=f"Repetidora {arq_nome_no_servidor}")
+                        ground_rep.icon.href = arq_nome_no_servidor # Nome do arquivo na raiz do KMZ
                         b_rep = bounds_rep
                         ground_rep.latlonbox.north, ground_rep.latlonbox.south = b_rep[2], b_rep[0]
                         ground_rep.latlonbox.east, ground_rep.latlonbox.west = b_rep[3], b_rep[1]
-                        ground_rep.color = "aaffffff"
-                        arquivos_a_adicionar.append((caminho_rep_img, arq))
-                        print(f"      -> Overlay {arq} adicionado.")
+                        ground_rep.color = "aaffffff" # Adiciona transparência
+                        arquivos_a_adicionar_ao_kmz.append((caminho_rep_img_servidor, arq_nome_no_servidor))
+                        print(f"      -> Overlay {arq_nome_no_servidor} adicionado ao KML.")
 
-        caminho_kml_temp = os.path.join(config.ARQUIVOS_DIR, "estudo_temp.kml")
+        # Salva o KML temporariamente
+        caminho_kml_temp = os.path.join(config.ARQUIVOS_DIR_PATH, "estudo_temp.kml")
         kml.save(caminho_kml_temp)
         print(f"   -> KML temporário salvo em: {caminho_kml_temp}")
 
+        # Cria o arquivo KMZ final
         nome_kmz_final = f"estudo-irricontrol-{datetime.now().strftime('%Y%m%d_%H%M%S')}.kmz"
-        caminho_kmz_final = os.path.join(config.ARQUIVOS_DIR, nome_kmz_final)
+        caminho_kmz_final = os.path.join(config.ARQUIVOS_DIR_PATH, nome_kmz_final)
 
         print(f"   -> Criando KMZ final: {caminho_kmz_final}")
         with zipfile.ZipFile(caminho_kmz_final, "w", zipfile.ZIP_DEFLATED) as kmz_zip:
-            kmz_zip.write(caminho_kml_temp, "doc.kml")
-            caminho_icone = os.path.join(config.IMAGENS_DIR, "cloudrf.png")
-            if os.path.exists(caminho_icone):
-                kmz_zip.write(caminho_icone, "cloudrf.png")
-            for caminho_origem, nome_destino in arquivos_a_adicionar:
-                kmz_zip.write(caminho_origem, nome_destino)
-        os.remove(caminho_kml_temp)
+            kmz_zip.write(caminho_kml_temp, "doc.kml") # KML principal deve ter este nome dentro do ZIP
+
+            # Adiciona o ícone da torre (copiado da pasta de imagens do servidor para a raiz do KMZ)
+            caminho_icone_servidor = os.path.join(config.IMAGENS_DIR_PATH, "cloudrf.png")
+            if os.path.exists(caminho_icone_servidor):
+                kmz_zip.write(caminho_icone_servidor, "cloudrf.png") # Nome do arquivo na raiz do KMZ
+
+            # Adiciona todas as imagens de overlay (principal e repetidoras) à raiz do KMZ
+            for caminho_origem_servidor, nome_destino_no_kmz in arquivos_a_adicionar_ao_kmz:
+                if os.path.exists(caminho_origem_servidor):
+                    kmz_zip.write(caminho_origem_servidor, nome_destino_no_kmz)
+        
+        os.remove(caminho_kml_temp) # Limpa o KML temporário
 
         print("   -> Exportação KMZ concluída.")
         return FileResponse(
@@ -161,14 +173,15 @@ def exportar_kmz_endpoint(
         )
 
     except Exception as e:
-        print(f"❌ Erro Interno em /exportar_kmz: {e}")
+        print(f"❌ Erro Interno em /kmz/exportar: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao exportar KMZ: {str(e)}")
 
 
 @router.get("/icone-torre")
 async def get_icone_torre():
     """Serve a imagem do ícone da torre."""
-    caminho_icone = os.path.join(config.IMAGENS_DIR, "cloudrf.png")
+    # Usa o caminho absoluto do config.py
+    caminho_icone = os.path.join(config.IMAGENS_DIR_PATH, "cloudrf.png")
     if os.path.exists(caminho_icone):
         return FileResponse(caminho_icone, media_type="image/png")
     raise HTTPException(status_code=404, detail="Ícone não encontrado.")
