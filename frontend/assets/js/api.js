@@ -1,7 +1,7 @@
 // ATENÇÃO AQUI: Verifique se esta URL é EXATAMENTE a URL do seu serviço no Render.
 // Se o seu serviço no Render se chama 'meu-simulador-irrigacao',
 // a URL seria 'https://meu-simulador-irrigacao.onrender.com'
-const BACKEND_URL = "https://meu-irricontrol-api.onrender.com";
+const BACKEND_URL = "https://irricontrol-test.onrender.com";
 
 /**
  * Envia o arquivo KMZ para processamento no backend.
