@@ -145,7 +145,7 @@ def exportar_kmz_endpoint(
             pol.outerboundaryis = [(lon, lat) for lat, lon in ciclo["coordenadas"]]
             pol.style.polystyle.fill = 0
             pol.style.linestyle.color = simplekml.Color.red
-            pol.style.linestyle.width = 2
+            pol.style.linestyle.width = 4
         print("   -> Pasta 'Ciclos' criada.")
 
         # --- PASTA BOMBAS ---

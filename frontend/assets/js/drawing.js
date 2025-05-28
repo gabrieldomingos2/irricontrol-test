@@ -557,7 +557,7 @@ function drawVisadaComGradiente(pontoA, pontoB) {
 
     const linha = L.polyline([pontoA, pontoB], {
         color: 'url(#gradient-visada)',
-        weight: 4,
+        weight: 2,
         opacity: visadaVisivel ? 1 : 0.5,
         dashArray: '8 8',
         className: 'linha-pontilhada',
