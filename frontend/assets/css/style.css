@@ -26,13 +26,19 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  /* Cor base e transição com sombra */
+  color: rgba(255, 255, 255, 0.7); /* text-white/70 */
+  transition: all 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
+  box-shadow: none;
 }
 
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
+  /* Cor azul (sky-300) e sombra no hover */
+  color: #7DD3FC;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
 .glass-button.hidden {
@@ -42,32 +48,44 @@ html, body {
 .glass-button-active {
   background-color: rgba(96, 165, 250, 0.15);
   border-color: rgba(96, 165, 250, 0.5);
-}
-
-.glass-button-active .icon-via-mask {
-  background-color: #60A5FA;
+  /* Cor azul quando ativo */
+  color: #7DD3FC;
+  box-shadow: 0 0 8px rgba(96, 165, 250, 0.4); /* Sombra azul opcional */
 }
 
 /* ========================= */
-/* 🧠 ÍCONES */
+/* Botão Repetidora          */
 /* ========================= */
-.icon-via-mask {
+
+#confirmar-repetidora {
+  /* Usa as classes Tailwind, mas garantimos a cor aqui se necessário */
+  /* Se você usar as classes hover:text-sky-300, esta parte pode não ser necessária, */
+  /* mas garante o comportamento se as classes forem removidas */
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease, color 0.3s ease;
+}
+
+#confirmar-repetidora:hover {
+  /* Define a cor azul no hover (sky-300) */
+  color: #7DD3FC;
+}
+
+
+/* ========================= */
+/* 🧠 ÍCONES                */
+/* ========================= */
+
+/* Ícones com Máscara e currentColor (Serve para Sidebar e Topbar) */
+.sidebar-icon {
   display: inline-block;
-  width: 20px;
-  height: 20px;
-  background-color: #B0BEC5;
+  background-color: currentColor; /* Pega a cor do texto pai! */
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-position: center;
   mask-position: center;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  transition: background-color 0.3s ease, transform 0.3s ease;
-}
-
-.glass-button:hover .icon-via-mask {
-  background-color: #60A5FA;
-  transform: scale(1.1);
+  transition: background-color 0.3s ease; /* Transição suave da cor */
 }
 
 /* ==================== */
@@ -237,11 +255,11 @@ input[type="file"].hidden {
   appearance: none;
   width: 14px;
   height: 14px;
-  background-color: #3B82F6;
+  background-color: #3B82F6; /* Azul um pouco diferente, mas pode mudar para #7DD3FC */
   border-radius: 9999px;
   cursor: pointer;
   border: none;
-  margin-top: 0px; /* ✅ Centraliza a bolinha na barra */
+  margin-top: 0px;
   box-shadow: 0 0 6px rgba(59, 130, 246, 0.7);
   transition: transform 0.2s;
 }
@@ -263,7 +281,7 @@ input[type="file"].hidden {
   font-size: 12px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
   opacity: 0;
-  transform: scale(1); /* ✅ Remove o scale menor */
+  transform: scale(1);
   transition: opacity 0.3s ease;
   text-align: center;
 }
@@ -274,7 +292,7 @@ input[type="file"].hidden {
 
 
 .leaflet-tooltip.tooltip-sinal::before {
-  display: none; /* 🔥 Remove a setinha */
+  display: none;
 }
 
 .leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible {
@@ -310,7 +328,7 @@ input[type="file"].hidden {
 }
 
 
-button, .glass-button {
+button, .glass-button, label[for="arquivo"] {
   cursor: pointer !important;
 }
 

@@ -24,23 +24,29 @@
         </div>
         <div class="flex items-center gap-2 ml-[20px]">
             <span class="text-white/70 text-sm font-medium mr-2">Ferramentas</span>
+
             <button id="toggle-painel" class="glass-button p-2" title="Dados">
-                <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/file-chart-column.svg); mask-image: url(assets/images/file-chart-column.svg);"></span>
             </button>
+
             <button id="toggle-repetidoras" class="glass-button p-2" title="Repetidoras">
-                <i data-lucide="radio" class="w-5 h-5"></i>
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
             </button>
+
             <button id="btn-visada" class="glass-button p-2" title="Linha de Visada">
-                <i data-lucide="mountain" class="w-5 h-5"></i>
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
             </button>
+
             <button id="toggle-legenda" class="glass-button p-2" title="Legenda">
-                <i data-lucide="captions" class="w-5 h-5"></i>
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/captions.svg); mask-image: url(assets/images/captions.svg);"></span>
             </button>
+
             <button id="editar-pivos" class="glass-button p-2" title="Editar Pivôs">
-                <i data-lucide="pencil" class="w-5 h-5"></i>
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/pencil.svg); mask-image: url(assets/images/pencil.svg);"></span>
             </button>
+
             <button id="desfazer-edicao" class="glass-button p-2 hidden" title="Resetar">
-                <i data-lucide="undo-2" class="w-5 h-5"></i>
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/undo-2.svg); mask-image: url(assets/images/undo-2.svg);"></span>
             </button>
         </div>
     </div>
@@ -57,29 +63,35 @@
         <div class="flex flex-col gap-3">
             <form id="formulario" enctype="multipart/form-data" class="flex flex-col gap-3">
                 <label for="arquivo" class="w-60 h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-                    <img src="assets/images/file-up.svg" class="w-5 h-5 ml-2" alt="Escolher Arquivo" /> <span id="nome-arquivo-label" class="text-sm font-medium truncate">Escolher Arquivo KMZ</span>
+                    <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/file-up.svg); mask-image: url(assets/images/file-up.svg);"></span>
+                    <span id="nome-arquivo-label" class="text-sm font-medium truncate">Escolher Arquivo KMZ</span>
                 </label>
                 <input type="file" id="arquivo" accept=".kmz" required class="hidden" />
 
                 <button type="submit" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-                    <img src="assets/images/map-pinned.svg" class="w-5 h-5 ml-2" alt="Carregar KMZ" /> <span class="text-sm font-medium">Carregar KMZ</span>
+                    <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/map-pinned.svg); mask-image: url(assets/images/map-pinned.svg);"></span>
+                    <span class="text-sm font-medium">Carregar KMZ</span>
                 </button>
             </form>
 
             <button id="simular-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
-                <img src="assets/images/radio.svg" class="w-5 h-5 ml-2" alt="Rodar Estudo" /> <span class="text-sm font-medium">Rodar Estudo de Sinal</span>
+                <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
+                <span class="text-sm font-medium">Rodar Estudo de Sinal</span>
             </button>
 
             <button id="btn-diagnostico" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
-                <img src="assets/images/mountain.svg" class="w-5 h-5 ml-2" alt="Diagnóstico Visada" /> <span class="text-sm font-medium">Diagnóstico de Visada</span>
+                <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
+                <span class="text-sm font-medium">Diagnóstico de Visada</span>
             </button>
 
             <button id="exportar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-                <img src="assets/images/download.svg" class="w-5 h-5 ml-2" alt="Exportar KMZ" /> <span class="text-sm font-medium">Exportar KMZ</span>
+                <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/download.svg); mask-image: url(assets/images/download.svg);"></span>
+                <span class="text-sm font-medium">Exportar KMZ</span>
             </button>
 
             <button id="resetar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-                <img src="assets/images/undo-2.svg" class="w-5 h-5 ml-2" alt="Resetar" /> <span class="text-sm font-medium">Resetar</span>
+                <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/undo-2.svg); mask-image: url(assets/images/undo-2.svg);"></span>
+                <span class="text-sm font-medium">Resetar</span>
             </button>
         </div>
 
@@ -92,9 +104,10 @@
             <input id="altura-antena-rep" type="number" value="5" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
             <label class="text-xs text-white/60 mb-1 block">Altura do Receiver (m)</label>
             <input id="altura-receiver-rep" type="number" value="3" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
-            <button id="confirmar-repetidora" class="w-full h-8 flex items-center justify-center gap-2 border border-white/15 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition">
-                <img src="assets/images/radio.svg" class="w-5 h-5" alt="Simular Repetidora" /> <span class="text-sm font-medium">📡 Simular</span>
-            </button>
+            <button id="confirmar-repetidora" class="w-full h-8 flex items-center justify-center gap-2 border border-white/15 rounded-lg bg-white/10 hover:bg-white/20 text-[#B0BEC5] hover:text-[#60A5FA] shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition">
+             <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
+             <span class="text-sm font-medium">Simular</span>
+             </button>
         </div>
     </div>
 
@@ -126,7 +139,6 @@
             <p id="total-repetidoras" class="text-sm text-white/70 mb-1">Total Repetidoras: --</p>
             <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden">Casas de bomba: --</p>
         </div>
-
         <div id="painel-repetidoras" class="w-56 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2">
             <h2 class="text-sm font-semibold text-white/80 mb-2 px-2">📡 Repetidoras</h2>
             <div id="lista-repetidoras" class="space-y-1 text-sm max-h-36 overflow-y-auto px-2 pb-2">
@@ -154,5 +166,4 @@
     </script>
 
 </body>
-
 </html>
