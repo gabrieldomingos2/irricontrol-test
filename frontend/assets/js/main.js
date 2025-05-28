@@ -289,11 +289,11 @@ function handleResetClick(showMessage = true) {
     repetidoras = [];
     contadorRepetidoras = 0;
     idsDisponiveis = [];
-    legendasAtivas = true;
+    legendasAtivas = true; // Legendas devem estar visíveis por padrão após o reset
     marcadoresLegenda = [];
     marcadoresBombas = [];
     posicoesEditadas = {};
-    window.backupPosicoesPivos = {}; // <<< Usa window.
+    window.backupPosicoesPivos = {};
     overlaysVisiveis = [];
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
@@ -306,11 +306,22 @@ function handleResetClick(showMessage = true) {
     document.getElementById("btn-diagnostico").classList.add("hidden");
 
     const btnEditar = document.getElementById("editar-pivos");
-    btnEditar.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+    const btnEditarIconSpan = btnEditar.querySelector('.sidebar-icon'); // Se o botão editar também usa span
+    if (btnEditarIconSpan) { // Verifica se o span do ícone existe
+        btnEditarIconSpan.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
+        btnEditarIconSpan.style.maskImage = 'url(assets/images/pencil.svg)';
+    } else { // Fallback se ainda usa Lucide para este botão específico
+        btnEditar.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+        lucide.createIcons(); // Chamar lucide.createIcons() apenas se necessário
+    }
     btnEditar.title = "Editar Pivôs";
     btnEditar.classList.remove('glass-button-active');
     document.getElementById("desfazer-edicao").classList.add("hidden");
-    lucide.createIcons();
+
+    // Se o botão de editar pivôs foi alterado para <span>, a chamada lucide.createIcons()
+    // para ele pode não ser mais necessária aqui, a menos que outros ícones precisem ser recriados.
+    // Se todos os ícones relevantes agora são spans, você pode remover chamadas específicas do lucide.createIcons().
+    // A chamada geral no DOMContentLoaded ainda é útil para ícones Lucide estáticos na página.
 
     document.getElementById("lista-repetidoras").innerHTML = "";
     document.getElementById("painel-repetidora").classList.add("hidden");
@@ -322,6 +333,21 @@ function handleResetClick(showMessage = true) {
     document.getElementById("range-opacidade").value = 1;
 
     map.setView([-15, -55], 5);
+
+    atualizarPainelDados();
+    reposicionarPaineisLaterais();
+
+    // ADICIONADO: Garante que o botão de legenda reflita o estado inicial (legendasAtivas = true)
+    // Com a lógica atualizada em toggleLegendas, isso fará:
+    // 1. Botão NÃO terá 'glass-button-active'
+    // 2. Ícone será 'captions.svg'
+    // 3. Title será "Esconder Legendas"
+    if (typeof toggleLegendas === 'function') {
+        toggleLegendas(true);
+    } else {
+        console.error("Função toggleLegendas não está definida globalmente ou não foi carregada.");
+    }
+
 
     if (showMessage) mostrarMensagem("🔄 Aplicação resetada.", "sucesso");
 

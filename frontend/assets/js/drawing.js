@@ -451,15 +451,18 @@ function clearMapLayers() {
 /**
  * Alterna a visibilidade das legendas L.Marker (Antena, Bombas, Repetidoras).
  * Pivôs são controlados por hover (Tooltip) e não são afetados aqui.
- * @param {boolean} show - True para mostrar, false para esconder.
+ * @param {boolean} show - True para mostrar legendas, false para esconder.
  */
 function toggleLegendas(show) {
-    legendasAtivas = show;
-    const legendaIcon = document.querySelector("#toggle-legenda i");
+    legendasAtivas = show; // Atualiza o estado global
+
+    const toggleLegendaButton = document.getElementById("toggle-legenda");
+    // Seleciona o span dentro do botão para trocar o ícone
+    const iconSpan = toggleLegendaButton ? toggleLegendaButton.querySelector('.sidebar-icon') : null;
 
     const isParentVisible = (labelMarker) => {
         const labelType = labelMarker.options.labelType;
-        const html = labelMarker.options.icon.options.html;
+        // const html = labelMarker.options.icon.options.html; // Não usado aqui
         let checkbox = null;
 
         if (labelType === 'antena') {
@@ -484,12 +487,23 @@ function toggleLegendas(show) {
         }
     });
 
-    const toggleLegendaButton = document.getElementById("toggle-legenda");
     if (toggleLegendaButton) {
-        toggleLegendaButton.classList.toggle("glass-button-active", show);
+        // ATUALIZADO: O botão fica "ativo" (glass-button-active) quando as legendas estão ESCONDIDAS (show === false)
+        toggleLegendaButton.classList.toggle("glass-button-active", !show);
         toggleLegendaButton.title = show ? "Esconder Legendas" : "Mostrar Legendas";
-        if (legendaIcon) legendaIcon.setAttribute('data-lucide', show ? 'captions' : 'captions-off');
-        lucide.createIcons();
+
+        // ATUALIZADO: Muda o ícone com base no estado 'show'
+        if (iconSpan) {
+            if (show) {
+                iconSpan.style.webkitMaskImage = 'url(assets/images/captions.svg)';
+                iconSpan.style.maskImage = 'url(assets/images/captions.svg)';
+            } else {
+                // Assumindo que você tem um ícone para legendas desligadas
+                // CRIE ESTE ARQUIVO: assets/images/captions-off.svg
+                iconSpan.style.webkitMaskImage = 'url(assets/images/captions-off.svg)';
+                iconSpan.style.maskImage = 'url(assets/images/captions-off.svg)';
+            }
+        }
     }
 }
 
