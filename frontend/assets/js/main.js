@@ -472,45 +472,81 @@ window.removePositioningMarker = removePositioningMarker;
 
 function enablePivoEditingMode() {
     window.modoEdicaoPivos = true;
-    console.log("Ativando modo de edição.");
-    window.backupPosicoesPivos = {}; // <<< Usa window.
+    console.log("✏️ Ativando modo de edição com ícone de pino SVG.");
+    window.backupPosicoesPivos = {};
+
+    const tamanho = 18;   // Largura do ícone
+    const altura = 26;    // Altura do ícone
+
     Object.entries(pivotsMap).forEach(([nome, marcador]) => {
-        window.backupPosicoesPivos[nome] = marcador.getLatLng(); // <<< Usa window.
+        window.backupPosicoesPivos[nome] = marcador.getLatLng();
+
+        const editMarkerIcon = L.divIcon({
+            className: 'pivo-edit-handle-custom-pin',
+            html: `
+            <svg viewBox="0 0 28 40" width="${tamanho}" height="${altura}" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 0 C7.486 0 2 5.486 2 12.014 C2 20.014 14 40 14 40 C14 40 26 20.014 26 12.014 C26 5.486 20.514 0 14 0 Z 
+                M14 18 C10.686 18 8 15.314 8 12 C8 8.686 10.686 6 14 6 C17.314 6 20 8.686 20 12 C20 15.314 17.314 18 14 18 Z"
+                fill="#FF3333" stroke="#660000" stroke-width="1"/>
+            </svg>`,
+            iconSize: [tamanho, altura],
+            iconAnchor: [tamanho / 2, altura] // Ponta inferior central
+        });
 
         const editMarker = L.marker(marcador.getLatLng(), {
             draggable: true,
-            icon: L.divIcon({
-                className: 'label-pivo', html: `📍`, iconSize: [20, 20], iconAnchor: [10, 20]
-            })
+            icon: editMarkerIcon
         }).addTo(map);
 
         marcador.editMarker = editMarker;
-        const label = marcadoresLegenda.find(lbl => lbl.getLatLng().equals(marcador.getLatLng()) && lbl.options.icon.options.html.includes(nome));
 
-        editMarker.on("drag", (e) => { if (label) label.setLatLng(e.target.getLatLng()); });
+        const label = marcadoresLegenda.find(lbl => {
+            return lbl?.getLatLng()?.equals(marcador.getLatLng()) &&
+                   lbl?.options?.icon?.options?.html?.includes(nome);
+        });
+
+        editMarker.on("drag", (e) => {
+            const novaPos = e.target.getLatLng();
+            if (label) label.setLatLng(novaPos);
+            marcador.setLatLng(novaPos);
+        });
+
         editMarker.on("dragend", (e) => {
             const novaPos = e.target.getLatLng();
             posicoesEditadas[nome] = novaPos;
             if (label) label.setLatLng(novaPos);
-            console.log(`Pivô ${nome} movido para:`, novaPos);
+            marcador.setLatLng(novaPos);
+            console.log(`📍 Pivô ${nome} movido para:`, novaPos);
         });
 
         editMarker.on("contextmenu", (e) => {
-            L.DomEvent.stopPropagation(e); L.DomEvent.preventDefault(e);
-            if (confirm(`Tem certeza que deseja remover o pivô ${nome}?`)) {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+            if (confirm(`❌ Tem certeza que deseja remover o pivô ${nome}?`)) {
                 map.removeLayer(editMarker);
-                if (pivotsMap[nome] && map.hasLayer(pivotsMap[nome])) { map.removeLayer(pivotsMap[nome]); }
-                if (label) map.removeLayer(label);
-                delete pivotsMap[nome]; delete posicoesEditadas[nome]; delete window.backupPosicoesPivos[nome]; // <<< Usa window.
+                if (pivotsMap[nome] && map.hasLayer(pivotsMap[nome])) {
+                    map.removeLayer(pivotsMap[nome]);
+                }
+                if (label && map.hasLayer(label)) {
+                    map.removeLayer(label);
+                    marcadoresLegenda = marcadoresLegenda.filter(l => l !== label);
+                }
+                delete pivotsMap[nome];
+                delete posicoesEditadas[nome];
+                delete window.backupPosicoesPivos[nome];
                 marcadoresPivos = marcadoresPivos.filter(m => m !== marcador);
-                marcadoresLegenda = marcadoresLegenda.filter(l => l !== label);
                 mostrarMensagem(`🗑️ Pivô ${nome} removido.`, "sucesso");
                 atualizarPainelDados();
             }
         });
+
         map.removeLayer(marcador);
     });
-    mostrarMensagem("✏️ Modo de edição ativado. Arraste 📍 ou clique com botão direito para remover.", "sucesso");
+
+    mostrarMensagem(
+        "✏️ Modo de edição ativado. Arraste o pino vermelho ou clique com botão direito para remover.",
+        "sucesso"
+    );
 }
 
 // --- ALTERADO: Função disablePivoEditingMode ---

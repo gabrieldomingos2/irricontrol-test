@@ -287,13 +287,29 @@ input[type="file"].hidden {
     stroke-linecap: round;
 }
 
+/* ===================== */
+/* Pin de Edit */
+/* ===================== */
 
-/* 🔥 Seta no mapa */
+.pivo-edit-handle-custom-pin {
+    filter: drop-shadow(0 0 3px red);
+    cursor: grab;
+}
+.pivo-edit-handle-custom-pin:active {
+    cursor: grabbing;
+}
+
+
+/* ===================== */
+/* 🔥 Seta no mapa 👆 Mãozinha nos botões */
+/* ===================== */
+
+
 #map, .leaflet-interactive {
   cursor: default !important;
 }
 
-/* 👆 Mãozinha nos botões */
+
 button, .glass-button {
   cursor: pointer !important;
 }

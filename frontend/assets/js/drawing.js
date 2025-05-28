@@ -209,7 +209,7 @@ function drawCirculos(ciclosData) {
     circulosPivos = ciclosData.map(circulo =>
         L.polygon(circulo.coordenadas, {
             color: '#cc0000',
-            weight: 4,
+            weight: 2,
             opacity: 0.9,
             fillOpacity: 0,
             className: 'circulo-vermelho-pulsante'
