@@ -56,57 +56,78 @@
   </div>
 
   <div class="absolute top-14 bottom-14 left-0 w-[280px] bg-[#060B10] z-40 p-4">
-      <div class="mb-4 backdrop-blur bg-white/5 border border-white/15 px-3 py-[6px] rounded-lg shadow-sm flex items-center gap-2">
-        <label for="template-modelo" class="text-sm text-white/70 whitespace-nowrap"> 🌐 Template: </label>
-        <select id="template-modelo" class="px-2 py-[3px] rounded-md bg-[#060B10]/70 border border-white/15 text-white/80 text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition w-full">
-            <option>BR Brazil_V6</option>
-            <option>EU Europe_V6</option>
-        </select>
-      </div>
-      <div class="flex flex-col gap-3">
-        <form id="formulario" enctype="multipart/form-data" class="flex flex-col gap-3">
-            <label for="arquivo" class="w-60 h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4-4m0 0l4 4m-4-4v12"/> </svg>
-                <span id="nome-arquivo-label" class="text-sm font-medium truncate">Escolher Arquivo KMZ</span>
-            </label>
-            <input type="file" id="arquivo" accept=".kmz" required class="hidden" />
-            <button type="submit" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M4 4h16v4H4V4zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/> </svg>
-                <span class="text-sm font-medium">Carregar KMZ</span>
-            </button>
-        </form>
-        <button id="simular-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4-4m0 0l4 4m-4-4v12"/> </svg>
-            <span class="text-sm font-medium">Rodar Estudo de Sinal</span>
-        </button>
-        <button id="btn-diagnostico" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6h6v6h5v2H4v-2h5z"/> </svg>
-            <span class="text-sm font-medium">Diagnóstico de Visada</span>
-        </button>
-        <button id="exportar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/> </svg>
-            <span class="text-sm font-medium">Exportar KMZ</span>
-        </button>
-        <button id="resetar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5 ml-2"> <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582a9 9 0 0115.249 5.93M20 20v-5h-.581a9 9 0 00-15.249-5.93"/> </svg>
-            <span class="text-sm font-medium">Resetar</span>
-        </button>
-      </div>
-      <div id="painel-repetidora" class="mt-4 bg-white/5 border border-white/15 backdrop-blur-md rounded-xl shadow-lg w-60 p-2 hidden">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="font-semibold text-sm text-white/80">➕ Configurar Repetidora</h2>
-          <button id="fechar-painel-rep" class="text-red-400 hover:text-red-500 font-bold text-lg">✖</button>
-        </div>
-        <label class="text-xs text-white/60 mb-1 block">Altura da Antena (m)</label>
-        <input id="altura-antena-rep" type="number" value="5" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
-        <label class="text-xs text-white/60 mb-1 block">Altura do Receiver (m)</label>
-        <input id="altura-receiver-rep" type="number" value="3" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
-        <button id="confirmar-repetidora" class="w-full h-8 flex items-center justify-center gap-2 border border-white/15 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#3B82F6" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M8 12l4-4m0 0l4 4m-4-4v12"/></svg>
-            <span class="text-sm font-medium">📡 Simular</span>
-        </button>
-      </div>
+
+  <div class="mb-4 backdrop-blur bg-white/5 border border-white/15 px-3 py-[6px] rounded-lg shadow-sm flex items-center gap-2">
+    <label for="template-modelo" class="text-sm text-white/70 whitespace-nowrap">🌐 Template:</label>
+    <select id="template-modelo" class="px-2 py-[3px] rounded-md bg-[#060B10]/70 border border-white/15 text-white/80 text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition w-full">
+      <option>BR Brazil_V6</option>
+      <option>EU Europe_V6</option>
+    </select>
   </div>
+
+  <div class="flex flex-col gap-3">
+
+    <!-- Escolher Arquivo KMZ -->
+    <form id="formulario" enctype="multipart/form-data" class="flex flex-col gap-3">
+      <label for="arquivo" class="w-60 h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+        <img src="assets/images/icons/file-up.svg" class="w-5 h-5 ml-2" />
+        <span id="nome-arquivo-label" class="text-sm font-medium truncate">Escolher Arquivo KMZ</span>
+      </label>
+      <input type="file" id="arquivo" accept=".kmz" required class="hidden" />
+
+      <!-- Carregar KMZ -->
+      <button type="submit" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+        <img src="assets/images/icons/map-pinned.svg" class="w-5 h-5 ml-2" />
+        <span class="text-sm font-medium">Carregar KMZ</span>
+      </button>
+    </form>
+
+    <!-- Rodar Estudo de Sinal -->
+    <button id="simular-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
+      <img src="assets/images/icons/radio.svg" class="w-5 h-5 ml-2" />
+      <span class="text-sm font-medium">Rodar Estudo de Sinal</span>
+    </button>
+
+    <!-- Diagnóstico de Visada -->
+    <button id="btn-diagnostico" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
+      <img src="assets/images/icons/mountain.svg" class="w-5 h-5 ml-2" />
+      <span class="text-sm font-medium">Diagnóstico de Visada</span>
+    </button>
+
+    <!-- Exportar KMZ -->
+    <button id="exportar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+      <img src="assets/images/icons/download.svg" class="w-5 h-5 ml-2" />
+      <span class="text-sm font-medium">Exportar KMZ</span>
+    </button>
+
+    <!-- Resetar -->
+    <button id="resetar-btn" class="w-60 h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
+      <img src="assets/images/icons/undo-2.svg" class="w-5 h-5 ml-2" />
+      <span class="text-sm font-medium">Resetar</span>
+    </button>
+
+  </div>
+
+  <!-- Painel de Configuração de Repetidora -->
+  <div id="painel-repetidora" class="mt-4 bg-white/5 border border-white/15 backdrop-blur-md rounded-xl shadow-lg w-60 p-2 hidden">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="font-semibold text-sm text-white/80">📡 Configurar Repetidora</h2>
+      <button id="fechar-painel-rep" class="text-red-400 hover:text-red-500 font-bold text-lg">✖</button>
+    </div>
+
+    <label class="text-xs text-white/60 mb-1 block">Altura da Antena (m)</label>
+    <input id="altura-antena-rep" type="number" value="5" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
+
+    <label class="text-xs text-white/60 mb-1 block">Altura do Receiver (m)</label>
+    <input id="altura-receiver-rep" type="number" value="3" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
+
+    <button id="confirmar-repetidora" class="w-full h-8 flex items-center justify-center gap-2 border border-white/15 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition">
+      <img src="assets/images/icons/radio.svg" class="w-5 h-5" />
+      <span class="text-sm font-medium">📡 Simular</span>
+    </button>
+  </div>
+
+</div>
 
   <div class="absolute top-14 bottom-14 right-0 w-12 bg-[#060B10] z-40"> </div>
 
