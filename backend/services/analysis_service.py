@@ -3,21 +3,19 @@
 from PIL import Image
 import httpx
 import os
-from math import sqrt, radians, sin, cos, atan2, degrees # Adicionado para Haversine
-from typing import List, Dict, Optional, Tuple # Adicionado para type hints
+from math import sqrt, radians, sin, cos, atan2, degrees
+from typing import List, Dict, Optional, Tuple
 
-# 👇 NOVOS IMPORTS NECESSÁRIOS 👇
 import rasterio
-from rasterio.windows import Window # Ou outros submódulos que você usar
-from rasterio.transform import from_origin # Ou outros submódulos
-from rasterio.warp import calculate_default_transform, reproject, Resampling # Se for fazer reprojeção/resampling
+from rasterio.windows import Window
+from rasterio.transform import from_origin
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 from scipy.ndimage import maximum_filter
 # import elevation # Descomente se for usar a biblioteca 'elevation' para baixar DEMs
 
-# Usa imports absolutos
 from backend import config
-from backend.services import cloudrf_service # cloudrf_service é usado em obter_perfil_elevacao
+from backend.services import cloudrf_service # Usado para get_http_client em obter_perfil_elevacao
 
 # --- Análise de Cobertura ---
 
@@ -37,12 +35,6 @@ def verificar_cobertura_pivos(pivos: list, overlays_info: list) -> list:
         for overlay in overlays_info:
             bounds = overlay["bounds"]
             imagem_rel_path = overlay["imagem"] # Ex: 'static/imagens/nome_imagem.png'
-            
-            # CORREÇÃO SUGERIDA para caminho da imagem:
-            # Assume que imagem_rel_path é algo como 'static/imagens/nome.png'
-            # e config.PROJECT_ROOT_DIR é o diretório que contém 'backend', 'static', etc.
-            # ou config.BACKEND_DIR é '.../backend' e static está em '../static'
-            # A forma mais robusta é usar caminhos absolutos baseados em config.py
             
             nome_base_imagem = os.path.basename(imagem_rel_path.split('?')[0])
             imagem_full_path = os.path.join(config.IMAGENS_DIR_PATH, nome_base_imagem)
@@ -80,7 +72,7 @@ def verificar_cobertura_pivos(pivos: list, overlays_info: list) -> list:
         pivo["fora"] = not coberto
         pivos_atualizados.append(pivo)
 
-    for img_obj in imagens_abertas.values(): # Renomeado para evitar conflito com módulo Image
+    for img_obj in imagens_abertas.values():
         img_obj.close()
 
     print("   -> Verificação de cobertura concluída.")
@@ -90,9 +82,6 @@ def verificar_cobertura_pivos(pivos: list, overlays_info: list) -> list:
 # --- Análise de Elevação (Função Existente) ---
 
 async def obter_perfil_elevacao(pontos: list, alt1: float, alt2: float) -> dict:
-    """
-    Busca elevações, calcula bloqueio de visada e retorna também o ponto mais alto da linha.
-    """
     if len(pontos) != 2:
         raise ValueError("São necessários exatamente dois pontos.")
 
@@ -109,7 +98,7 @@ async def obter_perfil_elevacao(pontos: list, alt1: float, alt2: float) -> dict:
     url = f"https://api.opentopodata.org/v1/srtm90m?locations={coords_param}"
 
     print("   -> Buscando elevações na OpenTopoData...")
-    async with await cloudrf_service.get_http_client() as client: # get_http_client é de cloudrf_service
+    async with await cloudrf_service.get_http_client() as client: 
         try:
             resp = await client.get(url)
             resp.raise_for_status()
@@ -127,7 +116,6 @@ async def obter_perfil_elevacao(pontos: list, alt1: float, alt2: float) -> dict:
         
     print(f"   -> Elevações recebidas (Min: {min(e for e in elevs if e is not None):.1f}m, Max: {max(e for e in elevs if e is not None):.1f}m)")
 
-
     elev1_total = elevs[0] + alt1
     elev2_total = elevs[-1] + alt2
     linha_visada = [
@@ -137,9 +125,8 @@ async def obter_perfil_elevacao(pontos: list, alt1: float, alt2: float) -> dict:
 
     bloqueio = None
     max_diferenca = 0
-    ponto_de_bloqueio_no_perfil = None
-
-    for i in range(1, steps): # Analisa pontos intermediários
+    
+    for i in range(1, steps): 
         elev_terreno = elevs[i]
         elev_visada = linha_visada[i]
         
@@ -147,13 +134,12 @@ async def obter_perfil_elevacao(pontos: list, alt1: float, alt2: float) -> dict:
             diferenca = elev_terreno - elev_visada
             if diferenca > max_diferenca:
                 max_diferenca = diferenca
-                ponto_de_bloqueio_no_perfil = amostrados[i]
                 bloqueio = {
                     "lat": amostrados[i][0],
                     "lon": amostrados[i][1],
                     "elev": float(elev_terreno),
                     "diff": float(diferenca),
-                    "dist": i / steps # Distância fracional ao longo do perfil
+                    "dist": i / steps 
                 }
 
     if bloqueio:
@@ -161,11 +147,17 @@ async def obter_perfil_elevacao(pontos: list, alt1: float, alt2: float) -> dict:
     else:
         print("   -> ✅ Visada livre!")
 
-    idx_max = elevs.index(max(e for e in elevs if e is not None))
+    idx_max_val = -float('inf')
+    idx_max_idx = 0
+    for i, e_val in enumerate(elevs):
+        if e_val is not None and e_val > idx_max_val:
+            idx_max_val = e_val
+            idx_max_idx = i
+            
     ponto_mais_alto = {
-        "lat": amostrados[idx_max][0],
-        "lon": amostrados[idx_max][1],
-        "elev": float(elevs[idx_max])
+        "lat": amostrados[idx_max_idx][0],
+        "lon": amostrados[idx_max_idx][1],
+        "elev": float(elevs[idx_max_idx]) if elevs[idx_max_idx] is not None else None
     }
 
     print(f"   -> 🏔️ Ponto mais alto na linha: {ponto_mais_alto}")
@@ -180,14 +172,13 @@ async def obter_perfil_elevacao(pontos: list, alt1: float, alt2: float) -> dict:
             }
             for i in range(steps + 1)
         ],
-        "bloqueio": bloqueio, # Será None se não houver bloqueio
+        "bloqueio": bloqueio,
         "ponto_mais_alto": ponto_mais_alto
     }
 
 
 # --- NOVAS FUNÇÕES PARA BUSCAR LOCAIS DE REPETIDORA ---
 
-# Função auxiliar para calcular distância (Haversine) - Mova para utils se usar em mais lugares
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000  # Raio da Terra em metros
     phi1, phi2 = radians(lat1), radians(lat2)
@@ -201,61 +192,40 @@ async def obter_dem_para_area_geografica(
     lat_central: float, lon_central: float, raio_busca_m: float,
     resolucao_desejada_m: Optional[float] = None 
 ) -> Tuple[np.ndarray, rasterio.Affine, rasterio.crs.CRS, Optional[float]]:
-    """
-    Obtém dados DEM para uma área geográfica.
-    Esta é uma implementação de EXEMPLO usando a biblioteca 'elevation'.
-    Adapte conforme sua fonte de DEM e estratégia de armazenamento/cache.
-    """
     print(f"   -> (DEM) Iniciando obtenção de DEM para área: ({lat_central}, {lon_central}), raio: {raio_busca_m}m")
     
     try:
-        import elevation # Tenta importar elevation. Requer instalação.
+        import elevation 
     except ImportError:
         print("   -> ❌ A biblioteca 'elevation' não está instalada. Necessária para download automático de DEM.")
         raise NotImplementedError("Biblioteca 'elevation' não encontrada. Obtenção de DEM não implementada.")
 
-    # Diretório para armazenar DEMs baixados (cache)
-    # Usa ARQUIVOS_DIR_PATH de config.py para um caminho dentro do seu projeto backend
     dem_cache_dir = os.path.join(config.ARQUIVOS_DIR_PATH, "dem_cache")
     os.makedirs(dem_cache_dir, exist_ok=True)
 
-    # Calcular os limites (bounds) da área de busca em graus
-    # Aproximação: 1 grau de latitude ~ 111km. Para longitude, depende da latitude.
-    # Uma forma mais precisa seria usar bibliotecas geodésicas, mas para o SRTM (global) isso costuma bastar.
     graus_lat_por_metro = 1.0 / 111000.0
     graus_lon_por_metro = 1.0 / (111000.0 * cos(radians(lat_central)))
     
     offset_lat = raio_busca_m * graus_lat_por_metro
     offset_lon = raio_busca_m * graus_lon_por_metro
     
-    bounds = ( # west, south, east, north
+    bounds_dem = ( 
         lon_central - offset_lon, lat_central - offset_lat,
         lon_central + offset_lon, lat_central + offset_lat
     )
     
-    # Nome do arquivo de saída para o DEM (pode ser um .tif temporário ou cacheado)
-    # Um nome de cache mais robusto poderia incluir os bounds ou um hash deles.
     output_dem_filename = f"dem_clip_{lat_central:.4f}_{lon_central:.4f}_{int(raio_busca_m)}m.tif"
     output_dem_path = os.path.join(dem_cache_dir, output_dem_filename)
 
     try:
-        # Baixa (se não existir no cache local do 'elevation') e recorta o DEM para os bounds.
-        # Produtos: 'SRTM1' (~30m), 'SRTM3' (~90m), 'COP30' (~30m), 'COP90' (~90m)
-        # A API OpenTopoData que você usa para perfis é baseada em SRTM90m.
-        # Usar SRTM3 (90m) aqui pode ser um bom começo para consistência e velocidade.
-        # Se precisar de maior resolução, 'COP30' é uma boa opção.
-        if not os.path.exists(output_dem_path): # Só baixa se não existir no nosso cache local
+        if not os.path.exists(output_dem_path):
             print(f"      -> DEM não encontrado em cache local: {output_dem_path}. Baixando com 'elevation' (produto SRTM3)...")
-            elevation.clip(bounds=bounds, output=output_dem_path, product='SRTM3')
+            elevation.clip(bounds=bounds_dem, output=output_dem_path, product='SRTM3')
             print(f"      -> DEM baixado e salvo em: {output_dem_path}")
         else:
             print(f"      -> Usando DEM do cache local: {output_dem_path}")
 
         with rasterio.open(output_dem_path) as src:
-            # Se uma resolução desejada for fornecida e for diferente da fonte,
-            # você poderia adicionar lógica de resampling aqui usando rasterio.warp.reproject.
-            # Por simplicidade, vamos usar a resolução nativa do DEM baixado/cacheado.
-            
             dem_array = src.read(1)
             dem_transform = src.transform
             dem_crs = src.crs
@@ -267,79 +237,147 @@ async def obter_dem_para_area_geografica(
         print(f"   -> ❌ Erro ao obter/processar DEM com 'elevation': {e}")
         import traceback
         traceback.print_exc()
-        # Se falhar ao obter DEM, levanta uma exceção que o endpoint pode tratar.
         raise FileNotFoundError(f"Falha crítica ao obter DEM para a área via 'elevation': {e}")
 
 
 async def encontrar_locais_altos_para_repetidora(
-    alvo_lat: float, alvo_lon: float, alvo_nome: str, raio_busca_m: float,
-    altura_antena_repetidora_proposta: float, altura_receptor_pivo: float
+    alvo_lat: float, alvo_lon: float, alvo_nome: str,
+    altura_antena_repetidora_proposta: float, altura_receptor_pivo: float,
+    active_overlays_data: List[Dict] 
 ) -> List[Dict]:
     """
-    Encontra pontos altos em um raio ao redor do pivô alvo e verifica LoS.
+    Encontra pontos altos DENTRO DAS ÁREAS DE COBERTURA (active_overlays_data)
+    e verifica LoS para o pivô alvo.
     """
-    print(f"🔎 Iniciando busca por pontos altos para o pivô '{alvo_nome}' em ({alvo_lat:.5f}, {alvo_lon:.5f}), raio {raio_busca_m}m.")
+    print(f"🔎 Iniciando busca por pontos altos para o pivô '{alvo_nome}' ({alvo_lat}, {alvo_lon}) dentro das áreas de cobertura fornecidas.") 
+    
+    if not active_overlays_data:
+        print("⚠️ Nenhum overlay ativo fornecido. Não é possível buscar locais para repetidora.")
+        return []
+
+    # --- Determinar Bounding Box do DEM a partir dos active_overlays_data ---
+    min_overall_lat = float('inf')
+    max_overall_lat = float('-inf')
+    min_overall_lon = float('inf')
+    max_overall_lon = float('-inf')
+
+    for ov_data in active_overlays_data:
+        s, w, n, e = ov_data['bounds'] 
+        min_overall_lat = min(min_overall_lat, s)
+        max_overall_lat = max(max_overall_lat, n)
+        min_overall_lon = min(min_overall_lon, w)
+        max_overall_lon = max(max_overall_lon, e)
+    
+    if any(val == float('inf') or val == float('-inf') for val in [min_overall_lat, max_overall_lat, min_overall_lon, max_overall_lon]):
+        print("❌ Não foi possível determinar os limites dos overlays ativos. Verifique os dados de bounds enviados.")
+        raise ValueError("Limites inválidos ou ausentes dos overlays ativos.")
+
+    dem_center_lat = (min_overall_lat + max_overall_lat) / 2
+    dem_center_lon = (min_overall_lon + max_overall_lon) / 2
+    
+    width_m = haversine(dem_center_lat, min_overall_lon, dem_center_lat, max_overall_lon)
+    height_m = haversine(min_overall_lat, dem_center_lon, max_overall_lat, dem_center_lon)
+    dem_effective_radius_m = (sqrt(width_m**2 + height_m**2) / 2) + 500 
+
+    print(f"   -> Limites globais dos overlays: S={min_overall_lat:.4f}, W={min_overall_lon:.4f}, N={max_overall_lat:.4f}, E={max_overall_lon:.4f}")
+    print(f"   -> Centro para busca DEM: ({dem_center_lat:.4f}, {dem_center_lon:.4f}), Raio Efetivo para DEM: {dem_effective_radius_m:.0f}m")
+    # --- FIM Bounding Box ---
 
     try:
-        # Resolução do DEM: SRTM3 é ~90m. Se usar COP30, seria ~30m.
-        # A escolha da resolução afeta o 'tamanho_filtro_maximo'.
         dem_array, dem_transform, dem_crs, dem_nodata = await obter_dem_para_area_geografica(
-            alvo_lat, alvo_lon, raio_busca_m, resolucao_desejada_m=90 
+            dem_center_lat, dem_center_lon, dem_effective_radius_m, resolucao_desejada_m=90 
         )
     except (FileNotFoundError, NotImplementedError) as e_dem:
-        raise e_dem # Re-levanta para ser pego pelo endpoint
+        print(f"   -> ❌ Falha ao obter DEM para a área dos overlays: {e_dem}")
+        raise e_dem
 
     candidate_sites = []
+    imagens_overlay_cache = {}
 
     try:
-        # Tamanho do filtro (ímpar) para maximum_filter. Ex: 3 para janela 3x3, 5 para 5x5.
-        # Se DEM é 90m, uma janela pequena (ex: 3 ou 5) detecta picos mais locais.
-        # Uma janela maior suaviza mais e pega picos mais proeminentes regionalmente.
         tamanho_filtro_maximo = 5 
         print(f"   -> Identificando máximos locais no DEM com filtro de vizinhança {tamanho_filtro_maximo}x{tamanho_filtro_maximo}...")
         
-        dem_processado = dem_array.copy().astype(np.float32) # Converte para float para manipulação de NaN
+        dem_processado = dem_array.copy().astype(np.float32)
         nodata_original = dem_nodata
         
         if nodata_original is not None:
-            dem_processado[dem_array == nodata_original] = np.nan # Usa NaN para facilitar a máscara
+            dem_processado[dem_array == nodata_original] = np.nan
 
-        # Aplicar filtro máximo. 'reflect' trata as bordas.
         local_max_values = maximum_filter(dem_processado, size=tamanho_filtro_maximo, mode='reflect', cval=np.nan)
-        local_max_mask = (dem_processado == local_max_values) & (~np.isnan(dem_processado)) # Picos são onde o valor é igual ao máximo local e não é NaN
+        local_max_mask = (dem_processado == local_max_values) & (~np.isnan(dem_processado))
         
         y_pixels, x_pixels = np.where(local_max_mask)
-        
-        # Converter coordenadas de pixel para coordenadas geográficas (lon, lat do CRS do DEM)
-        # A função xy de rasterio espera x (colunas), depois y (linhas)
         map_x_coords, map_y_coords = rasterio.transform.xy(dem_transform, y_pixels, x_pixels, offset='center')
         
-        print(f"   -> Encontrados {len(map_x_coords)} picos locais potenciais no DEM.")
+        print(f"   -> Encontrados {len(map_x_coords)} picos locais potenciais no DEM da área de cobertura.")
 
-        contador_picos_no_raio = 0
+        contador_picos_em_area_de_sinal = 0
+
         for idx, (peak_lon_dem_crs, peak_lat_dem_crs) in enumerate(zip(map_x_coords, map_y_coords)):
             peak_elev_val = dem_processado[y_pixels[idx], x_pixels[idx]]
 
-            # Aqui, peak_lon_dem_crs e peak_lat_dem_crs estão no CRS do DEM.
-            # A função haversine espera WGS84 (lat,lon). Se o DEM não for WGS84, precisa reprojetar.
-            # SRTM (usado por 'elevation') é tipicamente WGS84 (EPSG:4326), então a conversão pode não ser necessária.
-            # Vamos assumir que dem_crs é EPSG:4326 por enquanto. Se não for, uma etapa de reprojeção é necessária aqui.
+            peak_lat_wgs84, peak_lon_wgs84 = peak_lat_dem_crs, peak_lon_dem_crs
             if dem_crs and dem_crs.to_epsg() != 4326:
-                print(f"      -> AVISO: CRS do DEM é {dem_crs.to_epsg()}, mas Haversine e LoS esperam WGS84 (EPSG:4326). Reprojeção do ponto seria necessária.")
-                # Aqui você precisaria usar pyproj ou similar para converter (peak_lon_dem_crs, peak_lat_dem_crs) para WGS84
-                # Por simplicidade, vamos assumir que é WGS84.
+                print(f"      -> AVISO: CRS do DEM é {dem_crs.to_epsg()}. Reprojeção para WGS84 seria necessária.")
+                # from pyproj import Transformer
+                # transformer = Transformer.from_crs(dem_crs.to_string(), "EPSG:4326", always_xy=True)
+                # peak_lon_wgs84, peak_lat_wgs84 = transformer.transform(peak_lon_dem_crs, peak_lat_dem_crs)
                 pass
 
-            peak_lat_wgs84, peak_lon_wgs84 = peak_lat_dem_crs, peak_lon_dem_crs
+            peak_in_signal_area = False
+            for ov_data in active_overlays_data:
+                ov_bounds = ov_data['bounds']
+                ov_image_rel_path = ov_data['imagem']
+                
+                ov_nome_base_imagem = os.path.basename(ov_image_rel_path.split('?')[0])
+                ov_imagem_full_path = os.path.join(config.IMAGENS_DIR_PATH, ov_nome_base_imagem)
 
+                if not os.path.exists(ov_imagem_full_path):
+                    continue
+                
+                try:
+                    if ov_imagem_full_path not in imagens_overlay_cache:
+                        imagens_overlay_cache[ov_imagem_full_path] = Image.open(ov_imagem_full_path).convert("RGBA")
+                    
+                    img_overlay_pil = imagens_overlay_cache[ov_imagem_full_path]
+                    ov_img_width, ov_img_height = img_overlay_pil.size
+
+                    ov_sul, ov_oeste, ov_norte, ov_leste = ov_bounds
+                    if ov_sul > ov_norte: ov_sul, ov_norte = ov_norte, ov_sul
+                    if ov_oeste > ov_leste: ov_oeste, ov_leste = ov_leste, ov_oeste
+
+                    ov_delta_lon = ov_leste - ov_oeste
+                    ov_delta_lat = ov_norte - ov_sul
+
+                    if ov_delta_lon == 0 or ov_delta_lat == 0: continue
+
+                    px_in_ov = int((peak_lon_wgs84 - ov_oeste) / ov_delta_lon * ov_img_width)
+                    py_in_ov = int((ov_norte - peak_lat_wgs84) / ov_delta_lat * ov_img_height)
+
+                    if 0 <= px_in_ov < ov_img_width and 0 <= py_in_ov < ov_img_height:
+                        _, _, _, alpha_at_peak = img_overlay_pil.getpixel((px_in_ov, py_in_ov))
+                        if alpha_at_peak > 50:
+                            peak_in_signal_area = True
+                            break 
+                except Exception as e_img_check:
+                    print(f"      -> ❌ Erro ao verificar cobertura do pico no overlay {ov_image_rel_path}: {e_img_check}")
+            
+            if not peak_in_signal_area:
+                continue 
+            
+            contador_picos_em_area_de_sinal +=1
+            
             dist_ao_alvo = haversine(alvo_lat, alvo_lon, peak_lat_wgs84, peak_lon_wgs84)
             
-            if dist_ao_alvo > raio_busca_m + 200: # Adiciona uma pequena margem para picos na borda do DEM recortado
+            # Filtro secundário opcional: não considerar picos em overlays muito distantes do pivô alvo.
+            # Ajuste este valor conforme necessário.
+            MAX_DIST_PARA_CONSIDERAR_CANDIDATO_M = dem_effective_radius_m * 2.0 # Exemplo: 2x o raio efetivo do DEM
+            if dist_ao_alvo > MAX_DIST_PARA_CONSIDERAR_CANDIDATO_M : 
                 continue
             
-            contador_picos_no_raio += 1
-            if contador_picos_no_raio % 10 == 0: # Log a cada 10 picos dentro do raio
-                 print(f"      -> Analisando LoS do pico {contador_picos_no_raio} ({peak_lat_wgs84:.5f}, {peak_lon_wgs84:.5f}, Elev: {peak_elev_val:.1f}m)...")
+            if contador_picos_em_area_de_sinal % 5 == 0: # Log apenas para picos válidos
+                 print(f"      -> Analisando LoS do pico coberto #{contador_picos_em_area_de_sinal} ({peak_lat_wgs84:.5f}, {peak_lon_wgs84:.5f}, Elev: {peak_elev_val:.1f}m)...")
 
             try:
                 perfil_data = await obter_perfil_elevacao(
@@ -352,7 +390,6 @@ async def encontrar_locais_altos_para_repetidora(
                 
                 altura_torre_necessaria = None
                 if not has_los_to_target and ponto_bloqueio_info and isinstance(ponto_bloqueio_info.get("diff"), (int, float)):
-                    # Estimativa simples: diff + margem (ex: 3m para alguma folga Fresnel ou obstáculos menores)
                     altura_torre_necessaria = ponto_bloqueio_info.get("diff", 0) + 3.0
                                 
             except Exception as e_los:
@@ -372,17 +409,20 @@ async def encontrar_locais_altos_para_repetidora(
             }
             candidate_sites.append(site_info)
         
-        print(f"   -> {len(candidate_sites)} picos dentro do raio de busca e analisados para LoS.")
+        print(f"   -> {len(candidate_sites)} picos DENTRO DE ÁREA DE SINAL foram analisados para LoS com o pivô alvo.")
 
     except Exception as e_proc:
         print(f"   -> ❌ Erro durante o processamento dos picos ou LoS: {e_proc}")
         import traceback
         traceback.print_exc()
-        # Não levanta exceção aqui para permitir que o que foi processado seja retornado.
-        # O endpoint pode decidir o que fazer.
+    finally:
+        for img_pil_cached in imagens_overlay_cache.values():
+            img_pil_cached.close()
+        if 'imagens_overlay_cache' in locals(): 
+            del imagens_overlay_cache
 
     candidate_sites.sort(key=lambda s: (not s["has_los"], -s.get("elevation", 0), s.get("distance_to_target", float('inf'))))
 
-    MAX_SITES_TO_RETURN = 25 # Aumentado um pouco para dar mais opções ao usuário
+    MAX_SITES_TO_RETURN = 25
     print(f"   -> Retornando os {min(len(candidate_sites), MAX_SITES_TO_RETURN)} melhores locais candidatos.")
     return candidate_sites[:MAX_SITES_TO_RETURN]

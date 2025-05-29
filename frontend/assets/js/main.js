@@ -317,10 +317,9 @@ function handleBuscarLocaisRepetidoraActivation() {
 }
 
 // 👇 ADICIONE A FUNÇÃO DE SELEÇÃO DE PIVÔ E CHAMADA À API AQUI 👇
-async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
-    // pivoData: o objeto de dados do pivô (ex: { nome: 'P1', lat: -23.5, lon: -46.6, fora: true })
-    // pivoMarker: o objeto L.circleMarker do pivô clicado
+// main.js
 
+async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     if (!window.modoBuscaLocalRepetidora) return;
 
     if (pivoMarker.options.fillColor === 'green') {
@@ -329,7 +328,7 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     }
 
     window.pivoAlvoParaLocalRepetidora = {
-        nome: pivoData.nome, // Assegure que 'pivoData' tem 'nome'
+        nome: pivoData.nome,
         lat: pivoMarker.getLatLng().lat,
         lon: pivoMarker.getLatLng().lng,
         altura_receiver: (antenaGlobal && antenaGlobal.altura_receiver) ? antenaGlobal.altura_receiver : 3
@@ -337,48 +336,75 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
     mostrarMensagem(`Pivô alvo ${window.pivoAlvoParaLocalRepetidora.nome} selecionado. Buscando locais...`, "info");
     mostrarLoader(true);
-    map.getContainer().style.cursor = 'wait'; // Cursor de espera
+    map.getContainer().style.cursor = 'wait';
+
+    // --- NOVO: Coleta de overlays ativos ---
+    const activeOverlaysForSearch = [];
+    const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
+
+    // Adiciona overlay da antena principal se estiver visível e marcado
+    if (antenaGlobal?.overlay && map.hasLayer(antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked)) {
+        const b = antenaGlobal.overlay.getBounds();
+        activeOverlaysForSearch.push({
+            id: 'antena_principal', // ID opcional para depuração no backend
+            imagem: antenaGlobal.overlay._url.replace(BACKEND_URL + '/', ''), // Caminho relativo
+            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+        });
+    }
+
+    // Adiciona overlays das repetidoras ativas
+    repetidoras.forEach(rep => {
+        const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
+        if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked)) {
+            const b = rep.overlay.getBounds();
+            activeOverlaysForSearch.push({
+                id: `repetidora_${rep.id}`, // ID opcional
+                imagem: rep.overlay._url.replace(BACKEND_URL + '/', ''), // Caminho relativo
+                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+            });
+        }
+    });
+
+    if (activeOverlaysForSearch.length === 0) {
+        mostrarMensagem("Nenhuma área de sinal (antena/repetidoras) ativa para basear a busca. Ative alguma cobertura.", "erro");
+        mostrarLoader(false);
+        map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : ''; // Restaura cursor apropriado
+        return;
+    }
+    // --- FIM NOVO ---
 
     try {
         const payload = {
             target_pivot_lat: window.pivoAlvoParaLocalRepetidora.lat,
             target_pivot_lon: window.pivoAlvoParaLocalRepetidora.lon,
             target_pivot_nome: window.pivoAlvoParaLocalRepetidora.nome,
-            search_radius_m: 2000, // Pode ser configurável no futuro
+            // search_radius_m: 2000, // REMOVIDO ou opcional: não mais o principal driver da área de busca
             altura_antena_repetidora_proposta: parseFloat(document.getElementById("altura-antena-rep").value) || 5,
-            altura_receiver_pivo: window.pivoAlvoParaLocalRepetidora.altura_receiver
+            altura_receiver_pivo: window.pivoAlvoParaLocalRepetidora.altura_receiver,
+            active_overlays: activeOverlaysForSearch // ALTERADO: Passa os overlays coletados
         };
 
-        // Chama a função de api.js (que será criada no Passo 2)
-        const resultados = await findHighPointsForRepeater(payload);
+        const resultados = await findHighPointsForRepeater(payload); // Em api.js
 
-        // Limpar camadas de resultados anteriores (crie um LayerGroup para isso em drawing.js)
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         } else {
-            // Se não usar layer group, precisará rastrear e remover marcadores manualmente
-            console.warn("candidateRepeaterSitesLayerGroup não definido. Considere criar um para gerenciar marcadores de busca.");
+            console.warn("candidateRepeaterSitesLayerGroup não definido.");
         }
 
-
         if (resultados && resultados.candidate_sites && resultados.candidate_sites.length > 0) {
-            // Chama a função de drawing.js (que será criada no Passo 3)
-            drawCandidateRepeaterSites(resultados.candidate_sites, window.pivoAlvoParaLocalRepetidora);
+            drawCandidateRepeaterSites(resultados.candidate_sites, window.pivoAlvoParaLocalRepetidora); // Em drawing.js
             mostrarMensagem(`Encontrados ${resultados.candidate_sites.length} locais candidatos. Clique em um para simular.`, "sucesso");
         } else {
-            mostrarMensagem("Nenhum local promissor encontrado na área de busca.", "info");
+            mostrarMensagem("Nenhum local promissor encontrado nas áreas de cobertura existentes.", "info");
         }
 
     } catch (error) {
-        // A função findHighPointsForRepeater em api.js já mostra uma mensagem de erro.
         console.error("Erro ao buscar locais para repetidora:", error);
+        // A função findHighPointsForRepeater em api.js já deve mostrar uma mensagem de erro apropriada.
     } finally {
         mostrarLoader(false);
-        map.getContainer().style.cursor = 'crosshair'; // Mantém cursor de seleção se ainda no modo
-
-        // Opcional: Sair do modo após uma busca bem-sucedida.
-        // Se quiser sair do modo:
-        // handleBuscarLocaisRepetidoraActivation(); // Isso vai alternar o modo para false e restaurar o cursor
+        map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : ''; // Restaura cursor apropriado
     }
 }
 
