@@ -106,7 +106,7 @@ function drawPivos(pivosData, useEdited = false) {
         // 🧠 Tooltip SOMENTE com o status (sem nome do pivô)
         const statusTexto = pivo.fora
             ? `<span style="color:#ff4d4d; font-weight:bold;">❌ Fora de sinal</span>`
-            : `<span style="color:#22c55e; font-weight:bold;">✔️ Com sinal</span>`;
+            : `<span style="color:#22c55e; font-weight:bold;">✅ Com sinal</span>`;
 
         const tooltipContent = `
             <div style="text-align:center;">
