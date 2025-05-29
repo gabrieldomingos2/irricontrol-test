@@ -9,6 +9,7 @@ window.losSourcePivot = null;      // Armazena o pivô de origem selecionado {no
 window.losTargetPivot = null;    // Armazena o pivô de destino selecionado {nome, latlng, altura}
 window.modoBuscaLocalRepetidora = false; // Controla o modo de busca por locais de repetidora
 window.pivoAlvoParaLocalRepetidora = null; // Armazena o pivô alvo para a busca
+window.ciclosGlobais = [];
 
 let antenaGlobal = null;
 let marcadorAntena = null;
@@ -71,56 +72,72 @@ async function handleFormSubmit(e) {
     formData.append("file", fileInput.files[0]);
 
     try {
-        const data = await processKmz(formData);
+        const data = await processKmz(formData); // Função de api.js
         console.log("✅ KMZ Processado:", data);
 
         if (data.erro) throw new Error(data.erro);
 
-        handleResetClick(false);
+        handleResetClick(false); // Limpa o estado anterior antes de carregar novos dados
 
         // 🗼 Antena
-        antenaGlobal = data.antena;
-        marcadorAntena = drawAntena(data.antena);
-        addAntenaAoPainel(antenaGlobal);
+        antenaGlobal = data.antena; // Assume que data.antena existe
+        if (antenaGlobal) {
+            marcadorAntena = drawAntena(data.antena); // Função de drawing.js
+            addAntenaAoPainel(antenaGlobal); // Função de drawing.js (ou ui.js)
+        } else {
+            console.warn("Dados da antena não encontrados no KMZ processado.");
+            mostrarMensagem("⚠️ Antena principal não encontrada no KMZ.", "erro");
+            // Pode ser necessário um tratamento mais robusto se a antena for obrigatória
+        }
 
         // 💧 Bombas e Círculos
-        drawBombas(data.bombas);
-        drawCirculos(data.ciclos);
+        drawBombas(data.bombas || []); // Função de drawing.js, passa array vazio se data.bombas não existir
+        
+        // --- CORREÇÃO: Armazenar ciclosGlobais e passar para drawCirculos ---
+        window.ciclosGlobais = data.ciclos || []; // Armazena os ciclos globalmente
+        drawCirculos(window.ciclosGlobais); // Função de drawing.js, passa a variável global
+        // --- FIM CORREÇÃO ---
 
         // 🎯 Desenha os pivôs assumindo que todos estão inicialmente fora de cobertura
-        const pivosComStatusInicial = data.pivos.map(p => ({
+        const pivosParaDesenhar = data.pivos || []; // Garante que é um array
+        const pivosComStatusInicial = pivosParaDesenhar.map(p => ({
             ...p,
-            fora: true
+            fora: true // Assume inicialmente fora de cobertura
         }));
-        drawPivos(pivosComStatusInicial);
+        drawPivos(pivosComStatusInicial); // Função de drawing.js
 
-        // 🔍 Ajusta o mapa
-        map.fitBounds(
-            [
-                [antenaGlobal.lat, antenaGlobal.lon],
-                ...data.pivos.map(p => [p.lat, p.lon])
-            ],
-            { padding: [50, 50] }
-        );
+        // 🔍 Ajusta o mapa para mostrar antena e pivôs
+        if (antenaGlobal && pivosParaDesenhar.length > 0) {
+            const boundsToFit = [
+                [antenaGlobal.lat, antenaGlobal.lon]
+            ];
+            pivosParaDesenhar.forEach(p => boundsToFit.push([p.lat, p.lon]));
+            map.fitBounds(boundsToFit, { padding: [50, 50] });
+        } else if (antenaGlobal) {
+            map.setView([antenaGlobal.lat, antenaGlobal.lon], 13); // Zoom na antena se não houver pivôs
+        } else if (pivosParaDesenhar.length > 0) {
+            // Cria bounds apenas com pivôs se não houver antena
+            const pivoBounds = pivosParaDesenhar.map(p => [p.lat, p.lon]);
+            if (pivoBounds.length > 0) map.fitBounds(pivoBounds, { padding: [50, 50] });
+        }
 
-        atualizarPainelDados();
-        mostrarMensagem("✅ KMZ carregado com sucesso.", "sucesso");
+
+        atualizarPainelDados(); // Função de ui.js
+        mostrarMensagem("✅ KMZ carregado com sucesso.", "sucesso"); // Função de ui.js
 
         // 🔥 Ativa os botões e paineis
         document.getElementById("simular-btn").classList.remove("hidden");
         document.getElementById("painel-dados").classList.remove("hidden");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
-        reposicionarPaineisLaterais();
+        reposicionarPaineisLaterais(); // Função de ui.js
 
     } catch (error) {
         console.error("❌ Erro no submit do formulário:", error);
         mostrarMensagem(`❌ Erro ao carregar KMZ: ${error.message}`, "erro");
     } finally {
-        mostrarLoader(false);
+        mostrarLoader(false); // Função de ui.js
     }
 }
-
-
 
 async function handleSimulateClick() {
     if (!antenaGlobal) {
@@ -418,7 +435,7 @@ function handleResetClick(showMessage = true) {
     marcadorAntena = null;
     window.marcadorPosicionamento = null;
     marcadoresPivos = [];
-    circulosPivos = [];
+    circulosPivos = []; // Certifique-se que clearMapLayers() lida com a remoção visual destes
     pivotsMap = {};
     window.coordenadaClicada = null;
     repetidoras = [];
@@ -433,54 +450,54 @@ function handleResetClick(showMessage = true) {
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
     
-    // --- NOVO: Resetar explicitamente os modos interativos ---
+    // --- CORREÇÃO: Adicionar reset de ciclosGlobais ---
+    window.ciclosGlobais = []; 
+    // --- FIM CORREÇÃO ---
+    
+    // --- Resetar explicitamente os modos interativos ---
     if (window.modoEdicaoPivos) {
-        // Se a função togglePivoEditing também lida com a UI do botão, chamá-la para desativar
-        // Assumindo que togglePivoEditing está em ui.js e altera window.modoEdicaoPivos
         if (typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos").classList.contains('glass-button-active')) {
-            togglePivoEditing(); // Isso deve reverter o botão e o estado
-        } else {
-             window.modoEdicaoPivos = false; // Fallback
-             const btnEditar = document.getElementById("editar-pivos");
-             const btnEditarIconSpan = btnEditar.querySelector('.sidebar-icon');
-             if (btnEditarIconSpan) {
-                 btnEditarIconSpan.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
-                 btnEditarIconSpan.style.maskImage = 'url(assets/images/pencil.svg)';
-             } else {
-                 btnEditar.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-                 if (typeof lucide !== 'undefined') lucide.createIcons();
-             }
-             btnEditar.title = "Editar Pivôs";
-             btnEditar.classList.remove('glass-button-active');
-             document.getElementById("desfazer-edicao").classList.add("hidden");
+            togglePivoEditing(); 
         }
+        // Mesmo que togglePivoEditing seja chamada, garantir o reset do estado fundamental
+        window.modoEdicaoPivos = false; 
+        const btnEditarReset = document.getElementById("editar-pivos"); // Nova variável para evitar conflito de nome
+        const btnEditarIconSpanReset = btnEditarReset.querySelector('.sidebar-icon');
+        if (btnEditarIconSpanReset) {
+            btnEditarIconSpanReset.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
+            btnEditarIconSpanReset.style.maskImage = 'url(assets/images/pencil.svg)';
+        } else {
+            btnEditarReset.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        btnEditarReset.title = "Editar Pivôs";
+        btnEditarReset.classList.remove('glass-button-active');
+        document.getElementById("desfazer-edicao").classList.add("hidden");
     }
 
     if (window.modoLoSPivotAPivot) {
-        // Se a função toggleLoSPivotAPivotMode também lida com a UI do botão, chamá-la para desativar
         if (typeof toggleLoSPivotAPivotMode === 'function' && document.getElementById('btn-los-pivot-a-pivot').classList.contains('glass-button-active')) {
             toggleLoSPivotAPivotMode();
-        } else {
-            window.modoLoSPivotAPivot = false; // Fallback
-            window.losSourcePivot = null;
-            window.losTargetPivot = null;
-            document.getElementById('btn-los-pivot-a-pivot').classList.remove('glass-button-active');
         }
+        window.modoLoSPivotAPivot = false; 
+        window.losSourcePivot = null;
+        window.losTargetPivot = null;
+        document.getElementById('btn-los-pivot-a-pivot').classList.remove('glass-button-active');
     }
 
     if (window.modoBuscaLocalRepetidora) {
-        // Se a função handleBuscarLocaisRepetidoraActivation também lida com a UI do botão, chamá-la para desativar
         if (typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) {
-            // A função original alterna, então chamamos se estiver ativo para desativar
              handleBuscarLocaisRepetidoraActivation();
-        } else {
-            window.modoBuscaLocalRepetidora = false; // Fallback
-            window.pivoAlvoParaLocalRepetidora = null;
-            document.getElementById('btn-buscar-locais-repetidora').classList.remove('glass-button-active');
         }
+        window.modoBuscaLocalRepetidora = false; 
+        window.pivoAlvoParaLocalRepetidora = null;
+        document.getElementById('btn-buscar-locais-repetidora').classList.remove('glass-button-active');
     }
-    map.getContainer().style.cursor = ''; // Restaura o cursor padrão do mapa
-    // --- FIM NOVO ---
+
+    if (map) { // Verifica se map está definido antes de tentar acessar getContainer
+      map.getContainer().style.cursor = ''; // Restaura o cursor padrão do mapa
+    }
+    // --- FIM Reset dos modos interativos ---
 
     const btnSimular = document.getElementById("simular-btn");
     btnSimular.classList.add("hidden");
@@ -488,36 +505,57 @@ function handleResetClick(showMessage = true) {
     btnSimular.classList.remove("opacity-50", "cursor-not-allowed");
     document.getElementById("btn-diagnostico").classList.add("hidden");
 
-    // Reset do botão de edição (já estava bom, mas mantido para clareza)
-    const btnEditar = document.getElementById("editar-pivos");
+    // Reset do botão de edição (já estava bom, mas aqui está a versão do fallback para consistência)
+    // A lógica dentro do if (window.modoEdicaoPivos) acima já deve cuidar disso se togglePivoEditing for chamada.
+    // Esta parte é um pouco redundante se togglePivoEditing já faz isso, mas garante o estado.
+    const btnEditar = document.getElementById("editar-pivos"); // Re-obtém a referência, caso a anterior tenha sido afetada
     const btnEditarIconSpan = btnEditar.querySelector('.sidebar-icon'); 
-    if (btnEditarIconSpan) { 
+    if (btnEditarIconSpan && !window.modoEdicaoPivos) { // Só atualiza se o modoEdicaoPivos realmente foi para false
         btnEditarIconSpan.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
         btnEditarIconSpan.style.maskImage = 'url(assets/images/pencil.svg)';
-    } else { 
+        btnEditar.title = "Editar Pivôs";
+        btnEditar.classList.remove('glass-button-active');
+        document.getElementById("desfazer-edicao").classList.add("hidden");
+    } else if (!window.modoEdicaoPivos) { // Se não tem span e modoEdicaoPivos é false
         btnEditar.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
         if (typeof lucide !== 'undefined') lucide.createIcons(); 
+        btnEditar.title = "Editar Pivôs";
+        btnEditar.classList.remove('glass-button-active');
+        document.getElementById("desfazer-edicao").classList.add("hidden");
     }
-    btnEditar.title = "Editar Pivôs";
-    btnEditar.classList.remove('glass-button-active');
-    document.getElementById("desfazer-edicao").classList.add("hidden");
+
 
     document.getElementById("lista-repetidoras").innerHTML = "";
     document.getElementById("painel-repetidora").classList.add("hidden");
     document.getElementById("painel-dados").classList.add("hidden");
     document.getElementById("painel-repetidoras").classList.add("hidden");
 
-    document.getElementById('formulario').reset();
-    document.getElementById('nome-arquivo-label').textContent = "Escolher Arquivo KMZ";
-    document.getElementById("range-opacidade").value = 1;
+    // Garante que o formulário exista antes de tentar resetá-lo
+    const formElement = document.getElementById('formulario');
+    if (formElement) {
+        formElement.reset();
+    }
+    
+    const nomeArquivoLabelElement = document.getElementById('nome-arquivo-label');
+    if (nomeArquivoLabelElement) {
+        nomeArquivoLabelElement.textContent = "Escolher Arquivo KMZ";
+    }
 
-    map.setView([-15, -55], 5);
+    const rangeOpacidadeElement = document.getElementById("range-opacidade");
+    if (rangeOpacidadeElement) {
+        rangeOpacidadeElement.value = 1;
+    }
+    
+
+    if (map) { // Verifica se map está definido
+        map.setView([-15, -55], 5);
+    }
 
     atualizarPainelDados();
     reposicionarPaineisLaterais();
 
     if (typeof toggleLegendas === 'function') {
-        toggleLegendas(true); // Garante que legendas sejam mostradas (ou estado padrão)
+        toggleLegendas(true); 
     } else {
         console.error("Função toggleLegendas não está definida globalmente ou não foi carregada.");
     }

@@ -13,6 +13,7 @@ from rasterio.transform import from_origin
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 from scipy.ndimage import maximum_filter
+from shapely.geometry import Point, Polygon
 # import elevation # Descomente se for usar a biblioteca 'elevation' para baixar DEMs
 
 from backend import config
@@ -244,47 +245,59 @@ async def obter_dem_para_area_geografica(
 async def encontrar_locais_altos_para_repetidora(
     alvo_lat: float, alvo_lon: float, alvo_nome: str,
     altura_antena_repetidora_proposta: float, altura_receptor_pivo: float,
-    active_overlays_data: List[Dict] 
+    active_overlays_data: List[Dict],
+    pivot_polygons_coords_data: Optional[List[List[Tuple[float, float]]]] = None # <--- NOVO PARÂMETRO
 ) -> List[Dict]:
     """
     Encontra pontos altos DENTRO DAS ÁREAS DE COBERTURA (active_overlays_data),
+    FORA DOS POLÍGONOS DE PIVÔS (pivot_polygons_coords_data),
     a uma DISTÂNCIA MÁXIMA (1.8km) do pivô alvo, e verifica LoS para o pivô alvo.
     """
-    print(f"🔎 Iniciando busca por pontos altos para o pivô '{alvo_nome}' ({alvo_lat}, {alvo_lon}) dentro das áreas de cobertura fornecidas.") 
+    print(f"🔎 Iniciando busca por pontos altos para pivô '{alvo_nome}' ({alvo_lat:.5f}, {alvo_lon:.5f})") 
     
     if not active_overlays_data:
-        print("⚠️ Nenhum overlay ativo fornecido. Não é possível buscar locais para repetidora.")
+        print("⚠️ Nenhum overlay ativo fornecido. Não é possível buscar locais.")
         return []
 
-    # --- Determinar Bounding Box do DEM a partir dos active_overlays_data ---
-    # (Esta parte permanece como na versão anterior, calculando min_overall_lat, etc. 
-    #  e dem_effective_radius_m para a chamada a obter_dem_para_area_geografica)
+    # --- NOVO: Preparar polígonos de pivôs para verificação ---
+    shapely_pivot_polygons = []
+    if pivot_polygons_coords_data:
+        for poly_coords_list in pivot_polygons_coords_data:
+            # O frontend envia coordenadas como [lat, lon]. Shapely Polygon espera (lon, lat).
+            shapely_coords = [(coord_pair[1], coord_pair[0]) for coord_pair in poly_coords_list]
+            if len(shapely_coords) >= 3: # Um polígono precisa de pelo menos 3 pontos
+                try:
+                    shapely_pivot_polygons.append(Polygon(shapely_coords))
+                except Exception as e_shapely:
+                    print(f"      -> ⚠️ Erro ao criar polígono Shapely para um ciclo: {e_shapely}. Coords: {poly_coords_list}")
+            else:
+                print(f"      -> ⚠️ Coordenadas insuficientes para formar polígono de pivô: {poly_coords_list}")
+        
+        if shapely_pivot_polygons:
+            print(f"   -> {len(shapely_pivot_polygons)} polígonos de pivôs (ciclos) carregados para exclusão de área.")
+    # --- FIM NOVO ---
+
+    # (Lógica para determinar Bounding Box do DEM e obter DEM permanece a mesma)
     min_overall_lat = float('inf')
+    # ... (código para calcular dem_center_lat, dem_center_lon, dem_effective_radius_m) ...
     max_overall_lat = float('-inf')
     min_overall_lon = float('inf')
     max_overall_lon = float('-inf')
-
     for ov_data in active_overlays_data:
         s, w, n, e = ov_data['bounds'] 
         min_overall_lat = min(min_overall_lat, s)
         max_overall_lat = max(max_overall_lat, n)
         min_overall_lon = min(min_overall_lon, w)
         max_overall_lon = max(max_overall_lon, e)
-    
     if any(val == float('inf') or val == float('-inf') for val in [min_overall_lat, max_overall_lat, min_overall_lon, max_overall_lon]):
-        print("❌ Não foi possível determinar os limites dos overlays ativos. Verifique os dados de bounds enviados.")
         raise ValueError("Limites inválidos ou ausentes dos overlays ativos.")
-
     dem_center_lat = (min_overall_lat + max_overall_lat) / 2
     dem_center_lon = (min_overall_lon + max_overall_lon) / 2
-    
     width_m = haversine(dem_center_lat, min_overall_lon, dem_center_lat, max_overall_lon)
     height_m = haversine(min_overall_lat, dem_center_lon, max_overall_lat, dem_center_lon)
     dem_effective_radius_m = (sqrt(width_m**2 + height_m**2) / 2) + 500 
-
     print(f"   -> Limites globais dos overlays: S={min_overall_lat:.4f}, W={min_overall_lon:.4f}, N={max_overall_lat:.4f}, E={max_overall_lon:.4f}")
     print(f"   -> Centro para busca DEM: ({dem_center_lat:.4f}, {dem_center_lon:.4f}), Raio Efetivo para DEM: {dem_effective_radius_m:.0f}m")
-
     try:
         dem_array, dem_transform, dem_crs, dem_nodata = await obter_dem_para_area_geografica(
             dem_center_lat, dem_center_lon, dem_effective_radius_m, resolucao_desejada_m=90 
@@ -295,18 +308,15 @@ async def encontrar_locais_altos_para_repetidora(
 
     candidate_sites = []
     imagens_overlay_cache = {}
-
-    # --- ALTERADO: Definir a distância máxima do pivô alvo ---
-    MAX_DISTANCIA_DO_PIVO_ALVO_M = 1800.0 # 1.8 km (antes era 1500.0)
+    MAX_DISTANCIA_DO_PIVO_ALVO_M = 1800.0 
     print(f"   -> Restrição de distância: locais candidatos devem estar a no máximo {MAX_DISTANCIA_DO_PIVO_ALVO_M / 1000:.1f} km do pivô alvo.")
-    
-    # --- ALTERADO: Diminuir o tamanho do filtro para tentar obter mais picos ---
-    tamanho_filtro_maximo = 5 # Antes era 7. Valores menores (ex: 5 ou 3) geram mais picos.
+    tamanho_filtro_maximo = 5
     print(f"   -> Usando filtro de vizinhança {tamanho_filtro_maximo}x{tamanho_filtro_maximo} para identificar picos.")
 
     try:
-        # (O restante da lógica de processamento do DEM e identificação de picos permanece o mesmo)
+        # (Lógica de identificação de picos no DEM permanece a mesma)
         dem_processado = dem_array.copy().astype(np.float32)
+        # ... (código para local_max_mask, y_pixels, x_pixels, map_x_coords, map_y_coords) ...
         nodata_original = dem_nodata
         if nodata_original is not None:
             dem_processado[dem_array == nodata_original] = np.nan
@@ -314,24 +324,24 @@ async def encontrar_locais_altos_para_repetidora(
         local_max_mask = (dem_processado == local_max_values) & (~np.isnan(dem_processado))
         y_pixels, x_pixels = np.where(local_max_mask)
         map_x_coords, map_y_coords = rasterio.transform.xy(dem_transform, y_pixels, x_pixels, offset='center')
-        print(f"   -> Encontrados {len(map_x_coords)} picos locais potenciais no DEM (antes dos filtros de cobertura e distância).")
+        print(f"   -> Encontrados {len(map_x_coords)} picos locais potenciais no DEM (antes dos filtros).")
 
         contador_picos_validos = 0 
 
         for idx, (peak_lon_dem_crs, peak_lat_dem_crs) in enumerate(zip(map_x_coords, map_y_coords)):
             peak_elev_val = dem_processado[y_pixels[idx], x_pixels[idx]]
             peak_lat_wgs84, peak_lon_wgs84 = peak_lat_dem_crs, peak_lon_dem_crs
-            # (Lógica de verificação de CRS e possível reprojeção permanece)
             if dem_crs and dem_crs.to_epsg() != 4326:
-                # print(f"      -> AVISO: CRS do DEM é {dem_crs.to_epsg()}...")
-                pass
+                # Implementar reprojeção se CRS do DEM não for WGS84 (EPSG:4326)
+                pass 
             
             # Filtro 1: Pico em área de sinal
-            peak_in_signal_area = False
             # (Lógica para peak_in_signal_area permanece a mesma)
-            for ov_data in active_overlays_data:
-                ov_bounds = ov_data['bounds']
-                ov_image_rel_path = ov_data['imagem']
+            peak_in_signal_area = False
+            # ... (código para verificar peak_in_signal_area) ...
+            for ov_data_inner in active_overlays_data: # Renomeado para evitar conflito
+                ov_bounds = ov_data_inner['bounds']
+                ov_image_rel_path = ov_data_inner['imagem']
                 ov_nome_base_imagem = os.path.basename(ov_image_rel_path.split('?')[0])
                 ov_imagem_full_path = os.path.join(config.IMAGENS_DIR_PATH, ov_nome_base_imagem)
                 if not os.path.exists(ov_imagem_full_path): continue
@@ -340,36 +350,51 @@ async def encontrar_locais_altos_para_repetidora(
                         imagens_overlay_cache[ov_imagem_full_path] = Image.open(ov_imagem_full_path).convert("RGBA")
                     img_overlay_pil = imagens_overlay_cache[ov_imagem_full_path]
                     ov_img_width, ov_img_height = img_overlay_pil.size
-                    ov_sul, ov_oeste, ov_norte, ov_leste = ov_bounds
-                    if ov_sul > ov_norte: ov_sul, ov_norte = ov_norte, ov_sul
-                    if ov_oeste > ov_leste: ov_oeste, ov_leste = ov_leste, ov_oeste
-                    ov_delta_lon, ov_delta_lat = ov_leste - ov_oeste, ov_norte - ov_sul
-                    if ov_delta_lon == 0 or ov_delta_lat == 0: continue
-                    px_in_ov = int((peak_lon_wgs84 - ov_oeste) / ov_delta_lon * ov_img_width)
-                    py_in_ov = int((ov_norte - peak_lat_wgs84) / ov_delta_lat * ov_img_height)
+                    ov_sul_b, ov_oeste_b, ov_norte_b, ov_leste_b = ov_bounds # Renomeado para evitar conflito de escopo
+                    if ov_sul_b > ov_norte_b: ov_sul_b, ov_norte_b = ov_norte_b, ov_sul_b
+                    if ov_oeste_b > ov_leste_b: ov_oeste_b, ov_leste_b = ov_leste_b, ov_oeste_b
+                    ov_delta_lon_b, ov_delta_lat_b = ov_leste_b - ov_oeste_b, ov_norte_b - ov_sul_b
+                    if ov_delta_lon_b == 0 or ov_delta_lat_b == 0: continue
+                    px_in_ov = int((peak_lon_wgs84 - ov_oeste_b) / ov_delta_lon_b * ov_img_width)
+                    py_in_ov = int((ov_norte_b - peak_lat_wgs84) / ov_delta_lat_b * ov_img_height)
                     if 0 <= px_in_ov < ov_img_width and 0 <= py_in_ov < ov_img_height:
                         if img_overlay_pil.getpixel((px_in_ov, py_in_ov))[3] > 50:
                             peak_in_signal_area = True
                             break 
                 except Exception as e_img_check:
                     print(f"      -> ❌ Erro ao verificar cobertura do pico no overlay {ov_image_rel_path}: {e_img_check}")
+
             if not peak_in_signal_area:
                 continue 
             
             # Filtro 2: Pico dentro da distância máxima do pivô alvo
             dist_ao_alvo = haversine(alvo_lat, alvo_lon, peak_lat_wgs84, peak_lon_wgs84)
-            if dist_ao_alvo > MAX_DISTANCIA_DO_PIVO_ALVO_M: # Usa a constante atualizada
+            if dist_ao_alvo > MAX_DISTANCIA_DO_PIVO_ALVO_M:
                 continue 
+
+            # --- NOVO FILTRO 3: Verificar se o pico está DENTRO de algum polígono de pivô ---
+            if shapely_pivot_polygons:
+                candidate_point_shapely = Point(peak_lon_wgs84, peak_lat_wgs84) # Point(lon, lat)
+                is_inside_a_pivot_area = False
+                for pivot_poly in shapely_pivot_polygons:
+                    if pivot_poly.contains(candidate_point_shapely):
+                        is_inside_a_pivot_area = True
+                        break 
+                if is_inside_a_pivot_area:
+                    # print(f"      -> Descartado: Pico ({peak_lat_wgs84:.4f}, {peak_lon_wgs84:.4f}) está dentro de um polígono de pivô.") # Opcional
+                    continue # Pula este pico
+            # --- FIM NOVO FILTRO 3 ---
             
             contador_picos_validos +=1 
             
             if contador_picos_validos > 1:
-                await asyncio.sleep(0.3) # Mantém o delay para rate limiting
+                await asyncio.sleep(0.3) 
 
             if contador_picos_validos % 5 == 0 or contador_picos_validos == 1: 
                  print(f"      -> Analisando LoS do candidato #{contador_picos_validos} ({peak_lat_wgs84:.5f}, {peak_lon_wgs84:.5f}, Elev: {peak_elev_val:.1f}m, Dist: {dist_ao_alvo:.0f}m)...")
 
             # (Lógica de cálculo de LoS e armazenamento de site_info permanece a mesma)
+            # ...
             try:
                 perfil_data = await obter_perfil_elevacao(
                     pontos=[[peak_lat_wgs84, peak_lon_wgs84], [alvo_lat, alvo_lon]],
@@ -397,22 +422,22 @@ async def encontrar_locais_altos_para_repetidora(
                 "altura_necessaria_torre": float(altura_torre_necessaria) if altura_torre_necessaria is not None else None
             }
             candidate_sites.append(site_info)
-        
-        print(f"   -> {len(candidate_sites)} locais candidatos (em cobertura, dentro da distância máx. de {MAX_DISTANCIA_DO_PIVO_ALVO_M/1000:.1f}km) foram analisados para LoS.")
 
-    # (Bloco except Exception as e_proc: ... finally: ... permanece o mesmo)
-    except Exception as e_proc:
+        print(f"   -> {len(candidate_sites)} locais candidatos (em cobertura, fora dos pivôs, dentro de {MAX_DISTANCIA_DO_PIVO_ALVO_M/1000:.1f}km) foram analisados para LoS.")
+
+    # (Bloco except Exception e finally permanecem os mesmos)
+    except Exception as e_proc: # ...
         print(f"   -> ❌ Erro durante o processamento dos picos ou LoS: {e_proc}")
         import traceback
         traceback.print_exc()
-    finally:
-        for img_pil_cached in imagens_overlay_cache.values():
-            img_pil_cached.close()
+    finally: # ...
+        for img_pil_cached_inner in imagens_overlay_cache.values(): # Renomeado para evitar conflito
+            img_pil_cached_inner.close()
         if 'imagens_overlay_cache' in locals(): 
             del imagens_overlay_cache
 
-    candidate_sites.sort(key=lambda s: (not s["has_los"], -s.get("elevation", 0), s.get("distance_to_target", float('inf'))))
-
+    # (Ordenação e retorno dos candidate_sites permanecem os mesmos)
+    candidate_sites.sort(key=lambda s: (not s["has_los"], -s.get("elevation", 0), s.get("distance_to_target", float('inf')))) # ...
     MAX_SITES_TO_RETURN = 25 
     print(f"   -> Retornando os {min(len(candidate_sites), MAX_SITES_TO_RETURN)} melhores locais candidatos.")
     return candidate_sites[:MAX_SITES_TO_RETURN]

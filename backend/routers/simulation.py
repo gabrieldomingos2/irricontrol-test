@@ -61,6 +61,7 @@ class FindRepeaterSitesPayload(BaseModel):
     altura_antena_repetidora_proposta: Optional[float] = 5.0
     altura_receiver_pivo: Optional[float] = 3.0
     active_overlays: List[OverlayData]
+    pivot_polygons_coords: Optional[List[List[Tuple[float, float]]]] = None
 
 # --- Endpoints ---
 
@@ -237,24 +238,25 @@ async def get_elevation_profile_endpoint(payload: PerfilPayload):
 
 # 👇 NOVO ENDPOINT ADICIONADO 👇
 @router.post("/find_repeater_sites")
-async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload): # Tipo do payload atualizado
+async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
     """
-    Encontra locais altos candidatos DENTRO DAS ÁREAS DE COBERTURA EXISTENTES
-    para posicionar uma repetidora para um pivô alvo.
+    Encontra locais altos candidatos DENTRO DAS ÁREAS DE COBERTURA EXISTENTES,
+    FORA DOS POLÍGONOS DE PIVÔS, e a uma distância máxima do pivô alvo.
     """
     try:
-        print(f"📡 Iniciando busca por locais de repetidora para o pivô: {payload.target_pivot_nome} em ({payload.target_pivot_lat}, {payload.target_pivot_lon})")
-        print(f"ℹ️  Utilizando {len(payload.active_overlays)} áreas de cobertura existentes para a busca.") # Log dos overlays recebidos
+        print(f"📡 Iniciando busca por locais de repetidora para o pivô: {payload.target_pivot_nome}")
+        print(f"ℹ️  Utilizando {len(payload.active_overlays)} áreas de cobertura existentes.")
+        if payload.pivot_polygons_coords:
+            print(f"ℹ️  Excluindo áreas de {len(payload.pivot_polygons_coords)} polígonos de pivôs.")
 
-        # ALTERADO: Passa os active_overlays para o serviço.
-        # O parâmetro raio_busca_m foi removido da chamada direta se não for mais usado para definir a área do DEM.
         candidate_sites = await analysis_service.encontrar_locais_altos_para_repetidora(
             alvo_lat=payload.target_pivot_lat,
             alvo_lon=payload.target_pivot_lon,
             alvo_nome=payload.target_pivot_nome,
             altura_antena_repetidora_proposta=payload.altura_antena_repetidora_proposta,
             altura_receptor_pivo=payload.altura_receiver_pivo,
-            active_overlays_data=[ov.dict() for ov in payload.active_overlays] # Converte lista de Pydantic para lista de dicts
+            active_overlays_data=[ov.dict() for ov in payload.active_overlays],
+            pivot_polygons_coords_data=payload.pivot_polygons_coords # <--- PASSANDO O NOVO DADO
         )
         
         print(f"✅ Busca por locais de repetidora concluída. Encontrados {len(candidate_sites)} candidatos.")
