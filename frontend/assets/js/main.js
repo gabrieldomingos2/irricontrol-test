@@ -411,8 +411,9 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
-    clearMapLayers();
+    clearMapLayers(); // Esta função deve estar em drawing.js e agora limpará o candidateRepeaterSitesLayerGroup também
 
+    // Reset de variáveis globais de estado
     antenaGlobal = null;
     marcadorAntena = null;
     window.marcadorPosicionamento = null;
@@ -423,7 +424,7 @@ function handleResetClick(showMessage = true) {
     repetidoras = [];
     contadorRepetidoras = 0;
     idsDisponiveis = [];
-    legendasAtivas = true; // Legendas devem estar visíveis por padrão após o reset
+    legendasAtivas = true; 
     marcadoresLegenda = [];
     marcadoresBombas = [];
     posicoesEditadas = {};
@@ -431,7 +432,55 @@ function handleResetClick(showMessage = true) {
     overlaysVisiveis = [];
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
-    window.modoEdicaoPivos = false;
+    
+    // --- NOVO: Resetar explicitamente os modos interativos ---
+    if (window.modoEdicaoPivos) {
+        // Se a função togglePivoEditing também lida com a UI do botão, chamá-la para desativar
+        // Assumindo que togglePivoEditing está em ui.js e altera window.modoEdicaoPivos
+        if (typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos").classList.contains('glass-button-active')) {
+            togglePivoEditing(); // Isso deve reverter o botão e o estado
+        } else {
+             window.modoEdicaoPivos = false; // Fallback
+             const btnEditar = document.getElementById("editar-pivos");
+             const btnEditarIconSpan = btnEditar.querySelector('.sidebar-icon');
+             if (btnEditarIconSpan) {
+                 btnEditarIconSpan.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
+                 btnEditarIconSpan.style.maskImage = 'url(assets/images/pencil.svg)';
+             } else {
+                 btnEditar.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+                 if (typeof lucide !== 'undefined') lucide.createIcons();
+             }
+             btnEditar.title = "Editar Pivôs";
+             btnEditar.classList.remove('glass-button-active');
+             document.getElementById("desfazer-edicao").classList.add("hidden");
+        }
+    }
+
+    if (window.modoLoSPivotAPivot) {
+        // Se a função toggleLoSPivotAPivotMode também lida com a UI do botão, chamá-la para desativar
+        if (typeof toggleLoSPivotAPivotMode === 'function' && document.getElementById('btn-los-pivot-a-pivot').classList.contains('glass-button-active')) {
+            toggleLoSPivotAPivotMode();
+        } else {
+            window.modoLoSPivotAPivot = false; // Fallback
+            window.losSourcePivot = null;
+            window.losTargetPivot = null;
+            document.getElementById('btn-los-pivot-a-pivot').classList.remove('glass-button-active');
+        }
+    }
+
+    if (window.modoBuscaLocalRepetidora) {
+        // Se a função handleBuscarLocaisRepetidoraActivation também lida com a UI do botão, chamá-la para desativar
+        if (typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) {
+            // A função original alterna, então chamamos se estiver ativo para desativar
+             handleBuscarLocaisRepetidoraActivation();
+        } else {
+            window.modoBuscaLocalRepetidora = false; // Fallback
+            window.pivoAlvoParaLocalRepetidora = null;
+            document.getElementById('btn-buscar-locais-repetidora').classList.remove('glass-button-active');
+        }
+    }
+    map.getContainer().style.cursor = ''; // Restaura o cursor padrão do mapa
+    // --- FIM NOVO ---
 
     const btnSimular = document.getElementById("simular-btn");
     btnSimular.classList.add("hidden");
@@ -439,23 +488,19 @@ function handleResetClick(showMessage = true) {
     btnSimular.classList.remove("opacity-50", "cursor-not-allowed");
     document.getElementById("btn-diagnostico").classList.add("hidden");
 
+    // Reset do botão de edição (já estava bom, mas mantido para clareza)
     const btnEditar = document.getElementById("editar-pivos");
-    const btnEditarIconSpan = btnEditar.querySelector('.sidebar-icon'); // Se o botão editar também usa span
-    if (btnEditarIconSpan) { // Verifica se o span do ícone existe
+    const btnEditarIconSpan = btnEditar.querySelector('.sidebar-icon'); 
+    if (btnEditarIconSpan) { 
         btnEditarIconSpan.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
         btnEditarIconSpan.style.maskImage = 'url(assets/images/pencil.svg)';
-    } else { // Fallback se ainda usa Lucide para este botão específico
+    } else { 
         btnEditar.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-        lucide.createIcons(); // Chamar lucide.createIcons() apenas se necessário
+        if (typeof lucide !== 'undefined') lucide.createIcons(); 
     }
     btnEditar.title = "Editar Pivôs";
     btnEditar.classList.remove('glass-button-active');
     document.getElementById("desfazer-edicao").classList.add("hidden");
-
-    // Se o botão de editar pivôs foi alterado para <span>, a chamada lucide.createIcons()
-    // para ele pode não ser mais necessária aqui, a menos que outros ícones precisem ser recriados.
-    // Se todos os ícones relevantes agora são spans, você pode remover chamadas específicas do lucide.createIcons().
-    // A chamada geral no DOMContentLoaded ainda é útil para ícones Lucide estáticos na página.
 
     document.getElementById("lista-repetidoras").innerHTML = "";
     document.getElementById("painel-repetidora").classList.add("hidden");
@@ -471,22 +516,13 @@ function handleResetClick(showMessage = true) {
     atualizarPainelDados();
     reposicionarPaineisLaterais();
 
-    // ADICIONADO: Garante que o botão de legenda reflita o estado inicial (legendasAtivas = true)
-    // Com a lógica atualizada em toggleLegendas, isso fará:
-    // 1. Botão NÃO terá 'glass-button-active'
-    // 2. Ícone será 'captions.svg'
-    // 3. Title será "Esconder Legendas"
     if (typeof toggleLegendas === 'function') {
-        toggleLegendas(true);
+        toggleLegendas(true); // Garante que legendas sejam mostradas (ou estado padrão)
     } else {
         console.error("Função toggleLegendas não está definida globalmente ou não foi carregada.");
     }
 
-
     if (showMessage) mostrarMensagem("🔄 Aplicação resetada.", "sucesso");
-
-    atualizarPainelDados();
-    reposicionarPaineisLaterais();
 }
 
 async function handleDiagnosticoClick() {

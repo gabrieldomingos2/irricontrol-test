@@ -1,81 +1,127 @@
-// Variáveis globais relacionadas ao mapa
+// map.js
+
 let map;
 let visadaLayerGroup;
-let visadaVisivel = true;
+let visadaVisivel = true; // Assumindo que esta variável é usada em toggleVisada
 
 /**
  * Inicializa o mapa Leaflet, adiciona a camada de satélite
  * e o grupo de camadas para a visada.
  */
 function initMap() {
-    // Cria o mapa na div #map, sem o controle de zoom padrão
     map = L.map('map', {
         zoomControl: false
-    }).setView([-15, -55], 5); // Centralizado no Brasil
+    }).setView([-15, -55], 5);
 
-    // Adiciona a camada de satélite do Google
     L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map);
 
-    // Grupo de camadas para visadas (linhas, marcadores de bloqueio)
-    visadaLayerGroup = L.layerGroup().addTo(map);
+    visadaLayerGroup = L.layerGroup().addTo(map); // [cite: 1]
 
-    // ✅ Corrige: fecha corretamente o if
     if (!window.candidateRepeaterSitesLayerGroup) {
-        window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
-        console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa.");
+        window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map); // [cite: 1]
+        console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa."); // [cite: 1]
     }
 
-    // Adiciona o listener para o botão de visada
-    const btnVisada = document.getElementById("btn-visada");
+    const btnVisada = document.getElementById("btn-visada"); // [cite: 1]
     if (btnVisada) {
-        btnVisada.addEventListener("click", toggleVisada);
+        btnVisada.addEventListener("click", toggleVisada); // [cite: 1]
     } else {
-        console.error("Botão #btn-visada não encontrado!");
+        console.error("Botão #btn-visada não encontrado!"); // [cite: 1]
     }
-}
 
+    // --- NOVO: Chamar a função para configurar o listener de remoção ---
+    setupCandidateRemovalListener(); // [cite: 1]
+    // --- FIM NOVO ---
+}
 
 /**
  * Alterna a visibilidade das camadas dentro do visadaLayerGroup.
  */
 function toggleVisada() {
-    visadaVisivel = !visadaVisivel; // Inverte o estado
-
-    // Percorre cada camada no grupo
+    // Supondo que o código original para toggleVisada esteja aqui.
+    // Exemplo de como poderia ser, baseado nos seus logs anteriores:
+    visadaVisivel = !visadaVisivel; 
     visadaLayerGroup.eachLayer(layer => {
-        // Se a camada tem a função setStyle (linhas, polígonos)
         if (layer.setStyle) {
             layer.setStyle({
                 opacity: visadaVisivel ? 1 : 0,
-                fillOpacity: visadaVisivel ? layer.options.fillOpacity : 0 // Também esconde preenchimento se houver
+                fillOpacity: visadaVisivel ? (layer.options.fillOpacityOriginal || 0) : 0 // Preserva opacidade original
             });
-        }
-        // Se a camada tem um ícone (marcadores)
-        else if (layer.getElement) { // Método mais moderno para obter o elemento HTML
+        } else if (layer.getElement) {
             const element = layer.getElement();
             if(element) {
                element.style.opacity = visadaVisivel ? 1 : 0;
-               // Impede que o usuário interaja com marcadores escondidos
                element.style.pointerEvents = visadaVisivel ? 'auto' : 'none';
             }
-        }
-        // Fallback para versões mais antigas ou tipos diferentes
-        else if (layer._icon) {
+        } else if (layer._icon) { // Fallback
              layer._icon.style.opacity = visadaVisivel ? 1 : 0;
              layer._icon.style.pointerEvents = visadaVisivel ? 'auto' : 'none';
         }
-
-        // Tenta tornar as camadas não interativas quando escondidas
         if(layer.options) {
             layer.options.interactive = visadaVisivel;
         }
     });
-
-    // Atualiza a aparência do botão para refletir o estado
-    document.getElementById("btn-visada").classList.toggle("opacity-50", !visadaVisivel);
+    // Atualizar botão (exemplo)
+    const btnVisadaElement = document.getElementById("btn-visada");
+    if(btnVisadaElement) {
+       btnVisadaElement.classList.toggle("opacity-50", !visadaVisivel);
+    }
     console.log(`Visibilidade da visada: ${visadaVisivel ? 'Ativada' : 'Desativada'}`);
 }
 
+// A função setupCandidateRemovalListener() deve estar definida neste arquivo
+// ou ser importada/carregada antes de map.js se estiver em outro arquivo.
+// Assumindo que está no mesmo arquivo, como na sua última estrutura:
+function setupCandidateRemovalListener() {
+    if (!map) {
+        console.error("Mapa não inicializado ao tentar configurar listener de remoção.");
+        return;
+    }
+    console.log("Configurando listener de remoção de candidatos..."); 
+
+    map.on('click', function(e) {
+        const targetElement = e.originalEvent.target;
+        // console.log("Clique no mapa capturado. Elemento alvo:", targetElement); 
+
+        if (targetElement.classList.contains('candidate-remove-btn')) {
+            console.log("Botão 'X' (candidate-remove-btn) CLICADO. ID do dataset:", targetElement.dataset.markerId); 
+
+            L.DomEvent.stopPropagation(e); 
+            L.DomEvent.preventDefault(e);  
+
+            const markerIdToRemove = targetElement.dataset.markerId;
+            
+            if (window.candidateRepeaterSitesLayerGroup && markerIdToRemove) {
+                const layersToRemove = [];
+                let foundCount = 0; 
+                window.candidateRepeaterSitesLayerGroup.eachLayer(layer => {
+                    if (layer.options && layer.options.customId === markerIdToRemove) {
+                        layersToRemove.push(layer);
+                        foundCount++;
+                    }
+                });
+
+                console.log(`Encontradas ${foundCount} camadas para remover com ID ${markerIdToRemove}.`); 
+
+                if (layersToRemove.length > 0) {
+                    layersToRemove.forEach(layer => {
+                        window.candidateRepeaterSitesLayerGroup.removeLayer(layer);
+                    });
+                    console.log("Candidato e sua linha associada removidos:", markerIdToRemove);
+                    if (typeof mostrarMensagem === 'function') { 
+                        mostrarMensagem("Sugestão de repetidora removida.", "sucesso");
+                    } else {
+                        console.log("Sugestão de repetidora removida (mostrarMensagem não disponível em map.js).");
+                    }
+                } else {
+                    console.warn("Nenhuma camada encontrada para remover com o ID:", markerIdToRemove);
+                }
+            } else {
+                console.warn("window.candidateRepeaterSitesLayerGroup não definido ou markerIdToRemove está vazio.");
+            }
+        }
+    });
+}

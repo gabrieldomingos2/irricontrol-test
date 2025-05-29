@@ -332,6 +332,67 @@ button, .glass-button, label[for="arquivo"] {
   cursor: pointer !important;
 }
 
+/* ===================== */
+/* Estilo das Repetidoras AI */
+/* ===================== */
+
+/* Estilo para o wrapper do ícone do candidato, permitindo posicionamento relativo do X */
+.candidate-icon-wrapper {
+    position: relative; /* Necessário para o posicionamento absoluto do 'X' */
+    display: inline-block; /* Para que o padding/background se ajuste ao conteúdo */
+    text-align: center; 
+    color: #03A9F4; /* Cor do texto principal do ícone (⛰️ Elev, LoS, Dist) */
+    font-weight: bold; 
+    font-size: 10px; /* Reduzido um pouco para caber mais informação */
+    white-space: nowrap; 
+    padding: 3px 6px; 
+    background-color: rgba(6, 11, 16, 0.75); /* Fundo um pouco mais opaco */
+    border: 1px solid rgba(255, 255, 255, 0.25); 
+    border-radius: 5px; 
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    /* transform: translate(-50%, 5px);  Removido daqui, pois o iconAnchor cuidará do posicionamento geral */
+}
+
+/* Estilo para o botão 'X' de remover */
+.candidate-remove-btn {
+    position: absolute;
+    top: -8px;       /* Ajuste para posicionar o 'X' fora do canto */
+    right: -8px;     /* Ajuste para posicionar o 'X' fora do canto */
+    width: 18px;
+    height: 18px;
+    line-height: 18px; /* Centraliza o 'X' verticalmente */
+    text-align: center;
+    font-size: 14px;  /* Tamanho do 'X' */
+    font-weight: bold;
+    color: white;
+    background-color: #E53E3E; /* Vermelho para o 'X' */
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 50%; /* Círculo */
+    cursor: pointer;
+    z-index: 10; /* Para garantir que fique sobre o ícone principal */
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.candidate-remove-btn:hover {
+    background-color: #FC8181; /* Vermelho mais claro no hover */
+}
+
+/* Ajuste na classe do L.divIcon para não ter padding/transform próprio,
+   pois o wrapper interno (.candidate-icon-wrapper) já cuida disso. */
+.custom-div-icon-ponto-alto {
+    /* O Leaflet pode adicionar padding/border. Se necessário, resetar: */
+    /* padding: 0 !important; */
+    /* border: none !important; */
+    /* background: transparent !important; */
+    /* box-shadow: none !important; */
+    /* O transform: translate(-50%, 5px) foi removido do HTML e o iconAnchor ajustado */
+}
+
+/* Garante que o cursor seja de ponteiro sobre os ícones dos candidatos */
+.leaflet-marker-icon.custom-div-icon-ponto-alto {
+    cursor: pointer;
+}
+
 
 /* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */

@@ -432,13 +432,14 @@ function drawDiagnostico(latlonAntena, latlonPivo, bloqueioData, pontoMaisAltoDa
 function clearMapLayers() {
     if (!map) return;
 
+    // ... (limpeza de marcadorAntena, marcadorPosicionamento, etc. como já existe) ...
     if (marcadorAntena) map.removeLayer(marcadorAntena);
     if (window.marcadorPosicionamento) map.removeLayer(window.marcadorPosicionamento);
 
     marcadoresPivos.forEach(m => map.removeLayer(m));
     circulosPivos.forEach(c => map.removeLayer(c));
     marcadoresBombas.forEach(b => map.removeLayer(b));
-    marcadoresLegenda.forEach(m => map.removeLayer(m)); // Limpa L.Markers antigos
+    marcadoresLegenda.forEach(m => map.removeLayer(m)); 
 
     repetidoras.forEach(r => {
         if (r.marker) map.removeLayer(r.marker);
@@ -448,7 +449,13 @@ function clearMapLayers() {
 
     if (antenaGlobal?.overlay) map.removeLayer(antenaGlobal.overlay);
 
-    visadaLayerGroup.clearLayers();
+    visadaLayerGroup.clearLayers(); // Limpa linhas de diagnóstico da antena e pivô a pivô
+
+    // --- NOVO: Limpar a camada de locais candidatos ---
+    if (window.candidateRepeaterSitesLayerGroup) {
+        window.candidateRepeaterSitesLayerGroup.clearLayers();
+        console.log("Camada de locais candidatos (candidateRepeaterSitesLayerGroup) limpa no reset.");
+    }
 
      Object.values(pivotsMap).forEach(m => {
         if (m.editMarker && map.hasLayer(m.editMarker)) {
@@ -604,6 +611,10 @@ function drawVisadaComGradiente(pontoA, pontoB) {
     return linha;
 }
 
+// drawing.js
+
+// ... (Definições de Ícones e outras funções no início do arquivo) ...
+
 /**
  * Desenha os marcadores e linhas para os locais candidatos de repetidoras.
  * @param {Array<object>} sites - Lista de locais candidatos do backend.
@@ -615,14 +626,11 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
         return;
     }
 
-    // Limpa resultados anteriores usando o LayerGroup global
     if (window.candidateRepeaterSitesLayerGroup) {
         window.candidateRepeaterSitesLayerGroup.clearLayers();
         console.log("Camada de locais candidatos anteriores limpa.");
     } else {
         console.warn("candidateRepeaterSitesLayerGroup não está definido. Os marcadores de busca podem se acumular.");
-        // Se não estiver usando o LayerGroup, você precisaria de uma lógica para
-        // rastrear e remover marcadores/linhas individualmente, o que é mais complexo.
     }
 
     if (!sites || sites.length === 0) {
@@ -630,67 +638,70 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
         return;
     }
 
-    sites.forEach(site => {
+    sites.forEach((site, index) => { // Adicionado index para um ID único mais simples
         if (typeof site.lat === 'undefined' || typeof site.lon === 'undefined') {
             console.warn("Site candidato ignorado por falta de lat/lon:", site);
             return;
         }
         const siteLatLng = [site.lat, site.lon];
+        
+        // ID único para o marcador e seus elementos associados
+        const uniqueMarkerId = `candidate-${index}-${site.lat.toFixed(5)}-${site.lon.toFixed(5)}`;
 
-        // Ícone customizado para o ponto alto candidato
+        // --- ALTERADO: Ícone customizado para o ponto alto candidato ---
+        // Adicionada a distância e um botão 'X' para remover
         const iconHtml = `
-            <div style="text-align: center; color: #03A9F4; font-weight: bold; font-size: 11px; white-space: nowrap; transform: translate(-50%, 5px); padding: 2px 4px; background-color: rgba(6, 11, 16, 0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+            <div class="candidate-icon-wrapper">
+                <span class="candidate-remove-btn" data-marker-id="${uniqueMarkerId}">&times;</span>
                 ⛰️ ${(site.elevation || 0).toFixed(1)}m
                 ${site.has_los ? '<br><span style="color:#4CAF50;">✅LoS</span>' : '<br><span style="color:#FF9800;">❌¬LoS</span>'}
+                <br><span style="color:#FFF;">Dist: ${site.distance_to_target ? site.distance_to_target.toFixed(0) + 'm' : 'N/A'}</span>
             </div>`;
 
         const candidateIcon = L.divIcon({
-            className: 'custom-div-icon-ponto-alto', // Você pode adicionar estilos CSS para esta classe
+            className: 'custom-div-icon-ponto-alto', 
             html: iconHtml,
-            iconSize: [85, 32], // Ajuste o tamanho conforme o conteúdo do HTML
-            iconAnchor: [0, 16]  // Ponto de ancoragem (metade da largura para centralizar, um pouco acima da base)
+            iconSize: [95, 48], // Ajustado para acomodar mais texto e o 'X' (largura, altura)
+            iconAnchor: [47.5, 24] // Metade de iconSize para centralizar
+        });
+        // --- FIM ALTERAÇÃO ÍCONE ---
+
+        const marker = L.marker(siteLatLng, { 
+            icon: candidateIcon,
+            customId: uniqueMarkerId // Adiciona ID customizado ao marcador
         });
 
-        const marker = L.marker(siteLatLng, { icon: candidateIcon });
-
-        // Adiciona ao LayerGroup se ele existir, senão diretamente ao mapa
         if (window.candidateRepeaterSitesLayerGroup) {
             marker.addTo(window.candidateRepeaterSitesLayerGroup);
         } else {
             marker.addTo(map);
         }
 
-        // Conteúdo do Popup
-        let popupContent = `<b>Ponto Alto Candidato</b><br>
-                            Elevação: ${(site.elevation || 0).toFixed(1)}m<br>`;
-        if (targetPivotData && targetPivotData.nome) {
-             popupContent += `Visada para ${targetPivotData.nome}: ${site.has_los ? '<strong style="color:green;">SIM</strong>' : '<strong style="color:red;">NÃO</strong>'}<br>`;
-        }
-        if (site.distance_to_target) {
-            popupContent += `Distância ao pivô: ${site.distance_to_target.toFixed(0)}m<br>`;
-        }
-        if (site.ponto_bloqueio && !site.has_los) {
-            // Assumindo que 'dist' no ponto_bloqueio é uma fração (0 a 1) da distância total
-            const distPercent = site.ponto_bloqueio.dist ? (site.ponto_bloqueio.dist * 100).toFixed(0) : "N/A";
-            popupContent += `Bloqueio a ~${distPercent}% da distância.<br>`;
-        }
-        if (site.altura_necessaria_torre && !site.has_los) {
-            popupContent += `<strong style="color:orange;">Altura torre estimada: ${site.altura_necessaria_torre.toFixed(1)}m</strong>`;
-        }
-        marker.bindPopup(popupContent);
+        // --- REMOVIDO: Popup no hover e clique ---
+        // marker.bindPopup(popupContent); // REMOVIDO
+        // marker.on('mouseover', function (e) { this.openPopup(); }); // REMOVIDO
+        // --- FIM REMOÇÃO ---
 
-        // Evento de clique no marcador do ponto alto
-        marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e); // Impede que o clique no marcador propague para o clique no mapa
+        // Evento de clique no marcador do ponto alto (para selecionar e configurar repetidora)
+        // Este listener agora precisa verificar se o clique não foi no botão de remover.
+        marker.on('click', function (e) {
+            // Verifica se o clique foi originado no botão de remover
+            if (e.originalEvent.target.classList.contains('candidate-remove-btn')) {
+                // A lógica de remoção será tratada pelo listener delegado no map.js/main.js
+                // L.DomEvent.stopPropagation(e) já deve ser chamado lá.
+                return; 
+            }
+            
+            // Se não foi no botão de remover, executa a ação de configurar repetidora
+            L.DomEvent.stopPropagation(e); 
 
-            window.coordenadaClicada = L.latLng(site.lat, site.lon); // Define a coordenada global para o painel de repetidora
+            window.coordenadaClicada = L.latLng(site.lat, site.lon); 
             const painelRep = document.getElementById("painel-repetidora");
             if (painelRep) {
                 painelRep.classList.remove("hidden");
-                // Opcional: pré-preencher altura da antena com base no que o backend sugerir ou um default
-                // document.getElementById("altura-antena-rep").value = site.altura_necessaria_torre || 5;
+                // Opcional: pré-preencher altura da antena
+                // document.getElementById("altura-antena-rep").value = site.altura_necessaria_torre || 5; 
             }
-            // Assume que a função mostrarMensagem está globalmente acessível (geralmente de ui.js ou main.js)
             if (typeof mostrarMensagem === 'function') {
                  mostrarMensagem(`Ponto alto (${(site.elevation || 0).toFixed(1)}m) selecionado. Configure e simule a repetidora.`, "info");
             }
@@ -699,19 +710,19 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
         // Desenhar linha de visada do ponto alto candidato para o pivô alvo
         if (targetPivotData && typeof targetPivotData.lat !== 'undefined' && typeof targetPivotData.lon !== 'undefined') {
             const targetLatLng = [targetPivotData.lat, targetPivotData.lon];
-            let lineColor = 'rgba(128, 128, 128, 0.7)'; // Cinza para LoS não verificada/indefinida
-            if (typeof site.has_los === 'boolean') { // Se o backend enviou a informação de LoS
-                lineColor = site.has_los ? 'rgba(76, 175, 80, 0.7)' : 'rgba(255, 152, 0, 0.7)'; // Verde para LoS, Laranja para não LoS
+            let lineColor = 'rgba(128, 128, 128, 0.7)'; 
+            if (typeof site.has_los === 'boolean') { 
+                lineColor = site.has_los ? 'rgba(76, 175, 80, 0.7)' : 'rgba(255, 152, 0, 0.7)'; 
             }
 
             const line = L.polyline([siteLatLng, targetLatLng], {
                 color: lineColor,
                 weight: 2,
-                dashArray: '5, 5', // Linha tracejada
-                opacity: 0.75
+                dashArray: '5, 5', 
+                opacity: 0.75,
+                customId: uniqueMarkerId // Associa a linha ao mesmo ID do marcador
             });
 
-            // Adiciona ao LayerGroup se ele existir, senão diretamente ao mapa
             if (window.candidateRepeaterSitesLayerGroup) {
                 line.addTo(window.candidateRepeaterSitesLayerGroup);
             } else {
