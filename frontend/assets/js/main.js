@@ -4,6 +4,9 @@ window.modoEdicaoPivos = false;
 window.coordenadaClicada = null;
 window.marcadorPosicionamento = null;
 window.backupPosicoesPivos = {}; // <<< ADICIONADO AQUI TAMBÉM
+window.modoLoSPivotAPivot = false; // Controla o novo modo de diagnóstico
+window.losSourcePivot = null;      // Armazena o pivô de origem selecionado {nome, latlng, altura}
+window.losTargetPivot = null;    // Armazena o pivô de destino selecionado {nome, latlng, altura}
 
 let antenaGlobal = null;
 let marcadorAntena = null;
@@ -44,6 +47,7 @@ function setupMainActionListeners() {
     document.getElementById('btn-diagnostico').addEventListener('click', handleDiagnosticoClick);
     document.getElementById('exportar-btn').addEventListener('click', handleExportClick);
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
+    document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
     map.on("click", handleMapClick);
 }
 
@@ -632,4 +636,119 @@ function undoPivoEdits() {
     });
     posicoesEditadas = {};
     mostrarMensagem("↩️ Edições desfeitas.", "sucesso");
+}
+
+function toggleLoSPivotAPivotMode() {
+    window.modoLoSPivotAPivot = !window.modoLoSPivotAPivot;
+    const btn = document.getElementById('btn-los-pivot-a-pivot');
+    btn.classList.toggle('glass-button-active', window.modoLoSPivotAPivot); // Feedback visual
+
+    if (window.modoLoSPivotAPivot) {
+        mostrarMensagem("MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal/verde).", "sucesso");
+        // Desativa outros modos se necessário (ex: posicionamento de repetidora)
+        if (window.marcadorPosicionamento) removePositioningMarker();
+        document.getElementById("painel-repetidora").classList.add("hidden");
+        window.losSourcePivot = null; // Reseta a seleção anterior ao (re)entrar no modo
+        window.losTargetPivot = null;
+    } else {
+        mostrarMensagem("Modo 'Diagnóstico Pivô a Pivô' desativado.", "sucesso");
+        window.losSourcePivot = null;
+        window.losTargetPivot = null;
+    }
+    // Poderia adicionar mudança de cursor aqui: document.body.style.cursor = window.modoLoSPivotAPivot ? 'crosshair' : 'default';
+}
+
+async function handleLoSPivotClick(pivoData, pivoMarker) {
+    if (!window.modoLoSPivotAPivot) return;
+
+    const isGoodSignalPivot = pivoMarker.options.fillColor === 'green'; // Ou !== 'red'
+    const pivotLatlng = pivoMarker.getLatLng();
+    const defaultPivotHeight = antenaGlobal?.altura_receiver || 3; // Altura padrão do receptor/transmissor do pivô
+
+    if (!window.losSourcePivot) { // Fase 1: Selecionando o Pivô de Origem
+        if (!isGoodSignalPivot) {
+            mostrarMensagem("ORIGEM: Selecione um pivô COM SINAL (verde).", "erro");
+            return;
+        }
+        window.losSourcePivot = {
+            nome: pivoData.nome,
+            latlng: pivotLatlng,
+            altura: defaultPivotHeight // Altura da antena do pivô de origem
+        };
+        mostrarMensagem(`ORIGEM: ${pivoData.nome} selecionado. Agora selecione o pivô de DESTINO (sem sinal/vermelho).`, "sucesso");
+        // Visualmente destacar o pivô de origem (opcional, ex: mudar borda, adicionar ícone temporário)
+
+    } else { // Fase 2: Selecionando o Pivô de Destino (ou mudando a origem)
+        if (pivoData.nome === window.losSourcePivot.nome) {
+            mostrarMensagem(`ORIGEM: ${pivoData.nome} já é a origem. Selecione o pivô de DESTINO.`, "info");
+            return;
+        }
+
+        if (isGoodSignalPivot) { // Usuário clicou em outro pivô verde, talvez queira mudar a origem
+            const confirmaMudanca = confirm(`Você já selecionou ${window.losSourcePivot.nome} como origem. Deseja alterar a origem para ${pivoData.nome}?`);
+            if (confirmaMudanca) {
+                window.losSourcePivot = {
+                    nome: pivoData.nome,
+                    latlng: pivotLatlng,
+                    altura: defaultPivotHeight
+                };
+                mostrarMensagem(`ORIGEM ALTERADA para: ${pivoData.nome}. Selecione o pivô de DESTINO (sem sinal/vermelho).`, "sucesso");
+            }
+            return;
+        }
+
+        // Se chegou aqui, é um pivô vermelho (destino)
+        window.losTargetPivot = {
+            nome: pivoData.nome,
+            latlng: pivotLatlng,
+            altura: defaultPivotHeight // Altura do receptor do pivô de destino
+        };
+
+        mostrarLoader(true);
+        try {
+            const payload = {
+                pontos: [
+                    [window.losSourcePivot.latlng.lat, window.losSourcePivot.latlng.lng],
+                    [window.losTargetPivot.latlng.lat, window.losTargetPivot.latlng.lng]
+                ],
+                altura_antena: window.losSourcePivot.altura,
+                altura_receiver: window.losTargetPivot.altura
+            };
+
+            const resultadoApi = await getElevationProfile(payload); // de api.js
+
+            // Limpa apenas as linhas de diagnóstico pivô a pivô anteriores se quiser
+            // ou pode deixar acumular e usar o botão #btn-visada para limpar/mostrar todas juntas.
+            // visadaLayerGroup.clearLayers(); // Cuidado: Isso limpa o diagnóstico da antena principal também.
+
+            drawDiagnostico( // de drawing.js
+                payload.pontos[0],
+                payload.pontos[1],
+                resultadoApi.bloqueio,
+                resultadoApi.ponto_mais_alto,
+                `${window.losSourcePivot.nome} → ${window.losTargetPivot.nome}` // Nome da linha
+            );
+            mostrarMensagem(`Visada entre ${window.losSourcePivot.nome} e ${window.losTargetPivot.nome} analisada.`, "sucesso");
+
+            // Resetar seleção para permitir nova análise
+            window.losSourcePivot = null;
+            window.losTargetPivot = null;
+            // Poderia sair do modo automaticamente ou permitir múltiplas análises:
+            // toggleLoSPivotAPivotMode(); // Descomente para sair do modo após uma análise
+            // Se não sair do modo, o próximo clique em pivô verde será nova origem.
+             if (window.modoLoSPivotAPivot) { // Se ainda no modo, pedir nova origem
+                 mostrarMensagem("Selecione um novo pivô de ORIGEM (com sinal/verde) ou desative o modo.", "info");
+             }
+
+
+        } catch (error) {
+            console.error(`Erro no diagnóstico LoS Pivô a Pivô:`, error);
+            mostrarMensagem(`⚠️ Erro ao diagnosticar visada: ${error.message}`, "erro");
+            // Resetar seleção em caso de erro
+            window.losSourcePivot = null;
+            window.losTargetPivot = null;
+        } finally {
+            mostrarLoader(false);
+        }
+    }
 }

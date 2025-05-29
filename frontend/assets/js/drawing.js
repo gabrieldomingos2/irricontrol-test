@@ -123,37 +123,47 @@ function drawPivos(pivosData, useEdited = false) {
 
         // ⚡ CLICK: Adiciona repetidora
         marker.on('click', (e) => {
-            console.log(`[DEBUG] Clique detectado no pivô: ${pivo.nome}`);
-            L.DomEvent.stopPropagation(e);
+    L.DomEvent.stopPropagation(e); // Impede que o clique propague para o mapa
 
-            if (window.modoEdicaoPivos === true) {
-                marker.bindPopup(`
-                    <div class="popup-glass">
-                        ✏️ ${pivo.fora ? '❌ Fora de sinal' : '✔️ Com sinal'}
-                    </div>
-                `).openPopup();
-                return;
-            }
+    if (window.modoEdicaoPivos === true) {
+        marker.bindPopup(`
+            <div class="popup-glass">
+                ✏️ ${pivo.fora ? '❌ Fora de sinal' : '✔️ Com sinal'}
+            </div>
+        `).openPopup();
+        return;
+    }
 
-            window.coordenadaClicada = e.latlng;
-            console.log("[DEBUG] Coordenada definida:", window.coordenadaClicada);
+    // ---> INÍCIO DA MODIFICAÇÃO PARA O NOVO MODO <---
+    if (window.modoLoSPivotAPivot) {
+        // 'pivo' aqui é o objeto de dados do pivô (nome, lat, lon, fora)
+        // 'marker' é o L.circleMarker
+        handleLoSPivotClick(pivo, marker); // Esta nova função será definida em main.js
+        return; // Importante para não executar a lógica de repetidora abaixo
+    }
+    // ---> FIM DA MODIFICAÇÃO PARA O NOVO MODO <---
 
-            if (typeof window.removePositioningMarker === 'function') {
-                window.removePositioningMarker();
-                console.log("[DEBUG] Marcador de posicionamento anterior removido.");
-            } else {
-                console.error("[DEBUG] ERRO: Função 'removePositioningMarker' não encontrada!");
-                return;
-            }
+    // Lógica existente para adicionar repetidora
+    console.log(`[DEBUG] Clique detectado no pivô: ${pivo.nome}`);
+    window.coordenadaClicada = e.latlng;
+    console.log("[DEBUG] Coordenada definida:", window.coordenadaClicada);
 
-            const painel = document.getElementById("painel-repetidora");
-            if (painel) {
-                painel.classList.remove("hidden");
-                console.log("[DEBUG] Painel de repetidora deveria estar visível agora.");
-            } else {
-                console.error("[DEBUG] ERRO: Painel 'painel-repetidora' não encontrado!");
-            }
-        });
+    if (typeof window.removePositioningMarker === 'function') {
+        window.removePositioningMarker();
+        console.log("[DEBUG] Marcador de posicionamento anterior removido.");
+    } else {
+        console.error("[DEBUG] ERRO: Função 'removePositioningMarker' não encontrada!");
+        // return; // Removido para permitir que o painel ainda apareça
+    }
+
+    const painel = document.getElementById("painel-repetidora");
+    if (painel) {
+        painel.classList.remove("hidden");
+        console.log("[DEBUG] Painel de repetidora deveria estar visível agora.");
+    } else {
+        console.error("[DEBUG] ERRO: Painel 'painel-repetidora' não encontrado!");
+    }
+});
 
         marcadoresPivos.push(marker);
         pivotsMap[pivo.nome] = marker;
