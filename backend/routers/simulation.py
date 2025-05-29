@@ -20,7 +20,7 @@ class PivoData(BaseModel):
     lon: float
     fora: Optional[bool] = None
     # Se você quiser enviar o status atual do frontend para o backend para depuração:
-    # statusAtualCor: Optional[str] = None 
+    # statusAtualCor: Optional[str] = None
 
 class AntenaSimPayload(BaseModel):
     lat: float
@@ -41,7 +41,7 @@ class ManualSimPayload(BaseModel):
 
 class OverlayData(BaseModel):
     id: Optional[str] = None # Adicionado para facilitar a depuração, o frontend envia isso
-    imagem: str 
+    imagem: str
     bounds: Tuple[float, float, float, float] # S, W, N, E
 
 class ReavaliarPayload(BaseModel):
@@ -52,6 +52,15 @@ class PerfilPayload(BaseModel):
     pontos: List[Tuple[float, float]]
     altura_antena: float
     altura_receiver: float
+
+# 👇 NOVO MODELO PYDANTIC ADICIONADO 👇
+class FindRepeaterSitesPayload(BaseModel):
+    target_pivot_lat: float
+    target_pivot_lon: float
+    target_pivot_nome: str
+    search_radius_m: Optional[float] = 2000.0
+    altura_antena_repetidora_proposta: Optional[float] = 5.0
+    altura_receiver_pivo: Optional[float] = 3.0
 
 # --- Endpoints ---
 
@@ -176,60 +185,24 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
             
             # Remove query string se houver
             img_path_sem_query = img_path_original_frontend.split('?')[0]
-
-            # O frontend já deve estar enviando o caminho relativo correto (ex: "static/imagens/nome.png")
-            # após o `BACKEND_URL + '/'` ser removido.
-            # Se `img_path_sem_query` já é "static/imagens/nome.png", não precisa de mais manipulação.
-            # Se for apenas "nome.png", precisa do `os.path.join`.
-            
-            # Vamos assumir que o frontend envia o caminho como "static/imagens/arquivo.png"
-            # Esta é a forma como o frontend main.js foi instruído a enviar:
-            # imagem: antenaGlobal.overlay._url.replace(BACKEND_URL + '/', '')
-            # ou imagem: rep.overlay._url.replace(BACKEND_URL + '/', '')
-            # que resultaria em algo como 'static/imagens/generated_image.png?timestamp=123'
-            # e após split('?')[0] seria 'static/imagens/generated_image.png'
-
-            # Se o `analysis_service` espera caminhos relativos a partir da raiz do projeto
-            # e `config.STATIC_DIR` é 'static', então o `img_path_sem_query` já deve ser o caminho relativo correto.
-            
-            # Verifique se `config.STATIC_DIR` está definido e é 'static'
-            # E se `config.IMAGENS_DIR_SUBPATH` (ou similar) é 'imagens'
-            # O caminho final para `analysis_service` deve ser algo como 'static/imagens/nome.png'
-            # se o `analysis_service` constrói o caminho absoluto a partir da raiz do projeto.
-
-            # A lógica de normalização que você tinha:
             caminho_para_servico = img_path_sem_query # Começa com o caminho limpo
             
-            # Se o caminho já começa com o diretório estático (ex: "static/imagens/..."), está ok.
-            # Se não, e for apenas um nome de arquivo, prefixamos.
-            # (Esta parte da sua lógica original parecia tentar cobrir vários casos)
-            # if not caminho_para_servico.startswith(config.STATIC_DIR):
-            #    caminho_para_servico = os.path.join(config.STATIC_DIR, "imagens", os.path.basename(caminho_para_servico))
-            # A linha acima pode ser perigosa se `caminho_para_servico` já for "static/imagens/..."
-            # pois resultaria em "static/imagens/static/imagens/..."
-
-            # Simplificação: Assume que o frontend envia 'static/imagens/nome.png'
-            # Se o seu `analysis_service` precisar de um caminho absoluto:
-            # caminho_abs_para_servico = os.path.join(config.BASE_DIR, caminho_para_servico)
-            # Se precisar apenas do relativo à raiz do projeto, `caminho_para_servico` já é isso.
-
             print(f"  ➡️ Overlay ID: {o.id}, Imagem Original: {o.imagem}, Caminho Processado para Análise: {caminho_para_servico}")
 
             overlays_para_analise.append({
-                "id": o.id, # Passa o ID para o serviço, pode ser útil para logs no serviço
-                "imagem": caminho_para_servico, # O caminho que analysis_service.verificar_cobertura_pivos espera
+                "id": o.id,
+                "imagem": caminho_para_servico,
                 "bounds": o.bounds
             })
 
         if not overlays_para_analise:
             print("⚠️ Nenhum overlay ativo para análise. Todos os pivôs serão marcados como 'fora'.")
-            # Se não há overlays, todos os pivôs estão "fora"
             pivos_atualizados = [{"nome": p.nome, "lat": p.lat, "lon": p.lon, "fora": True} for p in payload.pivos]
         else:
             print(f"📞 Chamando analysis_service.verificar_cobertura_pivos com {len(overlays_para_analise)} overlays.")
             pivos_atualizados = analysis_service.verificar_cobertura_pivos(
                 pivos=[p.dict() for p in payload.pivos],
-                overlays_info=overlays_para_analise # Esta lista contém todos os overlays ativos
+                overlays_info=overlays_para_analise
             )
         
         print(f"✅ Pivôs atualizados pela reavaliação: {pivos_atualizados}")
@@ -261,3 +234,41 @@ async def get_elevation_profile_endpoint(payload: PerfilPayload):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao buscar perfil de elevação: {str(e)}")
+
+# 👇 NOVO ENDPOINT ADICIONADO 👇
+@router.post("/find_repeater_sites")
+async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
+    """
+    Encontra locais altos candidatos para posicionar uma repetidora para um pivô alvo.
+    """
+    try:
+        print(f"📡 Iniciando busca por locais de repetidora para o pivô: {payload.target_pivot_nome} em ({payload.target_pivot_lat}, {payload.target_pivot_lon})")
+        
+        # Chamar a nova função de serviço em analysis_service.py
+        # Esta função ainda precisa ser implementada em analysis_service.py
+        candidate_sites = await analysis_service.encontrar_locais_altos_para_repetidora(
+            alvo_lat=payload.target_pivot_lat,
+            alvo_lon=payload.target_pivot_lon,
+            alvo_nome=payload.target_pivot_nome,
+            raio_busca_m=payload.search_radius_m,
+            altura_antena_repetidora_proposta=payload.altura_antena_repetidora_proposta,
+            altura_receptor_pivo=payload.altura_receiver_pivo
+        )
+        
+        print(f"✅ Busca por locais de repetidora concluída. Encontrados {len(candidate_sites)} candidatos.")
+        return {"candidate_sites": candidate_sites}
+
+    except ValueError as ve: # Erros de validação de input ou de lógica de negócio
+        print(f"❌ Erro de Validação em /find_repeater_sites: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    except FileNotFoundError as fnfe: # Específico para erros de DEM não encontrado
+        print(f"❌ Arquivo DEM não encontrado durante a busca: {fnfe}")
+        raise HTTPException(status_code=404, detail=f"Dados de elevação não encontrados para a área: {str(fnfe)}")
+    except NotImplementedError as nie: # Para partes da lógica que ainda não foram implementadas
+        print(f"❌ Funcionalidade não implementada em /find_repeater_sites: {nie}")
+        raise HTTPException(status_code=501, detail=str(nie))
+    except Exception as e: # Outros erros inesperados
+        print(f"❌ Erro Interno em /find_repeater_sites: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro interno ao buscar locais para repetidora: {str(e)}")

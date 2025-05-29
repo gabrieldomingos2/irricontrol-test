@@ -19,6 +19,8 @@ const posicionamentoIcon = L.icon({
   popupAnchor: [0, -30]
 });
 
+window.candidateRepeaterSitesLayerGroup = null; // Será inicializado no initMap (map.js)
+
 // --- Funções de Desenho ---
 
 /**
@@ -121,57 +123,68 @@ function drawPivos(pivosData, useEdited = false) {
     className: 'tooltip-sinal'
 });
 
-        // ⚡ CLICK: Adiciona repetidora
+        // ⚡ CLICK: Lógica de clique no pivô
         marker.on('click', (e) => {
-    L.DomEvent.stopPropagation(e); // Impede que o clique propague para o mapa
+            L.DomEvent.stopPropagation(e); // Impede que o clique propague para o mapa
 
-    if (window.modoEdicaoPivos === true) {
-        marker.bindPopup(`
-            <div class="popup-glass">
-                ✏️ ${pivo.fora ? '❌ Fora de sinal' : '✔️ Com sinal'}
-            </div>
-        `).openPopup();
-        return;
-    }
+            // 1. Modo de Edição de Pivôs (Prioridade Máxima)
+            if (window.modoEdicaoPivos === true) {
+                marker.bindPopup(`
+                    <div class="popup-glass">
+                        ✏️ ${pivo.fora ? '❌ Fora de sinal' : '✔️ Com sinal'}
+                    </div>
+                `).openPopup();
+                return; // Sai da função após tratar este modo
+            }
+            // 2. Modo de Diagnóstico LoS Pivô a Pivô
+            else if (window.modoLoSPivotAPivot) {
+                // 'pivo' é o objeto de dados do pivô (nome, lat, lon, fora)
+                // 'marker' é o L.circleMarker
+                // handleLoSPivotClick é uma função que deve estar definida em main.js
+                if (typeof handleLoSPivotClick === 'function') {
+                    handleLoSPivotClick(pivo, marker);
+                } else {
+                    console.error("Função handleLoSPivotClick não encontrada!");
+                }
+                return; // Sai da função após tratar este modo
+            }
+            // 3. Modo de Busca por Locais para Repetidora
+            else if (window.modoBuscaLocalRepetidora && typeof handlePivotSelectionForRepeaterSite === 'function') {
+                // 'pivo' é o objeto de dados do pivô, 'marker' é o L.circleMarker
+                // handlePivotSelectionForRepeaterSite é uma função que deve estar definida em main.js
+                handlePivotSelectionForRepeaterSite(pivo, marker);
+                return; // Sai da função após tratar este modo
+            }
+            // 4. Modo Padrão: Posicionar Repetidora Manualmente
+            else {
+                console.log(`[DEBUG] Clique padrão no pivô (para posicionar repetidora): ${pivo.nome}`);
+                window.coordenadaClicada = e.latlng; // Define a coordenada para o painel de repetidora
 
-    // ---> INÍCIO DA MODIFICAÇÃO PARA O NOVO MODO <---
-    if (window.modoLoSPivotAPivot) {
-        // 'pivo' aqui é o objeto de dados do pivô (nome, lat, lon, fora)
-        // 'marker' é o L.circleMarker
-        handleLoSPivotClick(pivo, marker); // Esta nova função será definida em main.js
-        return; // Importante para não executar a lógica de repetidora abaixo
-    }
-    // ---> FIM DA MODIFICAÇÃO PARA O NOVO MODO <---
+                // Remove marcador de posicionamento anterior, se houver
+                if (typeof window.removePositioningMarker === 'function') {
+                    window.removePositioningMarker();
+                    // Não precisa de log aqui, a função já deve logar se necessário
+                } else {
+                    console.error("[DEBUG] ERRO: Função 'removePositioningMarker' não está definida globalmente!");
+                }
 
-    // Lógica existente para adicionar repetidora
-    console.log(`[DEBUG] Clique detectado no pivô: ${pivo.nome}`);
-    window.coordenadaClicada = e.latlng;
-    console.log("[DEBUG] Coordenada definida:", window.coordenadaClicada);
-
-    if (typeof window.removePositioningMarker === 'function') {
-        window.removePositioningMarker();
-        console.log("[DEBUG] Marcador de posicionamento anterior removido.");
-    } else {
-        console.error("[DEBUG] ERRO: Função 'removePositioningMarker' não encontrada!");
-        // return; // Removido para permitir que o painel ainda apareça
-    }
-
-    const painel = document.getElementById("painel-repetidora");
-    if (painel) {
-        painel.classList.remove("hidden");
-        console.log("[DEBUG] Painel de repetidora deveria estar visível agora.");
-    } else {
-        console.error("[DEBUG] ERRO: Painel 'painel-repetidora' não encontrado!");
-    }
-});
+                // Mostra o painel para configurar a repetidora
+                const painel = document.getElementById("painel-repetidora");
+                if (painel) {
+                    painel.classList.remove("hidden");
+                    // console.log("[DEBUG] Painel de repetidora manual deveria estar visível agora."); // Opcional
+                } else {
+                    console.error("[DEBUG] ERRO: Painel 'painel-repetidora' não encontrado no DOM!");
+                }
+            }
+        }); // Fim do marker.on('click')
 
         marcadoresPivos.push(marker);
         pivotsMap[pivo.nome] = marker;
-    });
+    }); // Fim do pivosData.forEach
 
     toggleLegendas(legendasAtivas);
-}
-
+} // Fim da função drawPivos
 
 /**
  * Desenha os marcadores das casas de bomba.
@@ -591,3 +604,120 @@ function drawVisadaComGradiente(pontoA, pontoB) {
     return linha;
 }
 
+/**
+ * Desenha os marcadores e linhas para os locais candidatos de repetidoras.
+ * @param {Array<object>} sites - Lista de locais candidatos do backend.
+ * @param {object} targetPivotData - Dados do pivô alvo (com lat, lon, nome).
+ */
+function drawCandidateRepeaterSites(sites, targetPivotData) {
+    if (!map) {
+        console.error("Mapa não inicializado ao tentar desenhar locais candidatos.");
+        return;
+    }
+
+    // Limpa resultados anteriores usando o LayerGroup global
+    if (window.candidateRepeaterSitesLayerGroup) {
+        window.candidateRepeaterSitesLayerGroup.clearLayers();
+        console.log("Camada de locais candidatos anteriores limpa.");
+    } else {
+        console.warn("candidateRepeaterSitesLayerGroup não está definido. Os marcadores de busca podem se acumular.");
+        // Se não estiver usando o LayerGroup, você precisaria de uma lógica para
+        // rastrear e remover marcadores/linhas individualmente, o que é mais complexo.
+    }
+
+    if (!sites || sites.length === 0) {
+        console.log("Nenhum local candidato para desenhar.");
+        return;
+    }
+
+    sites.forEach(site => {
+        if (typeof site.lat === 'undefined' || typeof site.lon === 'undefined') {
+            console.warn("Site candidato ignorado por falta de lat/lon:", site);
+            return;
+        }
+        const siteLatLng = [site.lat, site.lon];
+
+        // Ícone customizado para o ponto alto candidato
+        const iconHtml = `
+            <div style="text-align: center; color: #03A9F4; font-weight: bold; font-size: 11px; white-space: nowrap; transform: translate(-50%, 5px); padding: 2px 4px; background-color: rgba(6, 11, 16, 0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; box-shadow: 0 0 5px rgba(0,0,0,0.5);">
+                ⛰️ ${(site.elevation || 0).toFixed(1)}m
+                ${site.has_los ? '<br><span style="color:#4CAF50;">✅LoS</span>' : '<br><span style="color:#FF9800;">❌¬LoS</span>'}
+            </div>`;
+
+        const candidateIcon = L.divIcon({
+            className: 'custom-div-icon-ponto-alto', // Você pode adicionar estilos CSS para esta classe
+            html: iconHtml,
+            iconSize: [85, 32], // Ajuste o tamanho conforme o conteúdo do HTML
+            iconAnchor: [0, 16]  // Ponto de ancoragem (metade da largura para centralizar, um pouco acima da base)
+        });
+
+        const marker = L.marker(siteLatLng, { icon: candidateIcon });
+
+        // Adiciona ao LayerGroup se ele existir, senão diretamente ao mapa
+        if (window.candidateRepeaterSitesLayerGroup) {
+            marker.addTo(window.candidateRepeaterSitesLayerGroup);
+        } else {
+            marker.addTo(map);
+        }
+
+        // Conteúdo do Popup
+        let popupContent = `<b>Ponto Alto Candidato</b><br>
+                            Elevação: ${(site.elevation || 0).toFixed(1)}m<br>`;
+        if (targetPivotData && targetPivotData.nome) {
+             popupContent += `Visada para ${targetPivotData.nome}: ${site.has_los ? '<strong style="color:green;">SIM</strong>' : '<strong style="color:red;">NÃO</strong>'}<br>`;
+        }
+        if (site.distance_to_target) {
+            popupContent += `Distância ao pivô: ${site.distance_to_target.toFixed(0)}m<br>`;
+        }
+        if (site.ponto_bloqueio && !site.has_los) {
+            // Assumindo que 'dist' no ponto_bloqueio é uma fração (0 a 1) da distância total
+            const distPercent = site.ponto_bloqueio.dist ? (site.ponto_bloqueio.dist * 100).toFixed(0) : "N/A";
+            popupContent += `Bloqueio a ~${distPercent}% da distância.<br>`;
+        }
+        if (site.altura_necessaria_torre && !site.has_los) {
+            popupContent += `<strong style="color:orange;">Altura torre estimada: ${site.altura_necessaria_torre.toFixed(1)}m</strong>`;
+        }
+        marker.bindPopup(popupContent);
+
+        // Evento de clique no marcador do ponto alto
+        marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e); // Impede que o clique no marcador propague para o clique no mapa
+
+            window.coordenadaClicada = L.latLng(site.lat, site.lon); // Define a coordenada global para o painel de repetidora
+            const painelRep = document.getElementById("painel-repetidora");
+            if (painelRep) {
+                painelRep.classList.remove("hidden");
+                // Opcional: pré-preencher altura da antena com base no que o backend sugerir ou um default
+                // document.getElementById("altura-antena-rep").value = site.altura_necessaria_torre || 5;
+            }
+            // Assume que a função mostrarMensagem está globalmente acessível (geralmente de ui.js ou main.js)
+            if (typeof mostrarMensagem === 'function') {
+                 mostrarMensagem(`Ponto alto (${(site.elevation || 0).toFixed(1)}m) selecionado. Configure e simule a repetidora.`, "info");
+            }
+        });
+
+        // Desenhar linha de visada do ponto alto candidato para o pivô alvo
+        if (targetPivotData && typeof targetPivotData.lat !== 'undefined' && typeof targetPivotData.lon !== 'undefined') {
+            const targetLatLng = [targetPivotData.lat, targetPivotData.lon];
+            let lineColor = 'rgba(128, 128, 128, 0.7)'; // Cinza para LoS não verificada/indefinida
+            if (typeof site.has_los === 'boolean') { // Se o backend enviou a informação de LoS
+                lineColor = site.has_los ? 'rgba(76, 175, 80, 0.7)' : 'rgba(255, 152, 0, 0.7)'; // Verde para LoS, Laranja para não LoS
+            }
+
+            const line = L.polyline([siteLatLng, targetLatLng], {
+                color: lineColor,
+                weight: 2,
+                dashArray: '5, 5', // Linha tracejada
+                opacity: 0.75
+            });
+
+            // Adiciona ao LayerGroup se ele existir, senão diretamente ao mapa
+            if (window.candidateRepeaterSitesLayerGroup) {
+                line.addTo(window.candidateRepeaterSitesLayerGroup);
+            } else {
+                line.addTo(map);
+            }
+        }
+    });
+    console.log(`${sites.length} locais candidatos desenhados.`);
+}

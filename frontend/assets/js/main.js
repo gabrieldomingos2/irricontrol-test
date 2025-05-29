@@ -7,6 +7,8 @@ window.backupPosicoesPivos = {}; // <<< ADICIONADO AQUI TAMBÉM
 window.modoLoSPivotAPivot = false; // Controla o novo modo de diagnóstico
 window.losSourcePivot = null;      // Armazena o pivô de origem selecionado {nome, latlng, altura}
 window.losTargetPivot = null;    // Armazena o pivô de destino selecionado {nome, latlng, altura}
+window.modoBuscaLocalRepetidora = false; // Controla o modo de busca por locais de repetidora
+window.pivoAlvoParaLocalRepetidora = null; // Armazena o pivô alvo para a busca
 
 let antenaGlobal = null;
 let marcadorAntena = null;
@@ -48,6 +50,7 @@ function setupMainActionListeners() {
     document.getElementById('exportar-btn').addEventListener('click', handleExportClick);
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
+    document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
     map.on("click", handleMapClick);
 }
 
@@ -278,6 +281,107 @@ async function handleConfirmRepetidoraClick() {
         atualizarPainelDados();
     }
 }
+
+
+function handleBuscarLocaisRepetidoraActivation() {
+    window.modoBuscaLocalRepetidora = !window.modoBuscaLocalRepetidora;
+    const btn = document.getElementById('btn-buscar-locais-repetidora'); // Verifique o ID
+    btn.classList.toggle('glass-button-active', window.modoBuscaLocalRepetidora);
+
+    if (window.modoBuscaLocalRepetidora) {
+        mostrarMensagem("MODO BUSCA LOCAL REPETIDORA: Selecione um pivô SEM SINAL (vermelho) como alvo.", "sucesso");
+        window.pivoAlvoParaLocalRepetidora = null;
+        if (window.marcadorPosicionamento) removePositioningMarker();
+        document.getElementById("painel-repetidora").classList.add("hidden");
+
+        // Desativa outros modos interativos para evitar conflitos
+        if (window.modoLoSPivotAPivot) {
+            toggleLoSPivotAPivotMode(); // Assume que esta função alterna e atualiza a UI
+        }
+        if (window.modoEdicaoPivos) {
+            // Chama a função que desativa o modo de edição (que você já tem em ui.js: togglePivoEditing)
+            // Mas precisamos garantir que ela DESATIVE se estiver ativa.
+            // A função togglePivoEditing em ui.js já tem lógica para isso, mas é chamada por um clique no botão.
+            // Para garantir, podemos fazer:
+            const editarPivosBtn = document.getElementById("editar-pivos");
+            if (editarPivosBtn.classList.contains('glass-button-active')) { // Se o modo edição estiver ativo
+                togglePivoEditing(); // Chamada da função em ui.js que também atualiza o botão.
+            }
+        }
+        map.getContainer().style.cursor = 'crosshair'; // Muda o cursor para indicar seleção
+
+    } else {
+        mostrarMensagem("Modo 'Buscar Locais para Repetidora' desativado.", "sucesso");
+        map.getContainer().style.cursor = ''; // Restaura o cursor padrão
+    }
+}
+
+// 👇 ADICIONE A FUNÇÃO DE SELEÇÃO DE PIVÔ E CHAMADA À API AQUI 👇
+async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
+    // pivoData: o objeto de dados do pivô (ex: { nome: 'P1', lat: -23.5, lon: -46.6, fora: true })
+    // pivoMarker: o objeto L.circleMarker do pivô clicado
+
+    if (!window.modoBuscaLocalRepetidora) return;
+
+    if (pivoMarker.options.fillColor === 'green') {
+        mostrarMensagem("ALVO: Selecione um pivô SEM SINAL (vermelho).", "erro");
+        return;
+    }
+
+    window.pivoAlvoParaLocalRepetidora = {
+        nome: pivoData.nome, // Assegure que 'pivoData' tem 'nome'
+        lat: pivoMarker.getLatLng().lat,
+        lon: pivoMarker.getLatLng().lng,
+        altura_receiver: (antenaGlobal && antenaGlobal.altura_receiver) ? antenaGlobal.altura_receiver : 3
+    };
+
+    mostrarMensagem(`Pivô alvo ${window.pivoAlvoParaLocalRepetidora.nome} selecionado. Buscando locais...`, "info");
+    mostrarLoader(true);
+    map.getContainer().style.cursor = 'wait'; // Cursor de espera
+
+    try {
+        const payload = {
+            target_pivot_lat: window.pivoAlvoParaLocalRepetidora.lat,
+            target_pivot_lon: window.pivoAlvoParaLocalRepetidora.lon,
+            target_pivot_nome: window.pivoAlvoParaLocalRepetidora.nome,
+            search_radius_m: 2000, // Pode ser configurável no futuro
+            altura_antena_repetidora_proposta: parseFloat(document.getElementById("altura-antena-rep").value) || 5,
+            altura_receiver_pivo: window.pivoAlvoParaLocalRepetidora.altura_receiver
+        };
+
+        // Chama a função de api.js (que será criada no Passo 2)
+        const resultados = await findHighPointsForRepeater(payload);
+
+        // Limpar camadas de resultados anteriores (crie um LayerGroup para isso em drawing.js)
+        if (window.candidateRepeaterSitesLayerGroup) {
+            window.candidateRepeaterSitesLayerGroup.clearLayers();
+        } else {
+            // Se não usar layer group, precisará rastrear e remover marcadores manualmente
+            console.warn("candidateRepeaterSitesLayerGroup não definido. Considere criar um para gerenciar marcadores de busca.");
+        }
+
+
+        if (resultados && resultados.candidate_sites && resultados.candidate_sites.length > 0) {
+            // Chama a função de drawing.js (que será criada no Passo 3)
+            drawCandidateRepeaterSites(resultados.candidate_sites, window.pivoAlvoParaLocalRepetidora);
+            mostrarMensagem(`Encontrados ${resultados.candidate_sites.length} locais candidatos. Clique em um para simular.`, "sucesso");
+        } else {
+            mostrarMensagem("Nenhum local promissor encontrado na área de busca.", "info");
+        }
+
+    } catch (error) {
+        // A função findHighPointsForRepeater em api.js já mostra uma mensagem de erro.
+        console.error("Erro ao buscar locais para repetidora:", error);
+    } finally {
+        mostrarLoader(false);
+        map.getContainer().style.cursor = 'crosshair'; // Mantém cursor de seleção se ainda no modo
+
+        // Opcional: Sair do modo após uma busca bem-sucedida.
+        // Se quiser sair do modo:
+        // handleBuscarLocaisRepetidoraActivation(); // Isso vai alternar o modo para false e restaurar o cursor
+    }
+}
+
 
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
@@ -752,3 +856,4 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
         }
     }
 }
+

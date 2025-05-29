@@ -169,3 +169,28 @@ function getPumpIconUrl() {
     // A URL final será: BACKEND_URL + "/static/imagens/homegardenbusiness.png"
     return `${BACKEND_URL}/static/imagens/homegardenbusiness.png`;
 }
+
+/**
+ * Busca pontos altos próximos a um pivô alvo para posicionar repetidoras.
+ * @param {object} payload - Dados do pivô alvo e parâmetros de busca.
+ * @returns {Promise<object>} - A resposta da API (locais candidatos, etc.).
+ */
+async function findHighPointsForRepeater(payload) {
+  try {
+    // Verifique se o endpoint no seu backend é exatamente este:
+    const response = await fetch(`${BACKEND_URL}/simulation/find_repeater_sites`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro ao buscar pontos altos para repetidora:", error);
+    mostrarMensagem(`Falha na busca por locais de repetidora: ${error.message}`, "erro"); // Assume que mostrarMensagem está globalmente acessível
+    throw error; // Permite que a função chamadora também trate o erro se necessário
+  }
+}

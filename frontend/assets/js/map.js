@@ -23,6 +23,10 @@ function initMap() {
     // elementos de visada (linhas, marcadores de bloqueio)
     visadaLayerGroup = L.layerGroup().addTo(map);
 
+    if (!window.candidateRepeaterSitesLayerGroup) { // Verifica se já não foi inicializado
+        window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
+        console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa.");
+
     // Adiciona o listener para o botão de visada
     const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
