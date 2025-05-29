@@ -19,13 +19,14 @@ function initMap() {
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map);
 
-    // Cria um grupo de camadas para adicionar/remover
-    // elementos de visada (linhas, marcadores de bloqueio)
+    // Grupo de camadas para visadas (linhas, marcadores de bloqueio)
     visadaLayerGroup = L.layerGroup().addTo(map);
 
-    if (!window.candidateRepeaterSitesLayerGroup) { // Verifica se já não foi inicializado
+    // ✅ Corrige: fecha corretamente o if
+    if (!window.candidateRepeaterSitesLayerGroup) {
         window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
         console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa.");
+    }
 
     // Adiciona o listener para o botão de visada
     const btnVisada = document.getElementById("btn-visada");
@@ -35,6 +36,7 @@ function initMap() {
         console.error("Botão #btn-visada não encontrado!");
     }
 }
+
 
 /**
  * Alterna a visibilidade das camadas dentro do visadaLayerGroup.
@@ -77,4 +79,3 @@ function toggleVisada() {
     console.log(`Visibilidade da visada: ${visadaVisivel ? 'Ativada' : 'Desativada'}`);
 }
 
-// Nota: A função initMap() será chamada em main.js quando o DOM estiver pronto.
