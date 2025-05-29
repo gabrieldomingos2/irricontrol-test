@@ -5,3 +5,9 @@ httpx
 simplekml
 Pillow
 shapely
+pydantic
+requests 
+numpy
+scipy
+elevation
+rasterio>=1.3.0
