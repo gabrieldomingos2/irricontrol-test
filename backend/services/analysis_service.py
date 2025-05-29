@@ -246,8 +246,8 @@ async def encontrar_locais_altos_para_repetidora(
     active_overlays_data: List[Dict] 
 ) -> List[Dict]:
     """
-    Encontra pontos altos DENTRO DAS ÁREAS DE COBERTURA (active_overlays_data)
-    e verifica LoS para o pivô alvo.
+    Encontra pontos altos DENTRO DAS ÁREAS DE COBERTURA (active_overlays_data),
+    a uma DISTÂNCIA MÁXIMA do pivô alvo, e verifica LoS para o pivô alvo.
     """
     print(f"🔎 Iniciando busca por pontos altos para o pivô '{alvo_nome}' ({alvo_lat}, {alvo_lon}) dentro das áreas de cobertura fornecidas.") 
     
@@ -294,6 +294,11 @@ async def encontrar_locais_altos_para_repetidora(
     candidate_sites = []
     imagens_overlay_cache = {}
 
+    # --- NOVO: Definir a distância máxima do pivô alvo ---
+    MAX_DISTANCIA_DO_PIVO_ALVO_M = 2300.0 # 2.3 km
+    print(f"   -> Restrição adicional: locais candidatos devem estar a no máximo {MAX_DISTANCIA_DO_PIVO_ALVO_M / 1000:.1f} km do pivô alvo.")
+    # --- FIM NOVO ---
+
     try:
         tamanho_filtro_maximo = 5 
         print(f"   -> Identificando máximos locais no DEM com filtro de vizinhança {tamanho_filtro_maximo}x{tamanho_filtro_maximo}...")
@@ -312,7 +317,7 @@ async def encontrar_locais_altos_para_repetidora(
         
         print(f"   -> Encontrados {len(map_x_coords)} picos locais potenciais no DEM da área de cobertura.")
 
-        contador_picos_em_area_de_sinal = 0
+        contador_picos_validos = 0 # Alterado para contar picos que passam em todos os filtros preliminares
 
         for idx, (peak_lon_dem_crs, peak_lat_dem_crs) in enumerate(zip(map_x_coords, map_y_coords)):
             peak_elev_val = dem_processado[y_pixels[idx], x_pixels[idx]]
@@ -324,7 +329,8 @@ async def encontrar_locais_altos_para_repetidora(
                 # transformer = Transformer.from_crs(dem_crs.to_string(), "EPSG:4326", always_xy=True)
                 # peak_lon_wgs84, peak_lat_wgs84 = transformer.transform(peak_lon_dem_crs, peak_lat_dem_crs)
                 pass
-
+            
+            # --- 1. Verificar se o pico está dentro de alguma área de sinal (overlay ativo) ---
             peak_in_signal_area = False
             for ov_data in active_overlays_data:
                 ov_bounds = ov_data['bounds']
@@ -364,21 +370,22 @@ async def encontrar_locais_altos_para_repetidora(
                     print(f"      -> ❌ Erro ao verificar cobertura do pico no overlay {ov_image_rel_path}: {e_img_check}")
             
             if not peak_in_signal_area:
-                continue 
+                continue # Pula se não estiver em área de cobertura
             
-            contador_picos_em_area_de_sinal +=1
-            
+            # --- 2. Verificar se o pico (já em área de cobertura) está dentro da distância máxima do pivô alvo ---
             dist_ao_alvo = haversine(alvo_lat, alvo_lon, peak_lat_wgs84, peak_lon_wgs84)
             
-            # Filtro secundário opcional: não considerar picos em overlays muito distantes do pivô alvo.
-            # Ajuste este valor conforme necessário.
-            MAX_DIST_PARA_CONSIDERAR_CANDIDATO_M = dem_effective_radius_m * 2.0 # Exemplo: 2x o raio efetivo do DEM
-            if dist_ao_alvo > MAX_DIST_PARA_CONSIDERAR_CANDIDATO_M : 
-                continue
+            if dist_ao_alvo > MAX_DISTANCIA_DO_PIVO_ALVO_M:
+                # print(f"      -> Pico em cobertura ({peak_lat_wgs84:.4f}, {peak_lon_wgs84:.4f}), mas muito distante do alvo ({dist_ao_alvo:.0f}m > {MAX_DISTANCIA_DO_PIVO_ALVO_M:.0f}m). Pulando.") # Log Opcional
+                continue # Pula se estiver muito distante do pivô alvo
+            # --- FIM NOVO FILTRO DE DISTÂNCIA ---
             
-            if contador_picos_em_area_de_sinal % 5 == 0: # Log apenas para picos válidos
-                 print(f"      -> Analisando LoS do pico coberto #{contador_picos_em_area_de_sinal} ({peak_lat_wgs84:.5f}, {peak_lon_wgs84:.5f}, Elev: {peak_elev_val:.1f}m)...")
+            contador_picos_validos +=1 
+            
+            if contador_picos_validos % 5 == 0: 
+                 print(f"      -> Analisando LoS do candidato #{contador_picos_validos} ({peak_lat_wgs84:.5f}, {peak_lon_wgs84:.5f}, Elev: {peak_elev_val:.1f}m, Dist: {dist_ao_alvo:.0f}m)...")
 
+            # --- 3. Calcular LoS para o pivô alvo ---
             try:
                 perfil_data = await obter_perfil_elevacao(
                     pontos=[[peak_lat_wgs84, peak_lon_wgs84], [alvo_lat, alvo_lon]],
@@ -409,7 +416,7 @@ async def encontrar_locais_altos_para_repetidora(
             }
             candidate_sites.append(site_info)
         
-        print(f"   -> {len(candidate_sites)} picos DENTRO DE ÁREA DE SINAL foram analisados para LoS com o pivô alvo.")
+        print(f"   -> {len(candidate_sites)} locais candidatos (em cobertura e dentro da distância máx.) foram analisados para LoS.")
 
     except Exception as e_proc:
         print(f"   -> ❌ Erro durante o processamento dos picos ou LoS: {e_proc}")
