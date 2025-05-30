@@ -11,7 +11,7 @@ html, body {
 #map {
   height: 100%;
   width: 100%;
-  z-index: 0;
+  z-index: 0; /* Garante que o mapa fique abaixo de outros elementos com z-index maior */
 }
 
 /* ============================= */
@@ -21,24 +21,22 @@ html, body {
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 6px;
+  border-radius: 12px; /* Aumentado um pouco para um visual mais suave */
+  padding: 6px; /* Reduzido para botões mais compactos, ajuste conforme necessário */
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Cor base e transição com sombra */
   color: rgba(255, 255, 255, 0.7); /* text-white/70 */
-  transition: all 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.3s ease; /* Simplificado para transicionar todas as propriedades aplicáveis */
   cursor: pointer;
-  box-shadow: none;
+  box-shadow: none; /* Remove sombra padrão */
 }
 
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
-  /* Cor azul (sky-300) e sombra no hover */
-  color: #7DD3FC;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+  color: #7DD3FC; /* Cor do Tailwind sky-300 */
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3); /* Sutil brilho no hover */
 }
 
 .glass-button.hidden {
@@ -46,46 +44,38 @@ html, body {
 }
 
 .glass-button-active {
-  background-color: rgba(96, 165, 250, 0.15);
-  border-color: rgba(96, 165, 250, 0.5);
-  /* Cor azul quando ativo */
-  color: #7DD3FC;
-  box-shadow: 0 0 8px rgba(96, 165, 250, 0.4); /* Sombra azul opcional */
+  background-color: rgba(96, 165, 250, 0.2); /* Fundo azul mais sutil quando ativo */
+  border-color: rgba(96, 165, 250, 0.6); /* Borda azul mais pronunciada */
+  color: #7DD3FC; /* Mantém a cor azul */
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.5); /* Sombra azul mais forte para indicar atividade */
 }
 
 /* ========================= */
 /* Botão Repetidora          */
 /* ========================= */
-
 #confirmar-repetidora {
-  /* Usa as classes Tailwind, mas garantimos a cor aqui se necessário */
-  /* Se você usar as classes hover:text-sky-300, esta parte pode não ser necessária, */
-  /* mas garante o comportamento se as classes forem removidas */
-  color: rgba(255, 255, 255, 0.7);
-  transition: all 0.3s ease, color 0.3s ease;
+  /* As classes Tailwind já devem cuidar disso, mas para garantir: */
+  color: rgba(255, 255, 255, 0.7); /* Cor inicial */
+  transition: color 0.3s ease; /* Transição suave da cor */
 }
 
 #confirmar-repetidora:hover {
-  /* Define a cor azul no hover (sky-300) */
-  color: #7DD3FC;
+  color: #7DD3FC; /* Cor no hover (sky-300) */
 }
 
-
 /* ========================= */
-/* 🧠 ÍCONES                */
+/* 🧠 ÍCONES                 */
 /* ========================= */
-
-/* Ícones com Máscara e currentColor (Serve para Sidebar e Topbar) */
 .sidebar-icon {
   display: inline-block;
-  background-color: currentColor; /* Pega a cor do texto pai! */
+  background-color: currentColor; /* Pega a cor do texto do elemento pai (ex: .glass-button) */
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-position: center;
   mask-position: center;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  transition: background-color 0.3s ease; /* Transição suave da cor */
+  /* A transição da cor do ícone será herdada da transição de 'color' do .glass-button */
 }
 
 /* ==================== */
@@ -99,13 +89,14 @@ html, body {
 
 #mensagem.hidden {
   opacity: 0;
-  transform: translateY(20px);
-  pointer-events: none;
+  transform: translateY(20px); /* Efeito de deslizar para baixo ao desaparecer */
+  pointer-events: none; /* Impede interação quando escondido */
 }
 
 /* ================ */
-/* ⚡ GLOW */
+/* ⚡ GLOW (para círculos KMZ, se usado) */
 /* ================ */
+/* .circulo-vermelho-pulsante pode usar esta animação se desejar um brilho pulsante */
 @keyframes pulseGlow {
   0% { filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.7)); }
   50% { filter: drop-shadow(0 0 14px rgba(255, 0, 0, 1)); }
@@ -113,63 +104,84 @@ html, body {
 }
 
 /* ===================== */
-/* 🟢 CÍRCULOS */
+/* 🟢 CÍRCULOS (Exemplo de estilo, se não usar a classe pulsante) */
 /* ===================== */
-.leaflet-interactive.circulo-verde {
+.leaflet-interactive.circulo-verde { /* Se você tiver círculos verdes */
   stroke: #34c759;
   stroke-width: 1;
   fill-opacity: 0.5;
   fill-color: #34c759;
 }
 
+.circulo-vermelho-pulsante { /* Para os círculos vermelhos do KMZ */
+    /* stroke: #cc0000; Já definido no JS */
+    /* stroke-width: 2; Já definido no JS */
+    /* fill-opacity: 0; Já definido no JS */
+    /* animation: pulseGlow 2s infinite; Descomente para efeito de pulso */
+}
+
+
 /* ========================== */
 /* 🏷️ LABEL FIXA DOS PIVÔS */
 /* ========================== */
 .label-pivo {
-  background-color: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
+  background-color: transparent !important; /* Garante que não haja fundo do Leaflet */
+  border: none !important; /* Garante que não haja borda do Leaflet */
+  box-shadow: none !important; /* Garante que não haja sombra de caixa do Leaflet */
+  padding: 0 !important; /* Remove padding padrão para controle total com iconSize */
   color: white;
   font-weight: bold;
-  font-size: 12px;
+  font-size: 12px; /* Ajuste conforme sua preferência */
   text-align: center;
-  white-space: nowrap;
-  pointer-events: none;
-  text-shadow:
-    0 0 6px rgba(0, 0, 0, 1),
-    0 0 10px rgba(0, 0, 0, 0.9),
-    1px 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: normal; /* MODIFICADO: Permite quebra de linha para nome e distância */
+  pointer-events: none; /* O label não captura eventos do mouse */
+  line-height: 1.3; /* ADICIONADO: Melhora o espaçamento para múltiplas linhas */
+  text-shadow: /* Efeito de contorno para legibilidade sobre o mapa */
+    0px 0px 5px rgba(0, 0, 0, 1),  /* Sombra mais escura e um pouco mais espalhada */
+    1px 1px 3px rgba(0, 0, 0, 0.8); /* Sombra sutil para profundidade */
+  /* Largura e altura são controladas pelo iconSize no JavaScript (L.divIcon) */
 }
 
+/* Estilo para a parte da distância dentro do label do pivô */
+.distancia-pivo {
+  display: block; /* Garante que o <br> funcione e ocupe sua própria linha */
+  font-size: 0.85em; /* Tamanho um pouco menor que o nome do pivô */
+  font-weight: normal; /* Pode ser 'bold' se preferir */
+  color: #dddddd;   /* Cor um pouco mais suave que o branco puro, para diferenciar */
+  /* text-shadow: none;  Pode remover a sombra aqui se quiser contraste */
+}
+
+
 /* ======================= */
-/* 📍 POPUPS */
+/* 📍 POPUPS (Leaflet) */
 /* ======================= */
-.popup-glass {
+.popup-glass { /* Estilo para o conteúdo interno do seu popup customizado */
   backdrop-filter: blur(8px);
-  background: rgba(0, 0, 0, 0.6);
-  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.65); /* Um pouco mais escuro */
+  padding: 10px 14px; /* Aumentado um pouco */
   border-radius: 8px;
   font-weight: 600;
-  font-size: 0.8rem;
+  font-size: 0.85rem; /* Levemente maior */
   color: #FFF;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+/* Remove estilos padrão do wrapper de conteúdo do popup do Leaflet */
 .leaflet-popup-content-wrapper {
   background: transparent;
   box-shadow: none;
-  border-radius: 0;
-  padding: 0;
+  border-radius: 0; /* O popup-glass interno terá o seu próprio border-radius */
+  padding: 0; /* O padding será no popup-glass */
 }
 
+/* Esconde a ponta/seta padrão do popup do Leaflet */
 .leaflet-popup-tip-container {
   display: none;
 }
 
 /* ======================= */
-/* 🗂️ PAINÉIS */
+/* 🗂️ PAINÉIS (Dados e Repetidoras) */
 /* ======================= */
 #painel-dados,
 #painel-repetidoras {
@@ -179,7 +191,7 @@ html, body {
 #painel-dados.hidden,
 #painel-repetidoras.hidden {
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateX(20px); /* Efeito de deslizar para a direita ao desaparecer */
   pointer-events: none;
 }
 
@@ -187,210 +199,230 @@ html, body {
 /* 🛰️ LINHAS DIAGNÓSTICO */
 /* ========================= */
 .linha-pontilhada {
-  stroke-dasharray: 8 8;
-  stroke-dashoffset: 1000;
-  animation: growLine 0.8s ease-out forwards;
+  /* stroke-dasharray e animation já estão no código */
+  /* Se precisar de mais estilos específicos para todas as linhas de diagnóstico */
 }
 
+/* Animação para as linhas de diagnóstico */
 @keyframes growLine {
   to {
     stroke-dashoffset: 0;
   }
 }
 
-
 /* ========================= */
-/* ⚠️ LABEL DE BLOQUEIO */
+/* ⚠️ LABEL DE BLOQUEIO (Visada) */
 /* ========================= */
-.label-bloqueio {
+.label-bloqueio { /* Para o L.divIcon que contém a imagem de atenção */
   background: none !important;
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
   pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
+  /* display, align-items, justify-content, width, height são controlados pelo iconSize do L.divIcon se for um ícone de tamanho fixo */
 }
 
-.label-bloqueio i svg {
-  width: 20px;
-  height: 20px;
-  stroke: black !important;
-  fill: none !important;
-  stroke-width: 2.5;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+/* Se você estiver usando um ícone Lucide dentro de .label-bloqueio e quiser estilizá-lo: */
+.label-bloqueio i svg { /* Supondo que Lucide renderize <i class="lucide..."><svg>...</svg></i> */
+  width: 20px;  /* Tamanho do ícone SVG */
+  height: 20px; /* Tamanho do ícone SVG */
+  stroke: #000000 !important;  /* Cor da linha do ícone (preto) */
+  fill: none !important;       /* Sem preenchimento */
+  stroke-width: 2.5;           /* Espessura da linha */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7)); /* Sombra para o ícone */
 }
 
 /* ======================= */
 /* 📂 INPUT FILE ESCONDIDO */
 /* ======================= */
-input[type="file"].hidden {
+input[type="file"].hidden { /* Garante que o input original fique escondido */
   display: none;
 }
 
 /* ========================= */
-/* 🎚️ SLIDER */
+/* 🎚️ SLIDER (Opacidade) */
 /* ========================= */
 .range-slider-custom {
   -webkit-appearance: none;
   appearance: none;
-  width: 100%;
-  height: 5px;
-  background: #4A5568;
-  border-radius: 9999px;
-  outline: none;
+  width: 100%; /* Ocupa a largura do contêiner */
+  height: 5px; /* Altura da trilha */
+  background: #4A5568; /* Cor da trilha (cinza escuro) */
+  border-radius: 9999px; /* Trilha arredondada */
+  outline: none; /* Remove o contorno padrão do foco */
   opacity: 0.85;
   transition: opacity 0.2s;
 }
 
 .range-slider-custom:hover {
-  opacity: 1;
+  opacity: 1; /* Opacidade total no hover */
 }
 
+/* Estilo do "polegar" (thumb) do slider para Webkit (Chrome, Safari) */
 .range-slider-custom::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
-  background-color: #3B82F6; /* Azul um pouco diferente, mas pode mudar para #7DD3FC */
-  border-radius: 9999px;
+  width: 14px;  /* Largura do polegar */
+  height: 14px; /* Altura do polegar */
+  background-color: #3B82F6; /* Cor do polegar (azul) */
+  border-radius: 9999px; /* Polegar circular */
   cursor: pointer;
-  border: none;
-  margin-top: 0px;
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.7);
-  transition: transform 0.2s;
+  border: none; /* Sem borda no polegar */
+  /* margin-top: 0px;  Não é necessário se a altura da trilha for pequena */
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.7); /* Sombra sutil no polegar */
+  transition: transform 0.2s; /* Transição para o efeito de escala */
 }
 
-
+/* Efeito de escala no polegar quando ativo/arrastando */
 .range-slider-custom:active::-webkit-slider-thumb {
   transform: scale(1.2);
 }
 
+/* Estilo do "polegar" (thumb) do slider para Firefox */
+.range-slider-custom::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background-color: #3B82F6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.7);
+  transition: transform 0.2s;
+}
+
+.range-slider-custom:active::-moz-range-thumb {
+  transform: scale(1.2);
+}
+
+
 /* ===================== */
-/* ✒️ TOOLTIP DOS PIVÔS */
+/* ✒️ TOOLTIP DOS PIVÔS (Sinal) */
 /* ===================== */
 .leaflet-tooltip.tooltip-sinal {
-  background-color: rgba(0, 0, 0, 0.9);
-  color: white;
-  border-radius: 8px;
-  padding: 6px 10px;
-  border: none;
-  font-size: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-  opacity: 0;
-  transform: scale(1);
-  transition: opacity 0.3s ease;
+  background-color: rgba(10, 10, 10, 0.9) !important; /* Fundo mais escuro e opaco */
+  color: white !important;
+  border-radius: 6px !important; /* Borda um pouco menos arredondada */
+  padding: 6px 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Borda sutil */
+  font-size: 12px !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5) !important; /* Sombra mais pronunciada */
+  opacity: 0; /* Começa invisível para transição */
+  transform: translateY(5px) scale(0.95); /* Efeito de entrada sutil */
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
   text-align: center;
+  pointer-events: none; /* Tooltips não devem ser interativos */
 }
 
+/* Estado visível do tooltip */
 .leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible {
   opacity: 1;
+  transform: translateY(0) scale(1); /* Anima para a posição final */
 }
 
-
+/* Esconde a ponta/seta padrão do tooltip do Leaflet, se não desejado */
 .leaflet-tooltip.tooltip-sinal::before {
   display: none;
 }
 
-.leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible {
-  opacity: 1;
-  transform: scale(1);
-}
 
-.linha-gradiente {
-    stroke-width: 4;
-    stroke-linecap: round;
+/* Linha com gradiente (se você usar uma classe específica para ela) */
+.linha-gradiente { /* Aplicar esta classe a L.polyline no JavaScript se necessário */
+  stroke-width: 4;
+  stroke-linecap: round;
+  /* A cor é definida por 'url(#gradient-id)' no JS */
 }
 
 /* ===================== */
-/* Pin de Edit */
+/* Pin de Edição de Pivô */
 /* ===================== */
-
-.pivo-edit-handle-custom-pin {
-    filter: drop-shadow(0 0 3px red);
-    cursor: grab;
+.pivo-edit-handle-custom-pin { /* Para o L.divIcon do pino de edição */
+  filter: drop-shadow(0 0 4px rgba(255, 50, 50, 0.8)); /* Sombra vermelha mais visível */
+  cursor: grab; /* Indica que pode ser arrastado */
 }
-.pivo-edit-handle-custom-pin:active {
-    cursor: grabbing;
-}
-
-
-/* ===================== */
-/* 🔥 Seta no mapa 👆 Mãozinha nos botões */
-/* ===================== */
-
-
-#map, .leaflet-interactive {
-  cursor: default !important;
+.pivo-edit-handle-custom-pin:active { /* Quando está sendo arrastado */
+  cursor: grabbing;
+  filter: drop-shadow(0 0 8px rgba(255, 0, 0, 1)); /* Sombra mais intensa ao arrastar */
 }
 
+/* ===================== */
+/* 🔥 Cursores do Mouse */
+/* ===================== */
+#map, .leaflet-interactive { /* Cursor padrão para o mapa e elementos interativos do Leaflet */
+  cursor: default !important; /* Alterado de 'crosshair' para 'default', ajuste se 'crosshair' for preferido */
+}
 
+/* Garante que botões e labels de arquivo tenham cursor de ponteiro */
 button, .glass-button, label[for="arquivo"] {
   cursor: pointer !important;
 }
 
-/* ===================== */
-/* Estilo das Repetidoras AI */
-/* ===================== */
+/* ====================================== */
+/* Estilo dos Ícones de Candidatos a Repetidora (AI) */
+/* ====================================== */
 
-/* Estilo para o wrapper do ícone do candidato, permitindo posicionamento relativo do X */
-.candidate-icon-wrapper {
-    position: relative; /* Necessário para o posicionamento absoluto do 'X' */
-    display: inline-block; /* Para que o padding/background se ajuste ao conteúdo */
-    text-align: center; 
-    color: #03A9F4; /* Cor do texto principal do ícone (⛰️ Elev, LoS, Dist) */
-    font-weight: bold; 
-    font-size: 10px; /* Reduzido um pouco para caber mais informação */
-    white-space: nowrap; 
-    padding: 3px 6px; 
-    background-color: rgba(6, 11, 16, 0.75); /* Fundo um pouco mais opaco */
-    border: 1px solid rgba(255, 255, 255, 0.25); 
-    border-radius: 5px; 
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    /* transform: translate(-50%, 5px);  Removido daqui, pois o iconAnchor cuidará do posicionamento geral */
+/* Wrapper do ícone do candidato (o L.divIcon em si) */
+.custom-div-icon-ponto-alto {
+    /* O Leaflet pode adicionar estilos. Se necessário, resete-os: */
+    /* background: transparent !important; */
+    /* border: none !important; */
+    /* padding: 0 !important; */
+    /* box-shadow: none !important; */
+    cursor: pointer; /* Indica que o ícone todo é clicável */
 }
 
-/* Estilo para o botão 'X' de remover */
+/* Conteúdo interno do ícone do candidato */
+.candidate-icon-wrapper {
+    position: relative; /* Para posicionamento absoluto do botão 'X' */
+    display: inline-block; /* Ajusta ao conteúdo */
+    text-align: center;
+    color: #E0E0E0; /* Cor do texto principal (⛰️ Elev, LoS, Dist) */
+    font-weight: normal;
+    font-size: 10px;
+    white-space: normal; /* Permite quebra de linha para o conteúdo interno */
+    line-height: 1.3;
+    padding: 4px 7px; /* Padding interno */
+    background-color: rgba(20, 30, 40, 0.85); /* Fundo escuro semi-transparente */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+}
+
+/* Cores específicas dentro do ícone do candidato */
+.candidate-icon-wrapper .los-ok { /* Para ✅LoS */
+    color: #4CAF50; /* Verde */
+}
+.candidate-icon-wrapper .los-no { /* Para ❌¬LoS */
+    color: #FF9800; /* Laranja */
+}
+.candidate-icon-wrapper .distancia-info { /* Para Dist: N/A */
+    color: #B0BEC5; /* Cinza azulado claro */
+}
+
+
+/* Botão 'X' de remover candidato */
 .candidate-remove-btn {
     position: absolute;
-    top: -8px;       /* Ajuste para posicionar o 'X' fora do canto */
-    right: -8px;     /* Ajuste para posicionar o 'X' fora do canto */
+    top: -9px;   /* Ajuste fino para posicionar o 'X' */
+    right: -9px;  /* Ajuste fino para posicionar o 'X' */
     width: 18px;
     height: 18px;
-    line-height: 18px; /* Centraliza o 'X' verticalmente */
+    line-height: 17px; /* Ajuste para centralizar o 'X' verticalmente */
     text-align: center;
-    font-size: 14px;  /* Tamanho do 'X' */
+    font-size: 14px;
     font-weight: bold;
     color: white;
-    background-color: #E53E3E; /* Vermelho para o 'X' */
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 50%; /* Círculo */
+    background-color: #D32F2F; /* Vermelho mais escuro */
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 50%; /* Circular */
     cursor: pointer;
-    z-index: 10; /* Para garantir que fique sobre o ícone principal */
-    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    z-index: 10; /* Sobre o ícone principal */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .candidate-remove-btn:hover {
-    background-color: #FC8181; /* Vermelho mais claro no hover */
-}
-
-/* Ajuste na classe do L.divIcon para não ter padding/transform próprio,
-   pois o wrapper interno (.candidate-icon-wrapper) já cuida disso. */
-.custom-div-icon-ponto-alto {
-    /* O Leaflet pode adicionar padding/border. Se necessário, resetar: */
-    /* padding: 0 !important; */
-    /* border: none !important; */
-    /* background: transparent !important; */
-    /* box-shadow: none !important; */
-    /* O transform: translate(-50%, 5px) foi removido do HTML e o iconAnchor ajustado */
-}
-
-/* Garante que o cursor seja de ponteiro sobre os ícones dos candidatos */
-.leaflet-marker-icon.custom-div-icon-ponto-alto {
-    cursor: pointer;
+    background-color: #E57373; /* Vermelho mais claro no hover */
+    transform: scale(1.1); /* Efeito de leve aumento no hover */
 }
 
 
