@@ -30,6 +30,7 @@ class AntenaSimPayload(BaseModel):
     nome: Optional[str] = "Antena Principal"
     template: str
     pivos_atuais: List[PivoData]
+    bombas_atuais: Optional[List[PivoData]] = []
 
 class ManualSimPayload(BaseModel):
     lat: float
@@ -38,6 +39,7 @@ class ManualSimPayload(BaseModel):
     altura_receiver: float
     template: str
     pivos_atuais: List[PivoData]
+    bombas_atuais: Optional[List[PivoData]] = []
 
 class OverlayData(BaseModel):
     id: Optional[str] = None # Adicionado para facilitar a depuração, o frontend envia isso
@@ -94,8 +96,9 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
         print(f"ℹ️  Pivôs recebidos para análise (principal): {[p.nome for p in payload.pivos_atuais]}")
 
 
+        todos_os_pontos = payload.pivos_atuais + payload.bombas_atuais
         pivos_com_status = analysis_service.verificar_cobertura_pivos(
-            pivos=[p.dict() for p in payload.pivos_atuais],
+        pivos=[p.dict() for p in todos_os_pontos],
             overlays_info=[{
                 "id": "antena_principal_sim_run_main", # ID para depuração
                 "imagem": caminho_relativo_servidor, # Deve ser o caminho que o analysis_service espera
@@ -145,8 +148,9 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
         # A reavaliação de TODOS os pivôs com TODOS os overlays ativos
         # é feita pelo endpoint /reevaluate.
         # Se você quiser que /run_manual também retorne os pivôs atualizados APENAS por esta repetidora:
+        todos_os_pontos = payload.pivos_atuais + payload.bombas_atuais
         pivos_com_status_para_este_overlay = analysis_service.verificar_cobertura_pivos(
-             pivos=[p.dict() for p in payload.pivos_atuais],
+        pivos=[p.dict() for p in todos_os_pontos],
              overlays_info=[{
                  "id": "repetidora_sim_run_manual", # ID para depuração
                  "imagem": caminho_relativo_servidor,

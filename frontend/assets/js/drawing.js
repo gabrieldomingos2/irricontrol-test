@@ -117,10 +117,11 @@ function drawPivos(pivosData, useEdited = false) {
 
         marker.bindTooltip(tooltipContent, {
             permanent: false,
-            direction: 'top',
-            offset: [0, -15],
+            direction: 'top', // Isso já ajuda a posicionar em cima
+            offset: [0, -15],  // Ajusta a distância vertical do ícone
             className: 'tooltip-sinal'
         });
+
 
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
@@ -435,14 +436,14 @@ function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPon
         });
 
         const marker = L.marker([pontoParaMarcador.lat, pontoParaMarcador.lon], { icon: markerIcon })
-            .addTo(visadaLayerGroup)
-            .bindTooltip(mensagemTooltip, {
-                permanent: false,
-                direction: 'top',
-                className: 'tooltip-sinal tooltip-visada-diagnostico',
-                offset: [0, - (localIconSize[1] / 2 + 5)],
-                opacity: 0.95
-            });
+        .addTo(visadaLayerGroup)
+        .bindTooltip(mensagemTooltip, {
+        permanent: false,
+        direction: 'top', // Isso já ajuda a posicionar em cima
+        className: 'tooltip-sinal tooltip-visada-diagnostico', //tooltip-sinal aplicará o fade
+        offset: [0, - (localIconSize[1] / 2 + 5)], // Ajusta dinamicamente
+        opacity: 0.95 // Opacidade final do tooltip em si, não da transição
+    });
         marcadoresBloqueio.push(marker);
     }
 

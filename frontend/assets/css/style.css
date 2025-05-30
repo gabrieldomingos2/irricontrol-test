@@ -307,8 +307,8 @@ input[type="file"].hidden { /* Garante que o input original fique escondido */
   font-size: 12px !important;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5) !important; /* Sombra mais pronunciada */
   opacity: 0; /* Começa invisível para transição */
-  transform: translateY(5px) scale(0.95); /* Efeito de entrada sutil */
-  transition: opacity 0.2s ease, transform 0.2s ease !important;
+  /* REMOVIDO: transform: translateY(5px) scale(0.95); */
+  transition: opacity 0.2s ease !important; /* AGORA SÓ TRANSICIONA A OPACIDADE */
   text-align: center;
   pointer-events: none; /* Tooltips não devem ser interativos */
 }
@@ -316,20 +316,12 @@ input[type="file"].hidden { /* Garante que o input original fique escondido */
 /* Estado visível do tooltip */
 .leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible {
   opacity: 1;
-  transform: translateY(0) scale(1); /* Anima para a posição final */
+  /* REMOVIDO: transform: translateY(0) scale(1); */
 }
 
 /* Esconde a ponta/seta padrão do tooltip do Leaflet, se não desejado */
 .leaflet-tooltip.tooltip-sinal::before {
   display: none;
-}
-
-
-/* Linha com gradiente (se você usar uma classe específica para ela) */
-.linha-gradiente { /* Aplicar esta classe a L.polyline no JavaScript se necessário */
-  stroke-width: 4;
-  stroke-linecap: round;
-  /* A cor é definida por 'url(#gradient-id)' no JS */
 }
 
 /* ===================== */
