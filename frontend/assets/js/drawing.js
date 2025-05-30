@@ -23,11 +23,6 @@ window.candidateRepeaterSitesLayerGroup = null; // Será inicializado no initMap
 
 // --- Funções de Desenho ---
 
-/**
- * Desenha o marcador da antena principal no mapa.
- * @param {object} antenaData - Dados da antena (lat, lon, nome).
- * @returns {L.Marker} - O marcador da antena.
- */
 function drawAntena(antenaData) {
     if (!map || !antenaData) return null;
 
@@ -39,30 +34,24 @@ function drawAntena(antenaData) {
 
     const label = L.marker([antenaData.lat, antenaData.lon], {
         icon: L.divIcon({
-            className: 'label-pivo', // Reutiliza estilo, mas pode criar um 'label-antena'
+            className: 'label-pivo',
             html: antenaData.nome || 'Antena',
             iconSize: [labelWidth, labelHeight],
             iconAnchor: [labelWidth / 2, 45]
         }),
-        labelType: 'antena' // Identifica como label de antena
+        labelType: 'antena'
     }).addTo(map);
 
     marcadoresLegenda.push(label);
     return marker;
 }
 
-/**
- * Desenha os marcadores dos pivôs no mapa (com hover e click).
- * @param {Array<object>} pivosData - Array com dados dos pivôs.
- * @param {boolean} useEdited - Usar posições editadas se existirem.
- */
 function drawPivos(pivosData, useEdited = false) {
     if (!map || !pivosData) return;
 
-    // 🔄 Limpa marcadores antigos de pivôs e suas legendas
     marcadoresPivos.forEach(m => map.removeLayer(m));
     marcadoresPivos = [];
-    pivotsMap = {}; // Limpa o mapa de pivôs para reconstrução
+    pivotsMap = {};
 
     const legendasRestantes = [];
     marcadoresLegenda.forEach(legenda => {
@@ -74,7 +63,6 @@ function drawPivos(pivosData, useEdited = false) {
     });
     marcadoresLegenda = legendasRestantes;
 
-    // 🔥 Cria novos marcadores de pivôs
     pivosData.forEach(pivo => {
         const cor = pivo.fora ? 'red' : 'green';
         const pos = useEdited && posicoesEditadas[pivo.nome]
@@ -89,32 +77,28 @@ function drawPivos(pivosData, useEdited = false) {
             weight: 2,
         }).addTo(map);
 
-        // --- MODIFICADO: Cálculo e formatação da distância ---
         const labelNome = pivo.nome;
         let distanciaHtml = "";
         let hasDistancia = false;
 
-        // window.distanciasPivosVisiveis e window.antenaGlobal são definidos em main.js
         if (window.distanciasPivosVisiveis && window.antenaGlobal && typeof window.antenaGlobal.lat === 'number' && typeof window.antenaGlobal.lon === 'number') {
             const antenaLatLng = L.latLng(window.antenaGlobal.lat, window.antenaGlobal.lon);
-            const pivoLatLng = pos; // pos já é um L.latLng
-            const distancia = antenaLatLng.distanceTo(pivoLatLng); // em metros
+            const pivoLatLng = pos;
+            const distancia = antenaLatLng.distanceTo(pivoLatLng);
             distanciaHtml = `<br><span class="distancia-pivo">${distancia > 999 ? (distancia / 1000).toFixed(1) + ' km' : Math.round(distancia) + ' m'}</span>`;
             hasDistancia = true;
         }
         const finalHtml = `${labelNome}${distanciaHtml}`;
-        // --- FIM MODIFICAÇÃO ---
 
-        // Ajusta a largura e altura da legenda
-        const labelWidth = (labelNome.length * 7) + 20; // Largura baseada no nome, com um pouco de padding
-        const labelHeight = hasDistancia ? 35 : 20;    // Altura ajustada para uma ou duas linhas
+        const labelWidth = (labelNome.length * 7) + 20;
+        const labelHeight = hasDistancia ? 35 : 20;
 
         const label = L.marker(pos, {
             icon: L.divIcon({
-                className: 'label-pivo', // O CSS pode precisar de ajustes para altura/centralização
-                html: finalHtml,         // USA finalHtml com a distância
-                iconSize: [labelWidth, labelHeight], // USA altura ajustada
-                iconAnchor: [labelWidth / 2, -15]    // Mantém a legenda abaixo do círculo (ancoragem no centro inferior do divIcon)
+                className: 'label-pivo',
+                html: finalHtml,
+                iconSize: [labelWidth, labelHeight],
+                iconAnchor: [labelWidth / 2, -15]
             }),
             labelType: 'pivot'
         }).addTo(map);
@@ -187,10 +171,6 @@ function drawPivos(pivosData, useEdited = false) {
     toggleLegendas(legendasAtivas);
 }
 
-/**
- * Desenha os marcadores das casas de bomba.
- * @param {Array<object>} bombasData - Array com dados das bombas.
- */
 function drawBombas(bombasData) {
     if (!map || !bombasData) return;
 
@@ -219,10 +199,6 @@ function drawBombas(bombasData) {
      toggleLegendas(legendasAtivas);
 }
 
-/**
- * Desenha os círculos (LineString) do KMZ.
- * @param {Array<object>} ciclosData - Array com dados dos círculos.
- */
 function drawCirculos(ciclosData) {
     if (!map || !ciclosData) return;
 
@@ -240,13 +216,6 @@ function drawCirculos(ciclosData) {
     );
 }
 
-/**
- * Adiciona ou atualiza um overlay de imagem no mapa.
- * @param {string} url - URL da imagem.
- * @param {Array<number>} bounds - Limites do overlay [sul, oeste, norte, leste].
- * @param {number} opacity - Opacidade inicial (0 a 1).
- * @returns {L.ImageOverlay} - O overlay criado.
- */
 function drawImageOverlay(url, bounds, opacity = 1.0) {
     if (!map || !url || !bounds) return null;
 
@@ -260,11 +229,6 @@ function drawImageOverlay(url, bounds, opacity = 1.0) {
     return overlay;
 }
 
-
-/**
- * Adiciona uma repetidora ao painel lateral e gerencia seus eventos.
- * @param {object} repetidora - Objeto contendo dados da repetidora.
- */
 function addRepetidoraNoPainel(repetidora) {
     const container = document.getElementById("lista-repetidoras");
     const item = document.createElement("div");
@@ -329,12 +293,7 @@ function addRepetidoraNoPainel(repetidora) {
     container.appendChild(item);
 }
 
-
-/**
- * Adiciona o marcador da antena principal ao painel lateral.
- * @param {object} antena - Objeto da antena principal (deve ser window.antenaGlobal).
- */
-function addAntenaAoPainel(antena) { // antena aqui é window.antenaGlobal
+function addAntenaAoPainel(antena) {
     const container = document.getElementById("lista-repetidoras");
     const item = document.createElement("div");
     item.className = "flex justify-between items-center bg-gray-700/60 px-3 py-2 rounded-lg border border-white/10";
@@ -365,7 +324,7 @@ function addAntenaAoPainel(antena) { // antena aqui é window.antenaGlobal
             if(labelEl) labelEl.style.display = (isChecked && legendasAtivas) ? '' : 'none';
         }
 
-        if (window.antenaGlobal.overlay) window.antenaGlobal.overlay.setOpacity(isChecked ? opacityValue : 0); // Usa window.antenaGlobal
+        if (window.antenaGlobal.overlay) window.antenaGlobal.overlay.setOpacity(isChecked ? opacityValue : 0);
         if(marcadorAntena) marcadorAntena.options.interactive = isChecked;
         setTimeout(reavaliarPivosViaAPI, 100);
     });
@@ -381,39 +340,116 @@ function addAntenaAoPainel(antena) { // antena aqui é window.antenaGlobal
     }
 }
 
-
-function drawDiagnostico(latlonAntena, latlonPivo, bloqueioData, pontoMaisAltoData, pivoNome) {
+/**
+ * Desenha a linha de visada e o marcador de bloqueio/ponto mais alto.
+ * @param {Array<number>} latlonOrigem - Coordenadas do ponto de origem da visada.
+ * @param {Array<number>} latlonDestino - Coordenadas do ponto de destino da visada.
+ * @param {object | null} dadosBloqueioAPI - Objeto {lat, lon, elev, diff, dist} da API, ou null.
+ * @param {object | null} dadosPontoMaisAlto - Objeto {lat, lon, elev} do ponto de maior elevação geodésica.
+ * @param {string} nomeDiagnostico - Nome da linha/diagnóstico (ex: "Pivô A → Pivô B" ou "Antena → Pivô X").
+ * @param {string | null} distanciaTotalPivosFormatada - Distância total formatada (usado APENAS para LoS entre pivôs).
+ */
+function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPontoMaisAlto, nomeDiagnostico, distanciaTotalPivosFormatada = null) {
     if (!map) return;
 
-    const linha = drawVisadaComGradiente(latlonAntena, latlonPivo);
+    const linha = drawVisadaComGradiente(latlonOrigem, latlonDestino);
 
-    if (pontoMaisAltoData) {
-        const highPointIcon = L.divIcon({
-            className: 'label-bloqueio',
-            html: `<img src="./assets/images/attention-icon-original.svg" style="width: 24px; height: 24px;">`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+    let pontoParaMarcador = null;
+    let mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
+    let usarIconeAtencaoReal = false; // Indica se há um bloqueio efetivo
+    let localIconUrl = "./assets/images/attention-icon-original.svg"; // Ícone padrão para ponto mais alto
+    let localIconSize = [20, 20];
+
+    // Caso 1: Diagnóstico de Visada entre Pivôs (distanciaTotalPivosFormatada é fornecida)
+    if (distanciaTotalPivosFormatada) {
+        mensagemTooltip += `<br>Dist. Total: ${distanciaTotalPivosFormatada}`;
+    }
+
+    // Analisa os dados de bloqueio da API (objeto {lat, lon, elev, diff, dist})
+    // Este objeto é o 'ponto crítico' retornado pela API.
+    if (dadosBloqueioAPI && typeof dadosBloqueioAPI.lat === 'number' && typeof dadosBloqueioAPI.elev === 'number' && typeof dadosBloqueioAPI.diff === 'number') {
+        pontoParaMarcador = dadosBloqueioAPI; // O marcador será no ponto crítico retornado pela API
+        usarIconeAtencaoReal = dadosBloqueioAPI.diff > 0.1; // Considera bloqueio se diff > 0.1m
+
+        mensagemTooltip += `<br>Ponto Crítico: Elev. ${pontoParaMarcador.elev.toFixed(1)}m`;
+        
+        if (usarIconeAtencaoReal) {
+            localIconUrl = "./assets/images/attention-icon-original.svg";
+            localIconSize = [24, 24];
+            mensagemTooltip += `<br><span style="color: #FF9800;">⛔ Bloqueio: ${dadosBloqueioAPI.diff.toFixed(1)}m acima</span>`;
+        } else {
+            // Se diff <= 0.1, o ponto crítico não é um bloqueio real.
+            // Se estamos no diagnóstico Pivô-Pivô, podemos mostrar que está livre nesse ponto.
+            // Se for diagnóstico Torre-Pivô e o pivô está sem sinal, não diremos "livre" aqui,
+            // pois o "sem sinal" já indica o problema geral.
+            localIconUrl = "./assets/images/circle-check-big.svg";
+            localIconSize = [22, 22];
+            if (distanciaTotalPivosFormatada) { // Só adiciona "Livre" se for diagnóstico Pivô-Pivô
+                 mensagemTooltip += `<br><span style="color: #4CAF50;">✅ Livre no Ponto Crítico (${dadosBloqueioAPI.diff.toFixed(1)}m)</span>`;
+            } else {
+                 // Para Torre-Pivô, se não há bloqueio no ponto crítico, apenas mostramos a elevação.
+                 // A informação de "sem sinal" do pivô já é o indicativo principal.
+            }
+        }
+    } else if (dadosPontoMaisAlto && typeof dadosPontoMaisAlto.lat === 'number' && typeof dadosPontoMaisAlto.elev === 'number') {
+        // Caso 2: Sem dados de bloqueio da API (ou diff não é número), mas temos o ponto mais alto geodésico.
+        // ISSO É IMPORTANTE PARA O DIAGNÓSTICO DA TORRE PRINCIPAL -> PIVÔ SEM SINAL.
+        pontoParaMarcador = dadosPontoMaisAlto;
+        localIconUrl = "./assets/images/attention-icon-original.svg"; // Ícone de montanha para ponto mais alto
+        localIconSize = [20, 20];
+        mensagemTooltip += `<br>Ponto Mais Alto: Elev. ${pontoParaMarcador.elev.toFixed(1)}m`;
+        usarIconeAtencaoReal = false; // Não é um bloqueio confirmado pela API, apenas o ponto mais alto.
+    }
+
+    // Desenha o marcador SE houver um pontoParaMarcador definido
+    // E, no caso do diagnóstico da TORRE PRINCIPAL, queremos mostrar o ponto mais alto SEMPRE que ele existir,
+    // mesmo que não haja bloqueio (usarIconeAtencaoReal = false).
+    // No caso PIVÔ-PIVÔ, só mostramos o marcador se houver dadosBloqueioAPI (ponto crítico).
+    let deveMostrarMarcador = false;
+    if (distanciaTotalPivosFormatada) { // Diagnóstico Pivô-Pivô
+        deveMostrarMarcador = !!dadosBloqueioAPI; // Só mostra se a API retornou um ponto crítico
+    } else { // Diagnóstico Torre Principal -> Pivô
+        deveMostrarMarcador = !!pontoParaMarcador; // Mostra se tiver ponto crítico OU ponto mais alto
+    }
+
+
+    if (deveMostrarMarcador && pontoParaMarcador) {
+        // Se for diagnóstico Torre-Pivô e não há bloqueio real no ponto crítico, mas temos um ponto mais alto,
+        // o ícone será mountain-icon-grey. Se há bloqueio real, será attention.
+        if (!distanciaTotalPivosFormatada && dadosBloqueioAPI && !usarIconeAtencaoReal && dadosPontoMaisAlto && pontoParaMarcador === dadosBloqueioAPI) {
+            // Pivô sem sinal, API retornou ponto crítico mas não é bloqueio.
+            // Se quisermos mostrar o ponto mais alto geodésico em vez do ponto crítico "livre":
+            // pontoParaMarcador = dadosPontoMaisAlto; // Descomente se preferir
+            // localIconUrl = "./assets/images/mountain-icon-grey.svg";
+            // localIconSize = [20, 20];
+            // mensagemTooltip = `<strong>${nomeDiagnostico}</strong><br>Ponto Mais Alto: Elev. ${dadosPontoMaisAlto.elev.toFixed(1)}m`; // Atualiza tooltip
+            // A lógica atual já deve usar mountain-icon-grey se usarIconeAtencaoReal for false após o if/else de dadosBloqueioAPI.
+        }
+
+
+        const markerIcon = L.divIcon({
+            className: 'label-bloqueio-dinamico',
+            html: `<img src="${localIconUrl}" style="width: ${localIconSize[0]}px; height: ${localIconSize[1]}px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));">`,
+            iconSize: localIconSize,
+            iconAnchor: [localIconSize[0] / 2, localIconSize[1] / 2]
         });
 
-        const markerHigh = L.marker([pontoMaisAltoData.lat, pontoMaisAltoData.lon], { icon: highPointIcon })
+        const marker = L.marker([pontoParaMarcador.lat, pontoParaMarcador.lon], { icon: markerIcon })
             .addTo(visadaLayerGroup)
-            .bindTooltip(
-                `⛔ Visada bloqueada para <strong>${pivoNome}</strong><br>Elevação: ${pontoMaisAltoData.elev.toFixed(1)}m`, {
+            .bindTooltip(mensagemTooltip, {
                 permanent: false,
                 direction: 'top',
-                className: 'tooltip-sinal',
-                offset: [0, -15],
-                opacity: 0.9
+                className: 'tooltip-sinal tooltip-visada-diagnostico',
+                offset: [0, - (localIconSize[1] / 2 + 5)],
+                opacity: 0.95
             });
-        marcadoresBloqueio.push(markerHigh);
+        marcadoresBloqueio.push(marker);
     }
+
     linhasDiagnostico.push(linha);
 }
 
 
-/**
- * Limpa todas as camadas adicionadas dinamicamente ao mapa.
- */
 function clearMapLayers() {
     if (!map) return;
 
@@ -431,27 +467,24 @@ function clearMapLayers() {
         if (r.label) map.removeLayer(r.label);
     });
 
-    if (window.antenaGlobal?.overlay) map.removeLayer(window.antenaGlobal.overlay); // Usa window.antenaGlobal
+    if (window.antenaGlobal?.overlay) map.removeLayer(window.antenaGlobal.overlay);
 
     visadaLayerGroup.clearLayers();
 
     if (window.candidateRepeaterSitesLayerGroup) {
         window.candidateRepeaterSitesLayerGroup.clearLayers();
-        console.log("Camada de locais candidatos (candidateRepeaterSitesLayerGroup) limpa no reset.");
     }
 
      Object.values(pivotsMap).forEach(m => {
         if (m.editMarker && map.hasLayer(m.editMarker)) {
             map.removeLayer(m.editMarker);
+            delete m.editMarker;
         }
-        // m é o circleMarker, que já foi limpo de marcadoresPivos.
-        // Se m é apenas o wrapper com editMarker, e o circleMarker já foi removido, ok.
-        // A limpeza de pivotsMap={} abaixo deve resolver.
-        if (map.hasLayer(m)) { // Garante que removemos o próprio circleMarker se ele ainda existir
-            m.unbindTooltip();
+        if(map.hasLayer(m)) {
+            if (typeof m.unbindTooltip === 'function') m.unbindTooltip();
+            if (typeof m.unbindPopup === 'function') m.unbindPopup();
             map.removeLayer(m);
         }
-        delete m.editMarker;
     });
 
     marcadoresPivos = [];
@@ -462,15 +495,9 @@ function clearMapLayers() {
     overlaysVisiveis = [];
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
-    pivotsMap = {}; // Limpa o mapa de pivôs
+    pivotsMap = {};
 }
 
-
-/**
- * Alterna a visibilidade das legendas L.Marker (Antena, Bombas, Repetidoras).
- * Pivôs são controlados por hover (Tooltip) e não são afetados aqui.
- * @param {boolean} show - True para mostrar legendas, false para esconder.
- */
 function toggleLegendas(show) {
     legendasAtivas = show;
 
@@ -485,16 +512,14 @@ function toggleLegendas(show) {
             checkbox = document.querySelector("#antena-item input[type='checkbox']");
         } else if (labelType === 'bomba') {
              return true;
-        } else if (labelType === 'repetidora') { // Adicionado para repetidoras
+        } else if (labelType === 'repetidora') {
             const rep = repetidoras.find(r => r.label === labelMarker);
             if (rep) {
                 checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
             }
         }
-        // Para legendas de pivôs, a visibilidade é controlada por window.distanciasPivosVisiveis
-        // e pela própria renderização em drawPivos. Aqui, só tratamos outros tipos de legendas.
         else if (labelType === 'pivot') {
-            return true; // A legenda do pivô em si (nome/distância) é sempre "visível" no DOM, mas seu conteúdo muda.
+            return true;
         }
         return checkbox ? checkbox.checked : true;
     };
@@ -502,13 +527,9 @@ function toggleLegendas(show) {
     marcadoresLegenda.forEach(m => {
         const el = m.getElement?.();
         if (el) {
-            // Para pivôs, a lógica de mostrar/esconder a distância já está em drawPivos.
-            // Aqui, só controlamos a visibilidade geral das legendas de antena, bomba, repetidora.
             if (m.options.labelType !== 'pivot') {
                  el.style.display = (show && isParentVisible(m)) ? '' : 'none';
             } else {
-                // Para pivôs, se as legendas gerais estão desligadas, escondemos tudo.
-                // Se ligadas, a drawPivos decide o que mostrar (nome vs nome+distância).
                 el.style.display = show ? '' : 'none';
             }
         }
@@ -518,21 +539,17 @@ function toggleLegendas(show) {
         toggleLegendaButton.classList.toggle("glass-button-active", !show);
         toggleLegendaButton.title = show ? "Esconder Legendas" : "Mostrar Legendas";
         if (iconSpan) {
-            const iconName = show ? 'captions' : 'captions-off';
-            iconSpan.style.webkitMaskImage = `url(assets/images/${iconName}.svg)`;
-            iconSpan.style.maskImage = `url(assets/images/${iconName}.svg)`;
+            // Correção do ícone para o botão de legenda (ruler-captions.svg não existe)
+            const iconPath = show ? 'assets/images/captions.svg' : 'assets/images/captions-off.svg'; // Assumindo que captions-off.svg existe
+            iconSpan.style.webkitMaskImage = `url(${iconPath})`;
+            iconSpan.style.maskImage = `url(${iconPath})`;
         }
     }
 }
 
-
-/**
- * Atualiza a opacidade de todos os overlays de sinal.
- * @param {number} opacityValue - Valor da opacidade (0 a 1).
- */
 function updateOverlaysOpacity(opacityValue) {
     const isPanelItemChecked = (overlay) => {
-        if (window.antenaGlobal?.overlay === overlay) { // Usa window.antenaGlobal
+        if (window.antenaGlobal?.overlay === overlay) {
             const checkbox = document.querySelector("#antena-item input[type='checkbox']");
             return checkbox ? checkbox.checked : true;
         }
@@ -547,21 +564,20 @@ function updateOverlaysOpacity(opacityValue) {
     overlaysVisiveis.forEach(overlay => {
         if (map.hasLayer(overlay) && isPanelItemChecked(overlay)) {
              overlay.setOpacity(opacityValue);
-        } else if (map.hasLayer(overlay)) { // Se não estiver checado mas estiver no mapa, torna invisível
+        } else if (map.hasLayer(overlay)) {
             overlay.setOpacity(0);
         }
     });
 }
 
 function criarGradienteVisada(id = 'gradient-visada') {
-    const svgPane = map.getPane('overlayPane'); // Melhor forma de pegar o SVG pane
+    const svgPane = map.getPane('overlayPane');
     if (!svgPane) {
         console.error("❌ SVG pane do mapa não encontrado.");
         return;
     }
     let svg = svgPane.querySelector('svg');
-    if (!svg) { // Se o SVG não existir (primeira vez), o Leaflet o criará com a primeira camada vetorial
-        // Adiciona uma camada temporária para forçar a criação do SVG se necessário
+    if (!svg) {
         const tempLayer = L.polyline([[0,0],[0,0]]).addTo(map);
         svg = svgPane.querySelector('svg');
         map.removeLayer(tempLayer);
@@ -571,14 +587,13 @@ function criarGradienteVisada(id = 'gradient-visada') {
         }
     }
 
-
     const existente = svg.querySelector(`#${id}`);
     if (existente) return;
 
     let defs = svg.querySelector('defs');
     if (!defs) {
         defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-        svg.insertBefore(defs, svg.firstChild); // Adiciona defs no início do SVG
+        svg.insertBefore(defs, svg.firstChild);
     }
 
     const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
@@ -595,28 +610,22 @@ function criarGradienteVisada(id = 'gradient-visada') {
     defs.appendChild(gradient);
 }
 
-
 function drawVisadaComGradiente(pontoA, pontoB) {
     criarGradienteVisada();
 
     const linha = L.polyline([pontoA, pontoB], {
-        renderer: L.svg(), // Garante que está usando SVG para gradientes
-        color: `url(#gradient-visada)`, // Referencia o gradiente
+        renderer: L.svg(),
+        color: `url(#gradient-visada)`,
         weight: 2,
-        opacity: visadaVisivel ? 1 : 0.5, // visadaVisivel deve ser uma var global
+        opacity: visadaVisivel ? 1 : 0.5,
         dashArray: '8 8',
-        className: 'linha-pontilhada', // Para CSS se necessário
+        className: 'linha-pontilhada',
         lineCap: 'round'
     }).addTo(visadaLayerGroup);
 
     return linha;
 }
 
-/**
- * Desenha os marcadores e linhas para os locais candidatos de repetidoras.
- * @param {Array<object>} sites - Lista de locais candidatos do backend.
- * @param {object} targetPivotData - Dados do pivô alvo (com lat, lon, nome).
- */
 function drawCandidateRepeaterSites(sites, targetPivotData) {
     if (!map) {
         console.error("Mapa não inicializado ao tentar desenhar locais candidatos.");
@@ -625,15 +634,12 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
 
     if (window.candidateRepeaterSitesLayerGroup) {
         window.candidateRepeaterSitesLayerGroup.clearLayers();
-        // console.log("Camada de locais candidatos anteriores limpa.");
     } else {
-        console.warn("candidateRepeaterSitesLayerGroup não está definido. Os marcadores de busca podem se acumular.");
-         // Inicializa se não existir, para segurança
+        console.warn("candidateRepeaterSitesLayerGroup não está definido.");
         window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
     }
 
     if (!sites || sites.length === 0) {
-        // console.log("Nenhum local candidato para desenhar.");
         return;
     }
 
@@ -649,8 +655,8 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
             <div class="candidate-icon-wrapper">
                 <span class="candidate-remove-btn" data-marker-id="${uniqueMarkerId}">&times;</span>
                 ⛰️ ${(site.elevation || 0).toFixed(1)}m
-                ${site.has_los ? '<br><span style="color:#4CAF50;">✅LoS</span>' : '<br><span style="color:#FF9800;">❌¬LoS</span>'}
-                <br><span style="color:#FFF;">Dist: ${site.distance_to_target ? site.distance_to_target.toFixed(0) + 'm' : 'N/A'}</span>
+                ${site.has_los ? '<br><span class="los-ok">✅LoS</span>' : '<br><span class="los-no">❌¬LoS</span>'}
+                <br><span class="distancia-info">Dist: ${site.distance_to_target ? site.distance_to_target.toFixed(0) + 'm' : 'N/A'}</span>
             </div>`;
 
         const candidateIcon = L.divIcon({
@@ -677,7 +683,6 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
             const painelRep = document.getElementById("painel-repetidora");
             if (painelRep) {
                 painelRep.classList.remove("hidden");
-                 // Pré-preenche a altura da antena se disponível, caso contrário, usa o valor padrão do input
                 const alturaRepInput = document.getElementById("altura-antena-rep");
                 if (alturaRepInput) {
                     alturaRepInput.value = site.altura_necessaria_torre || alturaRepInput.value || 5;
@@ -705,54 +710,33 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
             line.addTo(window.candidateRepeaterSitesLayerGroup);
         }
     });
-    // console.log(`${sites.length} locais candidatos desenhados.`);
 }
 
-
-// --- NOVA FUNÇÃO PARA ATIVAR/DESATIVAR DISTÂNCIAS ---
-/**
- * Alterna a exibição das distâncias dos pivôs e redesenha-os.
- * Chamada por handleToggleDistanciasPivos em main.js.
- * @param {boolean} show - True para mostrar distâncias, false para esconder.
- */
 function togglePivoDistances(show) {
-    // window.distanciasPivosVisiveis já foi atualizado em main.js
-    // Apenas precisamos redesenhar os pivôs.
-
     if (window.lastPivosDataDrawn && window.lastPivosDataDrawn.length > 0) {
-        // Redesenha os pivôs usando os últimos dados conhecidos.
-        // O segundo argumento 'true' para useEdited garante que as posições editadas sejam consideradas
-        // se lastPivosDataDrawn não tiver as posições já atualizadas (o que deveria ter).
-        // Se lastPivosDataDrawn TEM as posições corretas, useEdited pode ser false.
-        // Para segurança e consistência, é bom que lastPivosDataDrawn sempre reflita o estado atual.
-        drawPivos(window.lastPivosDataDrawn, true); // Passa 'true' para useEdited
-        if (typeof mostrarMensagem === 'function') { // Verifica se mostrarMensagem está disponível
+        drawPivos(window.lastPivosDataDrawn, true);
+        if (typeof mostrarMensagem === 'function') {
              mostrarMensagem(`Distâncias dos pivôs ${show ? 'exibidas' : 'ocultas'}.`, 'sucesso');
         }
     } else if (Object.keys(pivotsMap).length > 0 && window.currentProcessedKmzData && window.currentProcessedKmzData.pivos) {
-        // Fallback: se lastPivosDataDrawn estiver vazio, tenta reconstruir os dados.
         console.warn("togglePivoDistances: Reconstruindo dados dos pivôs pois window.lastPivosDataDrawn estava vazio.");
         const pivosReconstruidos = window.currentProcessedKmzData.pivos.map(pOriginal => {
-            const marker = pivotsMap[pOriginal.nome]; // pivotsMap contém os L.CircleMarkers
+            const marker = pivotsMap[pOriginal.nome];
             if (marker) {
-                const posAtual = marker.getLatLng(); // Posição atual do L.CircleMarker
+                const posAtual = marker.getLatLng();
                 return {
-                    ...pOriginal, // Mantém dados originais como raio, etc.
+                    ...pOriginal,
                     lat: posicoesEditadas[pOriginal.nome] ? posicoesEditadas[pOriginal.nome].lat : posAtual.lat,
                     lon: posicoesEditadas[pOriginal.nome] ? posicoesEditadas[pOriginal.nome].lng : posAtual.lng,
-                    fora: marker.options.color === 'red' // Status atual do L.CircleMarker
+                    fora: marker.options.color === 'red'
                 };
             }
-            return pOriginal; // Retorna original se não encontrado no mapa
+            return pOriginal;
         });
-        drawPivos(pivosReconstruidos, true); // Passa 'true' para useEdited
+        drawPivos(pivosReconstruidos, true);
          if (typeof mostrarMensagem === 'function') {
             mostrarMensagem(`Distâncias dos pivôs ${show ? 'exibidas' : 'ocultas'} (via fallback).`, 'sucesso');
         }
-    } else {
-        // console.log("Nenhum pivô carregado para mostrar/ocultar distâncias.");
-        // Não mostra mensagem se não houver pivôs, para não ser intrusivo.
     }
 }
-// Expor a função globalmente para que main.js possa chamá-la
 window.togglePivoDistances = togglePivoDistances;
