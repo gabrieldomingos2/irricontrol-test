@@ -175,9 +175,6 @@ function drawPivos(pivosData, useEdited = false) {
 function drawBombas(bombasData) { // bombasData agora é um array de objetos como: { nome, lat, lon, fora }
     if (!map) return;
 
-    // Limpar marcadores de bomba anteriores do mapa e do bombasMap (que estaria em main.js)
-    // A sua limpeza atual de marcadoresBombas e marcadoresLegenda está boa.
-    // Se você usar um window.bombasMap para acesso rápido, limpe-o em main.js.
     Object.values(window.bombasMap || {}).forEach(bombaObj => { // Assumindo window.bombasMap de main.js
         if (bombaObj.marker && map.hasLayer(bombaObj.marker)) map.removeLayer(bombaObj.marker);
         if (bombaObj.label && map.hasLayer(bombaObj.label)) map.removeLayer(bombaObj.label);
@@ -212,7 +209,7 @@ function drawBombas(bombasData) { // bombasData agora é um array de objetos com
                 className: 'label-pivo',
                 html: labelNome,
                 iconSize: [labelWidth, labelHeight],
-                iconAnchor: [labelWidth / 2, 30] // Ajustado para posicionar abaixo do ícone
+                iconAnchor: [labelWidth / 2, -10] // Ajustado para posicionar abaixo do ícone
             }),
             labelType: 'bomba'
         }).addTo(map);
@@ -225,7 +222,6 @@ function drawBombas(bombasData) { // bombasData agora é um array de objetos com
 
         const tooltipContent = `
             <div style="text-align:center;">
-                <strong>${bomba.nome}</strong><br> 
                 ${statusTexto}
             </div>
         `;

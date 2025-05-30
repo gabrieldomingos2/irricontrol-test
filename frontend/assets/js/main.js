@@ -22,12 +22,14 @@ let marcadorAntena = null;
 let marcadoresPivos = [];
 let circulosPivos = [];
 let pivotsMap = {};
+let marcadoresBombas = [];
+let marcadoresBombasComStatus = [];
+let bombasMap = {}; 
 let repetidoras = [];
 let contadorRepetidoras = 0;
 let idsDisponiveis = [];
 let legendasAtivas = true;
 let marcadoresLegenda = [];
-let marcadoresBombas = [];
 let posicoesEditadas = {};
 let overlaysVisiveis = [];
 let templateSelecionado = "";
@@ -92,11 +94,11 @@ async function handleFormSubmit(e) {
     try {
         const data = await processKmz(formData);
         console.log("✅ KMZ Processado:", data);
-        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
+        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data)); // Armazena os dados brutos processados
 
         if (data.erro) throw new Error(data.erro);
 
-        handleResetClick(false);
+        handleResetClick(false); // Limpa o estado anterior antes de carregar novos dados
 
         window.antenaGlobal = data.antena;
         if (window.antenaGlobal) {
@@ -107,7 +109,19 @@ async function handleFormSubmit(e) {
             mostrarMensagem("⚠️ Antena principal não encontrada no KMZ.", "erro");
         }
 
-        drawBombas(data.bombas || []);
+        // --- LÓGICA ATUALIZADA PARA BOMBAS ---
+        if (data.bombas && data.bombas.length > 0) {
+            const bombasComStatusInicial = data.bombas.map(bomba => ({
+             ...bomba, 
+             fora: true  // Status inicial "Sem sinal"
+            }));
+            marcadoresBombasComStatus = JSON.parse(JSON.stringify(bombasComStatusInicial));
+            drawBombas(marcadoresBombasComStatus); // Chama drawBombas com os dados + status
+        } else {
+            marcadoresBombasComStatus = []; 
+            drawBombas([]); 
+        }
+
         window.ciclosGlobais = data.ciclos || [];
         drawCirculos(window.ciclosGlobais);
 
@@ -119,18 +133,28 @@ async function handleFormSubmit(e) {
         window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
         drawPivos(pivosComStatusInicial);
 
-        if (window.antenaGlobal && pivosParaDesenhar.length > 0) {
-            const boundsToFit = [
-                [window.antenaGlobal.lat, window.antenaGlobal.lon]
-            ];
-            pivosParaDesenhar.forEach(p => boundsToFit.push([p.lat, p.lon]));
-            map.fitBounds(boundsToFit, { padding: [50, 50] });
-        } else if (window.antenaGlobal) {
-            map.setView([window.antenaGlobal.lat, window.antenaGlobal.lon], 13);
-        } else if (pivosParaDesenhar.length > 0) {
-            const pivoBounds = pivosParaDesenhar.map(p => [p.lat, p.lon]);
-            if (pivoBounds.length > 0) map.fitBounds(pivoBounds, { padding: [50, 50] });
+        // --- Lógica para ajustar o zoom do mapa para incluir todos os elementos ---
+        let allElementsForBounds = [];
+        if (window.antenaGlobal) {
+            allElementsForBounds.push([window.antenaGlobal.lat, window.antenaGlobal.lon]);
         }
+        pivosParaDesenhar.forEach(p => allElementsForBounds.push([p.lat, p.lon]));
+        // Adiciona bombas aos bounds para o fitBounds, se existirem
+        if (data.bombas && data.bombas.length > 0) {
+           data.bombas.forEach(b => allElementsForBounds.push([b.lat, b.lon]));
+        }
+
+        if (allElementsForBounds.length > 0) {
+            if (allElementsForBounds.length === 1 && window.antenaGlobal) { // Só antena
+                 map.setView([window.antenaGlobal.lat, window.antenaGlobal.lon], 13);
+            } else {
+                 map.fitBounds(allElementsForBounds, { padding: [50, 50] });
+            }
+        } else {
+            // Fallback se não houver elementos, centraliza no Brasil ou similar
+            map.setView([-15, -55], 5);
+        }
+        // --- Fim da lógica de zoom ---
 
         atualizarPainelDados();
         mostrarMensagem("✅ KMZ carregado com sucesso.", "sucesso");
@@ -169,30 +193,55 @@ async function handleSimulateClick() {
             lon: p.lon
         }));
 
+        // --- ADICIONAR COLETA DE DADOS DAS BOMBAS ---
+        const bombas_atuais = marcadoresBombasComStatus.map(b => ({
+            nome: b.nome,
+            lat: b.lat,
+            lon: b.lon
+        }));
+        // --- FIM DA COLETA DAS BOMBAS ---
 
-        const payload = { ...window.antenaGlobal, pivos_atuais, template: templateSelecionado };
-        const data = await simulateSignal(payload);
-        console.log("✅ Simulação concluída:", data);
+        // Incluir bombas_atuais no payload
+        const payload = { 
+            ...window.antenaGlobal, 
+            pivos_atuais, 
+            bombas_atuais, // <<< BOMBAS ADICIONADAS AO PAYLOAD
+            template: templateSelecionado 
+        };
+        
+        const data = await simulateSignal(payload); // api.js (que chama o backend /simulation/run_main)
+        console.log("✅ Simulação principal concluída (dados recebidos):", data);
 
         if (data.erro) throw new Error(data.erro);
 
-        overlaysVisiveis.forEach(overlay => {
-            if (map.hasLayer(overlay)) map.removeLayer(overlay);
-        });
-        overlaysVisiveis = [];
-
+        // Limpeza de overlays antigos da antena principal
         if (window.antenaGlobal.overlay && map.hasLayer(window.antenaGlobal.overlay)) {
             map.removeLayer(window.antenaGlobal.overlay);
+            // Remove o overlay antigo da antena principal da lista geral de overlays visíveis
+            overlaysVisiveis = overlaysVisiveis.filter(ov => ov !== window.antenaGlobal.overlay);
         }
+        // Nota: A limpeza geral de overlays de repetidoras não é feita aqui,
+        // pois esta é a simulação da antena *principal*.
 
         window.antenaGlobal.overlay = drawImageOverlay(data.imagem_salva, data.bounds);
         window.antenaGlobal.bounds = data.bounds;
+        // overlaysVisiveis já é populado dentro de drawImageOverlay
 
-        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
-        drawPivos(data.pivos, true);
+        // Atualizar Pivôs
+        if (data.pivos) {
+            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
+            drawPivos(data.pivos, true); // true para usar posições editadas se houver
+        }
+
+        // --- PROCESSAR E ATUALIZAR STATUS DAS BOMBAS ---
+        if (data.bombas_status) {
+            marcadoresBombasComStatus = JSON.parse(JSON.stringify(data.bombas_status));
+            drawBombas(marcadoresBombasComStatus); // Redesenha as bombas com o novo status
+        }
+        // --- FIM DO PROCESSAMENTO DAS BOMBAS ---
+
         atualizarPainelDados();
-
-        mostrarMensagem("📡 Estudo de sinal concluído.", "sucesso");
+        mostrarMensagem("📡 Estudo de sinal principal concluído.", "sucesso");
         document.getElementById("btn-diagnostico").classList.remove("hidden");
 
         const btnSimular = document.getElementById("simular-btn");
@@ -200,8 +249,8 @@ async function handleSimulateClick() {
         btnSimular.classList.add("opacity-50", "cursor-not-allowed");
 
     } catch (error) {
-        console.error("❌ Erro ao simular sinal:", error);
-        mostrarMensagem(`❌ Falha na simulação: ${error.message}`, "erro");
+        console.error("❌ Erro ao simular sinal principal:", error);
+        mostrarMensagem(`❌ Falha na simulação principal: ${error.message}`, "erro");
     } finally {
         mostrarLoader(false);
     }
