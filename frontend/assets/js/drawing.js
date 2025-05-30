@@ -172,32 +172,82 @@ function drawPivos(pivosData, useEdited = false) {
     toggleLegendas(legendasAtivas);
 }
 
-function drawBombas(bombasData) {
-    if (!map || !bombasData) return;
+function drawBombas(bombasData) { // bombasData agora é um array de objetos como: { nome, lat, lon, fora }
+    if (!map) return;
 
-    marcadoresBombas.forEach(b => map.removeLayer(b));
-    marcadoresBombas = [];
+    // Limpar marcadores de bomba anteriores do mapa e do bombasMap (que estaria em main.js)
+    // A sua limpeza atual de marcadoresBombas e marcadoresLegenda está boa.
+    // Se você usar um window.bombasMap para acesso rápido, limpe-o em main.js.
+    Object.values(window.bombasMap || {}).forEach(bombaObj => { // Assumindo window.bombasMap de main.js
+        if (bombaObj.marker && map.hasLayer(bombaObj.marker)) map.removeLayer(bombaObj.marker);
+        if (bombaObj.label && map.hasLayer(bombaObj.label)) map.removeLayer(bombaObj.label);
+    });
+    if(window.bombasMap) window.bombasMap = {}; // Reseta
+
     marcadoresLegenda = marcadoresLegenda.filter(m => m.options.labelType !== 'bomba');
+    // A variável marcadoresBombas (array de L.marker) que você tem pode ser usada para rastrear
+    // os marcadores de ícone para facilitar a remoção, ou você pode usar o bombasMap.
+    // Vamos manter sua lógica de limpar marcadoresBombas array por enquanto.
+    marcadoresBombas.forEach(markerIconOnly => map.removeLayer(markerIconOnly));
+    marcadoresBombas = [];
 
-    bombasData.forEach(bomba => {
-        const marcadorBomba = L.marker([bomba.lat, bomba.lon], { icon: bombaIcon })
+
+    if (!bombasData || bombasData.length === 0) {
+        toggleLegendas(legendasAtivas);
+        return;
+    }
+
+    bombasData.forEach(bomba => { // Agora 'bomba' aqui tem a propriedade 'fora'
+        const pos = L.latLng(bomba.lat, bomba.lon);
+
+        const marcadorBombaIcon = L.marker(pos, { icon: bombaIcon }) // Renomeado para clareza
             .addTo(map);
-        marcadoresBombas.push(marcadorBomba);
+        marcadoresBombas.push(marcadorBombaIcon); // Adiciona apenas o marcador do ícone à sua lista atual
 
-        const labelWidth = (bomba.nome.length * 7) + 10;
+        const labelNome = bomba.nome;
+        const labelWidth = (labelNome.length * 7) + 10;
         const labelHeight = 20;
-        const labelBomba = L.marker([bomba.lat, bomba.lon], {
+        const labelBomba = L.marker(pos, {
             icon: L.divIcon({
                 className: 'label-pivo',
-                html: bomba.nome,
+                html: labelNome,
                 iconSize: [labelWidth, labelHeight],
-                iconAnchor: [labelWidth / 2, -5]
+                iconAnchor: [labelWidth / 2, 30] // Ajustado para posicionar abaixo do ícone
             }),
             labelType: 'bomba'
         }).addTo(map);
         marcadoresLegenda.push(labelBomba);
+
+        // --- LÓGICA DO TOOLTIP ADICIONADA ---
+        const statusTexto = bomba.fora
+            ? `<span style="color:#ff4d4d; font-weight:bold;">❌ Fora de sinal</span>`
+            : `<span style="color:#22c55e; font-weight:bold;">✅ Com sinal</span>`;
+
+        const tooltipContent = `
+            <div style="text-align:center;">
+                <strong>${bomba.nome}</strong><br> 
+                ${statusTexto}
+            </div>
+        `;
+
+        marcadorBombaIcon.bindTooltip(tooltipContent, {
+            permanent: false,
+            direction: 'top',
+            offset: [0, -28], // Ajuste conforme o tamanho do bombaIcon e seu iconAnchor
+            className: 'tooltip-sinal' // Reutiliza o estilo de tooltip dos pivôs
+        });
+        // --- FIM DA LÓGICA DO TOOLTIP ---
+
+        // Armazenar no bombasMap para referência futura (se bombasMap for gerenciado em main.js)
+        if (window.bombasMap) {
+            window.bombasMap[bomba.nome] = {
+                marker: marcadorBombaIcon, // Marcador do ícone
+                label: labelBomba,      // Marcador do label
+                data: { ...bomba }      // Guarda todos os dados da bomba, incluindo o status 'fora'
+            };
+        }
     });
-     toggleLegendas(legendasAtivas);
+    toggleLegendas(legendasAtivas);
 }
 
 function drawCirculos(ciclosData) {

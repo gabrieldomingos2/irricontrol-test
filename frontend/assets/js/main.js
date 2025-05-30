@@ -277,12 +277,19 @@ async function handleConfirmRepetidoraClick() {
         lon: p.lon
     }));
 
+    const bombasParaSimulacaoRepetidora = marcadoresBombasComStatus.map(b => ({
+    nome: b.nome,
+    lat: b.lat,
+    lon: b.lon
+    }));
+
     const payload = {
         lat: window.coordenadaClicada.lat,
         lon: window.coordenadaClicada.lng,
         altura: alturaAntena,
         altura_receiver: alturaReceiver,
         pivos_atuais: pivosParaSimulacaoRepetidora,
+        bombas_atuais: bombasParaSimulacaoRepetidora,
         template: templateSelecionado
     };
 
@@ -295,6 +302,7 @@ async function handleConfirmRepetidoraClick() {
         repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0);
         addRepetidoraNoPainel(repetidoraObj);
         await reavaliarPivosViaAPI();
+        await reavaliarCoberturaAPI();
 
         mostrarMensagem(`📡 Repetidora ${id} adicionada e simulada.`, "sucesso");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
