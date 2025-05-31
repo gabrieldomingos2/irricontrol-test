@@ -122,8 +122,6 @@
         </div>
     </div>
 
-    <div class="absolute top-14 bottom-14 right-0 w-12 bg-[#060B10] z-40"></div>
-
     <div class="absolute bottom-6 left-72 flex items-center gap-2 z-50">
         <span class="text-xs text-white/60"></span>
         <input id="range-opacidade" type="range" min="0" max="1" step="0.1" value="1" class="range-slider-custom w-24" />
@@ -133,11 +131,12 @@
         <span class="text-gray-500 text-xs">Powered by Irricontrol</span>
     </div>
 
-    <div class="absolute top-14 bottom-14 left-[280px] right-12 z-10">
+    <div class="absolute top-14 bottom-14 left-[280px] z-10" style="right: 60px;">
         <div id="map" class="w-full h-full bg-neutral-900"></div>
     </div>
 
-    <div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
+    <div id="overlay-panels-container" class="absolute top-16 right-[4.5rem] z-20 flex flex-col space-y-4">
+
         <div id="painel-dados" class="w-56 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4">
             <h2 class="text-sm font-semibold text-white/80 mb-3">📊 Dados da Simulação</h2>
             <div class="flex justify-between items-center mb-3">
@@ -154,8 +153,15 @@
             <h2 class="text-sm font-semibold text-white/80 mb-2 px-2">📡 Repetidoras</h2>
             <div id="lista-repetidoras" class="space-y-1 text-sm max-h-36 overflow-y-auto px-2 pb-2">
                 </div>
+
         </div>
     </div>
+
+    <div id="painel-legenda-sinal"
+     class="fixed top-[4.2rem] right-[0.3rem] w-[50px] z-50 bg-white/10 border border-white/15 backdrop-blur-md rounded-xl shadow-lg p-1.5 transition-all duration-300 ease-in-out">
+    <img id="img-legenda-sinal" src="assets/images/IRRICONTRO.dBm.key.png" class="w-full h-auto" alt="Legenda dBm" />
+</div>
+
 
     <div id="mensagem" class="hidden absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"></div>
     <div id="loader" class="hidden absolute inset-0 bg-[#060B10] bg-opacity-60 flex flex-col items-center justify-center z-[10001]">

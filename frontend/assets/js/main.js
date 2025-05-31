@@ -1,61 +1,66 @@
-// --- Variáveis Globais de Estado (Anexadas a 'window') ---
+// assets/js/main.js
 
+// --- Variáveis Globais de Estado (Anexadas a 'window') ---
 window.modoEdicaoPivos = false;
 window.coordenadaClicada = null;
 window.marcadorPosicionamento = null;
 window.backupPosicoesPivos = {};
-window.modoLoSPivotAPivot = false; // Controla o novo modo de diagnóstico
-window.losSourcePivot = null;      // Armazena o pivô de origem selecionado {nome, latlng, altura}
-window.losTargetPivot = null;    // Armazena o pivô de destino selecionado {nome, latlng, altura}
-window.modoBuscaLocalRepetidora = false; // Controla o modo de busca por locais de repetidora
-window.pivoAlvoParaLocalRepetidora = null; // Armazena o pivô alvo para a busca
+window.modoLoSPivotAPivot = false;
+window.losSourcePivot = null;
+window.losTargetPivot = null;
+window.modoBuscaLocalRepetidora = false;
+window.pivoAlvoParaLocalRepetidora = null;
 window.ciclosGlobais = [];
 
-// Novas/Modificadas variáveis globais para a funcionalidade de distância
 window.antenaGlobal = null;
 window.distanciasPivosVisiveis = false;
 window.lastPivosDataDrawn = [];
 window.currentProcessedKmzData = null;
+window.marcadoresBombasComStatus = [];
 
-// Variáveis globais que não precisam ser window explicitamente se este script for o principal
+// Variáveis globais do script
 let marcadorAntena = null;
 let marcadoresPivos = [];
 let circulosPivos = [];
 let pivotsMap = {};
-let marcadoresBombas = [];
-let marcadoresBombasComStatus = [];
-let bombasMap = {}; 
+let marcadoresBombas = []; // Guarda instâncias L.marker dos ícones das bombas
+let bombasMap = {}; // Mapeia nome da bomba para {marker, label, data}
 let repetidoras = [];
 let contadorRepetidoras = 0;
 let idsDisponiveis = [];
 let legendasAtivas = true;
-let marcadoresLegenda = [];
+let marcadoresLegenda = []; // Array geral para todos os labels (pivôs, bombas, antenas, repetidoras)
 let posicoesEditadas = {};
 let overlaysVisiveis = [];
 let templateSelecionado = "";
 let linhasDiagnostico = [];
 let marcadoresBloqueio = [];
+let reavaliacaoTimer = null; // Timer para debounce da reavaliação
 
+// Defina estas constantes se forem usadas na normalização de paths de imagem
+// Elas devem corresponder à configuração do seu backend.
+// const BACKEND_URL = "https://irricontrol-test.onrender.com"; // Já está em api.js
+const STATIC_DIR_NAME = "static"; // Nome da pasta estática do backend
 
 // --- Inicialização ---
-
 document.addEventListener("DOMContentLoaded", () => {
     console.log("DOM Carregado. Iniciando Aplicação...");
-    initMap();
-    setupUIEventListeners();
+    initMap(); // Função de map.js
+    setupUIEventListeners(); // Função de ui.js
     setupMainActionListeners();
-    loadAndPopulateTemplates();
-    reposicionarPaineisLaterais();
+    loadAndPopulateTemplates(); // Função de ui.js
+    reposicionarPaineisLaterais(); // Função de ui.js
     lucide.createIcons();
     console.log("Aplicação Pronta.");
 
-    if (typeof toggleLegendas === 'function') { // Garante que foi carregada
-        toggleLegendas(legendasAtivas); // Chama para definir o estado inicial do ícone
+    if (typeof toggleLegendas === 'function') { // de drawing.js
+        toggleLegendas(legendasAtivas);
     }
+
+    document.getElementById("template-modelo").dispatchEvent(new Event("change"));
 });
 
 // --- Configuração dos Listeners Principais ---
-
 function setupMainActionListeners() {
     document.getElementById('formulario').addEventListener('submit', handleFormSubmit);
     document.getElementById('simular-btn').addEventListener('click', handleSimulateClick);
@@ -70,100 +75,76 @@ function setupMainActionListeners() {
     const toggleDistanciasBtn = document.getElementById('toggle-distancias-pivos');
     if (toggleDistanciasBtn) {
         toggleDistanciasBtn.addEventListener('click', handleToggleDistanciasPivos);
-    } else {
-        // console.error("Botão 'toggle-distancias-pivos' não encontrado no DOM.");
     }
 }
 
 // --- Handlers de Ações Principais ---
-
 async function handleFormSubmit(e) {
     e.preventDefault();
-
     const fileInput = document.getElementById('arquivo');
     if (!fileInput.files || fileInput.files.length === 0) {
         mostrarMensagem("Por favor, selecione um arquivo KMZ.", "erro");
         return;
     }
-
     mostrarLoader(true);
-
     const formData = new FormData();
     formData.append("file", fileInput.files[0]);
 
     try {
-        const data = await processKmz(formData);
+        const data = await processKmz(formData); // de api.js
         console.log("✅ KMZ Processado:", data);
-        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data)); // Armazena os dados brutos processados
-
+        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
         if (data.erro) throw new Error(data.erro);
 
-        handleResetClick(false); // Limpa o estado anterior antes de carregar novos dados
+        handleResetClick(false);
 
         window.antenaGlobal = data.antena;
         if (window.antenaGlobal) {
-            marcadorAntena = drawAntena(data.antena);
-            addAntenaAoPainel(window.antenaGlobal);
+            marcadorAntena = drawAntena(data.antena); // de drawing.js
+            addAntenaAoPainel(window.antenaGlobal); // de drawing.js
         } else {
-            console.warn("Dados da antena não encontrados no KMZ processado.");
+            console.warn("Dados da antena não encontrados no KMZ.");
             mostrarMensagem("⚠️ Antena principal não encontrada no KMZ.", "erro");
         }
 
-        // --- LÓGICA ATUALIZADA PARA BOMBAS ---
         if (data.bombas && data.bombas.length > 0) {
-            const bombasComStatusInicial = data.bombas.map(bomba => ({
-             ...bomba, 
-             fora: true  // Status inicial "Sem sinal"
-            }));
+            const bombasComStatusInicial = data.bombas.map(bomba => ({ ...bomba, fora: true }));
             marcadoresBombasComStatus = JSON.parse(JSON.stringify(bombasComStatusInicial));
-            drawBombas(marcadoresBombasComStatus); // Chama drawBombas com os dados + status
+            drawBombas(marcadoresBombasComStatus); // de drawing.js
         } else {
-            marcadoresBombasComStatus = []; 
-            drawBombas([]); 
+            marcadoresBombasComStatus = [];
+            drawBombas([]);
         }
 
         window.ciclosGlobais = data.ciclos || [];
-        drawCirculos(window.ciclosGlobais);
+        drawCirculos(window.ciclosGlobais); // de drawing.js
 
         const pivosParaDesenhar = data.pivos || [];
-        const pivosComStatusInicial = pivosParaDesenhar.map(p => ({
-            ...p,
-            fora: true
-        }));
+        const pivosComStatusInicial = pivosParaDesenhar.map(p => ({ ...p, fora: true }));
         window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
-        drawPivos(pivosComStatusInicial);
+        drawPivos(pivosComStatusInicial); // de drawing.js
 
-        // --- Lógica para ajustar o zoom do mapa para incluir todos os elementos ---
         let allElementsForBounds = [];
-        if (window.antenaGlobal) {
-            allElementsForBounds.push([window.antenaGlobal.lat, window.antenaGlobal.lon]);
-        }
+        if (window.antenaGlobal) allElementsForBounds.push([window.antenaGlobal.lat, window.antenaGlobal.lon]);
         pivosParaDesenhar.forEach(p => allElementsForBounds.push([p.lat, p.lon]));
-        // Adiciona bombas aos bounds para o fitBounds, se existirem
-        if (data.bombas && data.bombas.length > 0) {
-           data.bombas.forEach(b => allElementsForBounds.push([b.lat, b.lon]));
-        }
+        if (data.bombas && data.bombas.length > 0) data.bombas.forEach(b => allElementsForBounds.push([b.lat, b.lon]));
 
         if (allElementsForBounds.length > 0) {
-            if (allElementsForBounds.length === 1 && window.antenaGlobal) { // Só antena
-                 map.setView([window.antenaGlobal.lat, window.antenaGlobal.lon], 13);
+            if (allElementsForBounds.length === 1 && window.antenaGlobal) {
+                map.setView([window.antenaGlobal.lat, window.antenaGlobal.lon], 13);
             } else {
-                 map.fitBounds(allElementsForBounds, { padding: [50, 50] });
+                map.fitBounds(allElementsForBounds, { padding: [50, 50] });
             }
         } else {
-            // Fallback se não houver elementos, centraliza no Brasil ou similar
             map.setView([-15, -55], 5);
         }
-        // --- Fim da lógica de zoom ---
 
-        atualizarPainelDados();
+        atualizarPainelDados(); // de ui.js
         mostrarMensagem("✅ KMZ carregado com sucesso.", "sucesso");
-
         document.getElementById("simular-btn").classList.remove("hidden");
         document.getElementById("painel-dados").classList.remove("hidden");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
-        reposicionarPaineisLaterais();
-
+        reposicionarPaineisLaterais(); // de ui.js
     } catch (error) {
         console.error("❌ Erro no submit do formulário:", error);
         mostrarMensagem(`❌ Erro ao carregar KMZ: ${error.message}`, "erro");
@@ -177,70 +158,61 @@ async function handleSimulateClick() {
         mostrarMensagem("⚠️ Carregue um KMZ primeiro!", "erro");
         return;
     }
-
     mostrarLoader(true);
-
     try {
         templateSelecionado = document.getElementById('template-modelo').value;
 
         Object.entries(posicoesEditadas).forEach(([nome, novaPos]) => {
-            if (pivotsMap[nome]) { pivotsMap[nome].setLatLng(novaPos); }
+            if (pivotsMap[nome]) pivotsMap[nome].setLatLng(novaPos);
         });
 
-        const pivos_atuais = window.lastPivosDataDrawn.map(p => ({ 
+        const pivos_atuais = window.lastPivosDataDrawn.map(p => ({
             nome: p.nome,
             lat: p.lat,
             lon: p.lon
         }));
-
-        // --- ADICIONAR COLETA DE DADOS DAS BOMBAS ---
         const bombas_atuais = marcadoresBombasComStatus.map(b => ({
             nome: b.nome,
             lat: b.lat,
             lon: b.lon
         }));
-        // --- FIM DA COLETA DAS BOMBAS ---
 
-        // Incluir bombas_atuais no payload
-        const payload = { 
-            ...window.antenaGlobal, 
-            pivos_atuais, 
-            bombas_atuais, // <<< BOMBAS ADICIONADAS AO PAYLOAD
-            template: templateSelecionado 
+        const payload = {
+            ...window.antenaGlobal,
+            pivos_atuais,
+            bombas_atuais,
+            template: templateSelecionado
         };
-        
-        const data = await simulateSignal(payload); // api.js (que chama o backend /simulation/run_main)
-        console.log("✅ Simulação principal concluída (dados recebidos):", data);
 
+        const data = await simulateSignal(payload); // de api.js
+        console.log("✅ Simulação principal concluída (dados recebidos):", data);
         if (data.erro) throw new Error(data.erro);
 
-        // Limpeza de overlays antigos da antena principal
         if (window.antenaGlobal.overlay && map.hasLayer(window.antenaGlobal.overlay)) {
             map.removeLayer(window.antenaGlobal.overlay);
-            // Remove o overlay antigo da antena principal da lista geral de overlays visíveis
             overlaysVisiveis = overlaysVisiveis.filter(ov => ov !== window.antenaGlobal.overlay);
         }
-        // Nota: A limpeza geral de overlays de repetidoras não é feita aqui,
-        // pois esta é a simulação da antena *principal*.
 
-        window.antenaGlobal.overlay = drawImageOverlay(data.imagem_salva, data.bounds);
+        window.antenaGlobal.overlay = drawImageOverlay(data.imagem_salva, data.bounds); // de drawing.js
         window.antenaGlobal.bounds = data.bounds;
-        // overlaysVisiveis já é populado dentro de drawImageOverlay
+    
 
-        // Atualizar Pivôs
+        // ✅ Mostrar legenda se template for BR + overlay ativo
+        const templateOk = templateSelecionado.includes("Brazil_V6");
+        const overlayAtivo = window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay);
+        mostrarLegendaSinal(templateOk && overlayAtivo);
+
         if (data.pivos) {
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
-            drawPivos(data.pivos, true); // true para usar posições editadas se houver
+            drawPivos(data.pivos, true); // de drawing.js
         }
 
-        // --- PROCESSAR E ATUALIZAR STATUS DAS BOMBAS ---
         if (data.bombas_status) {
             marcadoresBombasComStatus = JSON.parse(JSON.stringify(data.bombas_status));
-            drawBombas(marcadoresBombasComStatus); // Redesenha as bombas com o novo status
+            drawBombas(marcadoresBombasComStatus); // de drawing.js
         }
-        // --- FIM DO PROCESSAMENTO DAS BOMBAS ---
 
-        atualizarPainelDados();
+        atualizarPainelDados(); // de ui.js
         mostrarMensagem("📡 Estudo de sinal principal concluído.", "sucesso");
         document.getElementById("btn-diagnostico").classList.remove("hidden");
 
@@ -256,21 +228,21 @@ async function handleSimulateClick() {
     }
 }
 
+
 function handleMapClick(e) {
     if (window.modoEdicaoPivos) return;
     if (window.modoLoSPivotAPivot) return;
     if (window.modoBuscaLocalRepetidora) return;
 
     window.coordenadaClicada = e.latlng;
-    window.removePositioningMarker();
+    window.removePositioningMarker(); // Definida no final deste arquivo
 
     window.marcadorPosicionamento = L.marker(window.coordenadaClicada, {
-        icon: posicionamentoIcon,
+        icon: posicionamentoIcon, // de drawing.js
         interactive: false,
         opacity: 0.7,
         zIndexOffset: 1000
     }).addTo(map);
-
     document.getElementById("painel-repetidora").classList.remove("hidden");
 }
 
@@ -279,7 +251,6 @@ async function handleConfirmRepetidoraClick() {
         mostrarMensagem("⚠️ Clique no mapa primeiro para definir a posição!", "erro");
         return;
     }
-
     mostrarLoader(true);
     document.getElementById('painel-repetidora').classList.add('hidden');
     window.removePositioningMarker();
@@ -287,76 +258,39 @@ async function handleConfirmRepetidoraClick() {
     const alturaAntena = parseFloat(document.getElementById("altura-antena-rep").value);
     const alturaReceiver = parseFloat(document.getElementById("altura-receiver-rep").value);
     templateSelecionado = document.getElementById('template-modelo').value;
-
     const id = idsDisponiveis.length > 0 ? idsDisponiveis.shift() : ++contadorRepetidoras;
     const nomeRep = `Repetidora ${id}`;
 
-    const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon })
-        .addTo(map);
-
+    const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon }).addTo(map); // antenaIcon de drawing.js
     const labelWidth = (nomeRep.length * 7) + 10;
     const labelHeight = 20;
-
     const labelRepetidora = L.marker(window.coordenadaClicada, {
-        icon: L.divIcon({
-            className: 'label-pivo',
-            html: nomeRep,
-            iconSize: [labelWidth, labelHeight],
-            iconAnchor: [labelWidth / 2, 45]
-        }),
+        icon: L.divIcon({ className: 'label-pivo', html: nomeRep, iconSize: [labelWidth, labelHeight], iconAnchor: [labelWidth / 2, 45] }),
         labelType: 'repetidora'
     }).addTo(map);
     marcadoresLegenda.push(labelRepetidora);
 
-    const repetidoraObj = {
-        id,
-        marker: novaRepetidoraMarker,
-        overlay: null,
-        label: labelRepetidora,
-        altura: alturaAntena,
-        altura_receiver: alturaReceiver,
-        lat: window.coordenadaClicada.lat,
-        lon: window.coordenadaClicada.lng
-    };
+    const repetidoraObj = { id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora, altura: alturaAntena, altura_receiver: alturaReceiver, lat: window.coordenadaClicada.lat, lon: window.coordenadaClicada.lng };
     repetidoras.push(repetidoraObj);
 
-    const pivosParaSimulacaoRepetidora = window.lastPivosDataDrawn.map(p => ({
-        nome: p.nome,
-        lat: p.lat,
-        lon: p.lon
-    }));
-
-    const bombasParaSimulacaoRepetidora = marcadoresBombasComStatus.map(b => ({
-    nome: b.nome,
-    lat: b.lat,
-    lon: b.lon
-    }));
-
-    const payload = {
-        lat: window.coordenadaClicada.lat,
-        lon: window.coordenadaClicada.lng,
-        altura: alturaAntena,
-        altura_receiver: alturaReceiver,
-        pivos_atuais: pivosParaSimulacaoRepetidora,
-        bombas_atuais: bombasParaSimulacaoRepetidora,
-        template: templateSelecionado
-    };
+    const pivosParaSimulacaoRepetidora = window.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon }));
+    const bombasParaSimulacaoRepetidora = marcadoresBombasComStatus.map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon }));
+    const payload = { lat: window.coordenadaClicada.lat, lon: window.coordenadaClicada.lng, altura: alturaAntena, altura_receiver: alturaReceiver, pivos_atuais: pivosParaSimulacaoRepetidora, bombas_atuais: bombasParaSimulacaoRepetidora, template: templateSelecionado };
 
     try {
-        const data = await simulateManual(payload);
+        const data = await simulateManual(payload); // de api.js
         console.log("Simulação Manual Concluída:", data);
-
         if (data.erro) throw new Error(data.erro);
 
-        repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0);
-        addRepetidoraNoPainel(repetidoraObj);
-        await reavaliarPivosViaAPI();
-        await reavaliarCoberturaAPI();
+        repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0); // de drawing.js
+        addRepetidoraNoPainel(repetidoraObj); // de drawing.js
+        
+        // Chamada única para a função de reavaliação atualizada
+        await reavaliarPivosViaAPI(); // Ou reavaliarCoberturaAPI() se você renomeou
 
         mostrarMensagem(`📡 Repetidora ${id} adicionada e simulada.`, "sucesso");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
-        reposicionarPaineisLaterais();
-
+        reposicionarPaineisLaterais(); // de ui.js
     } catch (error) {
         console.error("Erro ao confirmar repetidora:", error);
         mostrarMensagem(`❌ Falha ao simular repetidora: ${error.message}`, "erro");
@@ -369,7 +303,7 @@ async function handleConfirmRepetidoraClick() {
     } finally {
         mostrarLoader(false);
         window.coordenadaClicada = null;
-        atualizarPainelDados();
+        atualizarPainelDados(); // de ui.js
     }
 }
 
@@ -377,107 +311,71 @@ function handleBuscarLocaisRepetidoraActivation() {
     window.modoBuscaLocalRepetidora = !window.modoBuscaLocalRepetidora;
     const btn = document.getElementById('btn-buscar-locais-repetidora');
     btn.classList.toggle('glass-button-active', window.modoBuscaLocalRepetidora);
-
     if (window.modoBuscaLocalRepetidora) {
         mostrarMensagem("MODO BUSCA LOCAL REPETIDORA: Selecione um pivô SEM SINAL (vermelho) como alvo.", "sucesso");
         window.pivoAlvoParaLocalRepetidora = null;
         if (window.marcadorPosicionamento) removePositioningMarker();
         document.getElementById("painel-repetidora").classList.add("hidden");
-
         if (window.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (window.modoEdicaoPivos) {
             const editarPivosBtn = document.getElementById("editar-pivos");
-            if (editarPivosBtn.classList.contains('glass-button-active')) {
-                togglePivoEditing();
-            }
+            if (editarPivosBtn.classList.contains('glass-button-active')) togglePivoEditing(); // de ui.js
         }
         map.getContainer().style.cursor = 'crosshair';
     } else {
         mostrarMensagem("Modo 'Buscar Locais para Repetidora' desativado.", "sucesso");
         map.getContainer().style.cursor = '';
-        if (window.candidateRepeaterSitesLayerGroup) {
-            window.candidateRepeaterSitesLayerGroup.clearLayers();
-        }
+        if (window.candidateRepeaterSitesLayerGroup) window.candidateRepeaterSitesLayerGroup.clearLayers();
     }
 }
 
 async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     if (!window.modoBuscaLocalRepetidora) return;
-
     if (pivoMarker.options.fillColor === 'green') {
         mostrarMensagem("ALVO: Selecione um pivô SEM SINAL (vermelho).", "erro");
         return;
     }
-
-    window.pivoAlvoParaLocalRepetidora = {
-        nome: pivoData.nome,
-        lat: pivoMarker.getLatLng().lat,
-        lon: pivoMarker.getLatLng().lng,
-        altura_receiver: (window.antenaGlobal && window.antenaGlobal.altura_receiver) ? window.antenaGlobal.altura_receiver : 3
-    };
-
+    window.pivoAlvoParaLocalRepetidora = { nome: pivoData.nome, lat: pivoMarker.getLatLng().lat, lon: pivoMarker.getLatLng().lng, altura_receiver: (window.antenaGlobal?.altura_receiver || 3) };
     mostrarMensagem(`Pivô alvo ${window.pivoAlvoParaLocalRepetidora.nome} selecionado. Buscando locais...`, "info");
     mostrarLoader(true);
     map.getContainer().style.cursor = 'wait';
 
     const activeOverlaysForSearch = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
-
     if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked)) {
         const b = window.antenaGlobal.overlay.getBounds();
-        activeOverlaysForSearch.push({
-            id: 'antena_principal',
-            imagem: window.antenaGlobal.overlay._url.replace(BACKEND_URL + '/', ''),
-            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-        });
+        activeOverlaysForSearch.push({ id: 'antena_principal', imagem: window.antenaGlobal.overlay._url.replace(BACKEND_URL + '/', ''), bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
     }
-
     repetidoras.forEach(rep => {
         const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
         if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked)) {
             const b = rep.overlay.getBounds();
-            activeOverlaysForSearch.push({
-                id: `repetidora_${rep.id}`,
-                imagem: rep.overlay._url.replace(BACKEND_URL + '/', ''),
-                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-            });
+            activeOverlaysForSearch.push({ id: `repetidora_${rep.id}`, imagem: rep.overlay._url.replace(BACKEND_URL + '/', ''), bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
         }
     });
 
     if (activeOverlaysForSearch.length === 0) {
-        mostrarMensagem("Nenhuma área de sinal (antena/repetidoras) ativa para basear a busca. Ative alguma cobertura.", "erro");
+        mostrarMensagem("Nenhuma área de sinal ativa para basear a busca.", "erro");
         mostrarLoader(false);
         map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
         return;
     }
 
     try {
-        const payload = {
-            target_pivot_lat: window.pivoAlvoParaLocalRepetidora.lat,
-            target_pivot_lon: window.pivoAlvoParaLocalRepetidora.lon,
-            target_pivot_nome: window.pivoAlvoParaLocalRepetidora.nome,
-            altura_antena_repetidora_proposta: parseFloat(document.getElementById("altura-antena-rep").value) || 5,
-            altura_receiver_pivo: window.pivoAlvoParaLocalRepetidora.altura_receiver,
-            active_overlays: activeOverlaysForSearch
-        };
+        const payload = { target_pivot_lat: window.pivoAlvoParaLocalRepetidora.lat, target_pivot_lon: window.pivoAlvoParaLocalRepetidora.lon, target_pivot_nome: window.pivoAlvoParaLocalRepetidora.nome, altura_antena_repetidora_proposta: parseFloat(document.getElementById("altura-antena-rep").value) || 5, altura_receiver_pivo: window.pivoAlvoParaLocalRepetidora.altura_receiver, active_overlays: activeOverlaysForSearch };
+        const resultados = await findHighPointsForRepeater(payload); // de api.js
+        if (window.candidateRepeaterSitesLayerGroup) window.candidateRepeaterSitesLayerGroup.clearLayers();
+        else console.warn("candidateRepeaterSitesLayerGroup não definido.");
 
-        const resultados = await findHighPointsForRepeater(payload);
-
-        if (window.candidateRepeaterSitesLayerGroup) {
-            window.candidateRepeaterSitesLayerGroup.clearLayers();
+        if (resultados?.candidate_sites?.length > 0) {
+            drawCandidateRepeaterSites(resultados.candidate_sites, window.pivoAlvoParaLocalRepetidora); // de drawing.js
+            mostrarMensagem(`Encontrados ${resultados.candidate_sites.length} locais candidatos.`, "sucesso");
         } else {
-            console.warn("candidateRepeaterSitesLayerGroup não definido.");
+            mostrarMensagem("Nenhum local promissor encontrado.", "info");
         }
-
-        if (resultados && resultados.candidate_sites && resultados.candidate_sites.length > 0) {
-            drawCandidateRepeaterSites(resultados.candidate_sites, window.pivoAlvoParaLocalRepetidora);
-            mostrarMensagem(`Encontrados ${resultados.candidate_sites.length} locais candidatos. Clique em um para simular.`, "sucesso");
-        } else {
-            mostrarMensagem("Nenhum local promissor encontrado nas áreas de cobertura existentes.", "info");
-        }
-
     } catch (error) {
         console.error("Erro ao buscar locais para repetidora:", error);
+        mostrarMensagem("Falha na busca de locais para repetidora.", "erro");
     } finally {
         mostrarLoader(false);
         map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
@@ -486,8 +384,10 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
-    clearMapLayers();
+    clearMapLayers(); // Chama a função de limpeza do mapa
+    mostrarLegendaSinal(false); // 👈 Esconde a legenda de sinal no reset
 
+    // Resetar variáveis de estado globais
     window.antenaGlobal = null;
     marcadorAntena = null;
     window.marcadorPosicionamento = null;
@@ -500,79 +400,53 @@ function handleResetClick(showMessage = true) {
     idsDisponiveis = [];
     legendasAtivas = true;
     marcadoresLegenda = [];
+    
+    // --- RESET DAS VARIÁVEIS DAS BOMBAS ---
     marcadoresBombas = [];
+    marcadoresBombasComStatus = [];
+    bombasMap = {};
+    // --- FIM DO RESET DAS BOMBAS ---
+    
     posicoesEditadas = {};
     window.backupPosicoesPivos = {};
     overlaysVisiveis = [];
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
     window.ciclosGlobais = [];
-
     window.distanciasPivosVisiveis = false;
     window.lastPivosDataDrawn = [];
     window.currentProcessedKmzData = null;
+    templateSelecionado = document.getElementById('template-modelo').options[0] ? document.getElementById('template-modelo').options[0].value : "";
+
 
     const btnDistancias = document.getElementById('toggle-distancias-pivos');
     if (btnDistancias) {
         btnDistancias.classList.remove('glass-button-active');
         btnDistancias.title = "Mostrar Distâncias dos Pivôs";
     }
-
     if (window.modoEdicaoPivos) {
         if (typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos").classList.contains('glass-button-active')) {
-            togglePivoEditing();
+            togglePivoEditing(); // de ui.js
         }
-        window.modoEdicaoPivos = false;
-        const btnEditarReset = document.getElementById("editar-pivos");
-        const btnEditarIconSpanReset = btnEditarReset.querySelector('.sidebar-icon');
-        if (btnEditarIconSpanReset) {
-             btnEditarIconSpanReset.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
-             btnEditarIconSpanReset.style.maskImage = 'url(assets/images/pencil.svg)';
-        } else {
-             btnEditarReset.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-             if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-        btnEditarReset.title = "Editar Pivôs";
-        btnEditarReset.classList.remove('glass-button-active');
-        document.getElementById("desfazer-edicao").classList.add("hidden");
+        // Redefinir estado visual do botão de edição (feito dentro de togglePivoEditing se chamado)
     }
-
     if (window.modoLoSPivotAPivot) {
         if (typeof toggleLoSPivotAPivotMode === 'function' && document.getElementById('btn-los-pivot-a-pivot').classList.contains('glass-button-active')) {
             toggleLoSPivotAPivotMode();
         }
     }
-
     if (window.modoBuscaLocalRepetidora) {
         if (typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) {
             handleBuscarLocaisRepetidoraActivation();
         }
     }
 
-    if (map) {
-        map.getContainer().style.cursor = '';
-    }
-
+    if (map) map.getContainer().style.cursor = '';
     const btnSimular = document.getElementById("simular-btn");
     btnSimular.classList.add("hidden");
     btnSimular.disabled = false;
     btnSimular.classList.remove("opacity-50", "cursor-not-allowed");
     document.getElementById("btn-diagnostico").classList.add("hidden");
-
-    const btnEditar = document.getElementById("editar-pivos");
-    if (!window.modoEdicaoPivos) {
-        const btnEditarIconSpan = btnEditar.querySelector('.sidebar-icon');
-        if (btnEditarIconSpan) {
-            btnEditarIconSpan.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
-            btnEditarIconSpan.style.maskImage = 'url(assets/images/pencil.svg)';
-        } else {
-            btnEditar.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-        btnEditar.title = "Editar Pivôs";
-        btnEditar.classList.remove('glass-button-active');
-        document.getElementById("desfazer-edicao").classList.add("hidden");
-    }
 
     document.getElementById("lista-repetidoras").innerHTML = "";
     document.getElementById("painel-repetidora").classList.add("hidden");
@@ -588,14 +462,11 @@ function handleResetClick(showMessage = true) {
     }
     const rangeOpacidadeElement = document.getElementById("range-opacidade");
     if (rangeOpacidadeElement) rangeOpacidadeElement.value = 1;
-
     if (map) map.setView([-15, -55], 5);
 
-    atualizarPainelDados();
-    reposicionarPaineisLaterais();
-
-    if (typeof toggleLegendas === 'function') toggleLegendas(true);
-
+    atualizarPainelDados(); // de ui.js
+    reposicionarPaineisLaterais(); // de ui.js
+    if (typeof toggleLegendas === 'function') toggleLegendas(true); // de drawing.js
     if (showMessage) mostrarMensagem("🔄 Aplicação resetada.", "sucesso");
 }
 
@@ -604,47 +475,29 @@ async function handleDiagnosticoClick() {
         mostrarMensagem("⚠️ Rode o estudo de sinal primeiro!", "erro");
         return;
     }
-
     mostrarLoader(true);
-    visadaLayerGroup.clearLayers();
+    visadaLayerGroup.clearLayers(); // de map.js
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
 
     const pivosVermelhos = Object.entries(pivotsMap).filter(([_, m]) => m.options.fillColor === 'red');
-
     if (pivosVermelhos.length === 0) {
         mostrarMensagem("✅ Nenhum pivô fora de cobertura para diagnosticar.", "sucesso");
         mostrarLoader(false);
         return;
     }
-
     mostrarMensagem(`🔍 Analisando ${pivosVermelhos.length} pivôs...`, "sucesso");
 
     for (const [nome, marcador] of pivosVermelhos) {
-        const payload = {
-            pontos: [
-                [window.antenaGlobal.lat, window.antenaGlobal.lon],
-                [marcador.getLatLng().lat, marcador.getLatLng().lng]
-            ],
-            altura_antena: window.antenaGlobal.altura || 15,
-            altura_receiver: window.antenaGlobal.altura_receiver || 3
-        };
-
+        const payload = { pontos: [[window.antenaGlobal.lat, window.antenaGlobal.lon], [marcador.getLatLng().lat, marcador.getLatLng().lng]], altura_antena: window.antenaGlobal.altura || 15, altura_receiver: window.antenaGlobal.altura_receiver || 3 };
         try {
-            const data = await getElevationProfile(payload);
-            drawDiagnostico(
-                payload.pontos[0],
-                payload.pontos[1],
-                data.bloqueio,
-                data.ponto_mais_alto,
-                nome
-            );
+            const data = await getElevationProfile(payload); // de api.js
+            drawDiagnostico(payload.pontos[0], payload.pontos[1], data.bloqueio, data.ponto_mais_alto, nome); // de drawing.js
         } catch (error) {
             console.error(`Erro no diagnóstico do pivô ${nome}:`, error);
             mostrarMensagem(`⚠️ Erro ao diagnosticar ${nome}.`, "erro");
         }
     }
-
     if (typeof lucide !== 'undefined') lucide.createIcons();
     mostrarLoader(false);
     mostrarMensagem("🔍 Diagnóstico de visada concluído.", "sucesso");
@@ -652,10 +505,9 @@ async function handleDiagnosticoClick() {
 
 function handleExportClick() {
     if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds) {
-        mostrarMensagem("⚠️ Rode a simulação principal primeiro para gerar a imagem!", "erro");
+        mostrarMensagem("⚠️ Rode a simulação principal primeiro!", "erro");
         return;
     }
-
     try {
         const latStr = formatCoordForFilename(window.antenaGlobal.lat);
         const lonStr = formatCoordForFilename(window.antenaGlobal.lon);
@@ -663,7 +515,7 @@ function handleExportClick() {
         const template = templateSelecionado.toLowerCase();
         const nomeImagem = `sinal_${template}_${latStr}_${lonStr}.png`;
         const nomeBounds = `sinal_${template}_${latStr}_${lonStr}.json`;
-        const url = getExportKmzUrl(nomeImagem, nomeBounds);
+        const url = getExportKmzUrl(nomeImagem, nomeBounds); // de api.js
         window.open(url, '_blank');
         mostrarMensagem("📦 Preparando KMZ para download...", "sucesso");
     } catch (error) {
@@ -672,80 +524,131 @@ function handleExportClick() {
     }
 }
 
-async function reavaliarPivosViaAPI() {
-    console.log("Reavaliando pivôs...");
-    const pivosAtuaisParaReavaliacao = window.lastPivosDataDrawn.map(p => ({
-        nome: p.nome,
-        lat: p.lat,
-        lon: p.lon
-    }));
+// Função debounced para reavaliar cobertura
+function solicitarReavaliarCoberturaDebounced() {
+    clearTimeout(reavaliacaoTimer);
+    reavaliacaoTimer = setTimeout(() => {
+        reavaliarPivosViaAPI(); // Chama a função de reavaliação principal
+    }, 300); // Ajuste o tempo de debounce conforme necessário (e.g., 250-500ms)
+}
 
-    if (pivosAtuaisParaReavaliacao.length === 0) {
-        console.log("Nenhum pivô para reavaliar (lastPivosDataDrawn está vazio).");
-        if (Object.keys(pivotsMap).length === 0) return;
+async function reavaliarPivosViaAPI() {
+    console.log("🔄 Reavaliando cobertura para pivôs e bombas...");
+
+    let pivosAtuaisParaReavaliacao = window.lastPivosDataDrawn.map(pivo => {
+        const nomePivo = pivo.nome;
+        if (posicoesEditadas[nomePivo]) {
+            return { nome: nomePivo, lat: posicoesEditadas[nomePivo].lat, lon: posicoesEditadas[nomePivo].lng };
+        }
+        return { nome: nomePivo, lat: pivo.lat, lon: pivo.lon };
+    });
+
+    if (pivosAtuaisParaReavaliacao.length === 0 && Object.keys(pivotsMap).length > 0) {
+        console.warn("Reavaliando: lastPivosDataDrawn vazio, usando pivotsMap.");
+        const pivosDoMapa = Object.entries(pivotsMap)
+            .filter(([_, marcador]) => marcador && typeof marcador.getLatLng === 'function')
+            .map(([nome, marcador]) => ({ nome, lat: marcador.getLatLng().lat, lon: marcador.getLatLng().lng }));
+        if (pivosDoMapa.length > 0) {
+            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosDoMapa.map(p => ({...p, fora: true}))));
+            pivosAtuaisParaReavaliacao = [...pivosDoMapa];
+        } else {
+            console.log("Nenhum pivô válido no pivotsMap para reavaliar.");
+        }
     }
 
-    const overlays = [];
+    const bombasAtuaisParaReavaliacao = marcadoresBombasComStatus.map(bomba => ({ nome: bomba.nome, lat: bomba.lat, lon: bomba.lon }));
+
+    if (pivosAtuaisParaReavaliacao.length === 0 && bombasAtuaisParaReavaliacao.length === 0) {
+        console.log("ℹ️ Nenhum pivô ou bomba para reavaliar.");
+        atualizarPainelDados(); // de ui.js
+        return;
+    }
+
+    const overlaysParaEnviar = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
     if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked)) {
         const b = window.antenaGlobal.overlay.getBounds();
-        overlays.push({
-            imagem: window.antenaGlobal.overlay._url.replace(BACKEND_URL + '/', ''),
-            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-        });
+        let imagemPath = window.antenaGlobal.overlay._url;
+        if (typeof BACKEND_URL !== 'undefined' && imagemPath.includes(BACKEND_URL)) {
+            imagemPath = imagemPath.replace(BACKEND_URL + '/', '');
+            if (imagemPath.startsWith(STATIC_DIR_NAME + '/')) {
+                imagemPath = imagemPath.substring(STATIC_DIR_NAME.length + 1);
+            }
+        } else {
+            imagemPath = imagemPath.substring(imagemPath.lastIndexOf('/') + 1).split('?')[0];
+            imagemPath = `imagens/${imagemPath}`;
+        }
+        overlaysParaEnviar.push({ id: 'antena_principal', imagem: imagemPath, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
     }
 
     repetidoras.forEach(rep => {
         const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
         if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked)) {
             const b = rep.overlay.getBounds();
-            overlays.push({
-                imagem: rep.overlay._url.replace(BACKEND_URL + '/', ''),
-                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-            });
+            let imagemPath = rep.overlay._url;
+            if (typeof BACKEND_URL !== 'undefined' && imagemPath.includes(BACKEND_URL)) {
+                imagemPath = imagemPath.replace(BACKEND_URL + '/', '');
+                if (imagemPath.startsWith(STATIC_DIR_NAME + '/')) {
+                     imagemPath = imagemPath.substring(STATIC_DIR_NAME.length + 1);
+                 }
+            } else {
+                imagemPath = imagemPath.substring(imagemPath.lastIndexOf('/') + 1).split('?')[0];
+                imagemPath = `imagens/${imagemPath}`;
+            }
+            overlaysParaEnviar.push({ id: `repetidora_${rep.id}`, imagem: imagemPath, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
         }
     });
 
-    if (pivosAtuaisParaReavaliacao.length === 0 && Object.keys(pivotsMap).length > 0) {
-        console.warn("Reavaliando pivôs: lastPivosDataDrawn estava vazio, usando pivotsMap.");
-        const pivosDoMapa = Object.entries(pivotsMap).map(([nome, marcador]) => ({
-            nome,
-            lat: marcador.getLatLng().lat,
-            lon: marcador.getLatLng().lng
-        }));
-        if (pivosDoMapa.length === 0) {
-            console.log("Nenhum pivô no mapa para reavaliar.");
-            return;
+    if (overlaysParaEnviar.length === 0) {
+        console.log("ℹ️ Nenhum overlay visível. Marcando todos como fora de cobertura.");
+        if (pivosAtuaisParaReavaliacao.length > 0) {
+            const pivosFora = pivosAtuaisParaReavaliacao.map(p => ({ ...p, fora: true }));
+            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosFora));
+            drawPivos(pivosFora, true); // de drawing.js
         }
-        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosDoMapa.map(p => ({...p, fora: true}))));
-        pivosAtuaisParaReavaliacao.push(...pivosDoMapa);
-    } else if (pivosAtuaisParaReavaliacao.length === 0) {
-        console.log("Nenhum pivô para reavaliar.");
-        return;
-    }
-
-    if (overlays.length === 0) {
-        console.log("Nenhum overlay de sinal visível, marcando todos os pivôs como fora de cobertura.");
-        const pivosFora = pivosAtuaisParaReavaliacao.map(p => ({ ...p, fora: true }));
-        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosFora));
-        drawPivos(pivosFora, true);
-        atualizarPainelDados();
+        if (bombasAtuaisParaReavaliacao.length > 0) {
+            const bombasFora = bombasAtuaisParaReavaliacao.map(b => ({ ...b, fora: true }));
+            marcadoresBombasComStatus = JSON.parse(JSON.stringify(bombasFora));
+            drawBombas(bombasFora); // de drawing.js
+        }
+        atualizarPainelDados(); // de ui.js
         return;
     }
 
     try {
-        const data = await reevaluatePivots({ pivos: pivosAtuaisParaReavaliacao, overlays });
+        const payloadReavaliacao = { pivos: pivosAtuaisParaReavaliacao, bombas: bombasAtuaisParaReavaliacao, overlays: overlaysParaEnviar };
+        const data = await reevaluatePivots(payloadReavaliacao); // de api.js
+        console.log("📊 Reavaliação de cobertura concluída (dados recebidos):", data);
+
         if (data.pivos) {
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
             drawPivos(data.pivos, true);
-            atualizarPainelDados();
-            console.log("Pivôs reavaliados.");
         }
+        if (data.bombas_status) {
+            marcadoresBombasComStatus = JSON.parse(JSON.stringify(data.bombas_status));
+            drawBombas(marcadoresBombasComStatus);
+        } else if (bombasAtuaisParaReavaliacao.length > 0) { 
+            console.warn("⚠️ Backend não retornou 'bombas_status' na reavaliação.");
+        }
+        atualizarPainelDados();
+        console.log("🗺️ Mapa atualizado após reavaliação de cobertura.");
     } catch (error) {
-        console.error("Erro ao reavaliar pivôs via API:", error);
-        mostrarMensagem("⚠️ Erro ao atualizar cobertura.", "erro");
+        console.error("❌ Erro ao reavaliar cobertura via API:", error);
+        mostrarMensagem("⚠️ Erro ao atualizar cobertura dos elementos.", "erro");
     }
 }
+
+function formatCoordForFilename(coord) {
+    return coord.toFixed(6).replace('.', '_').replace('-', 'm');
+}
+
+function removePositioningMarker() {
+    if (window.marcadorPosicionamento && map.hasLayer(window.marcadorPosicionamento)) {
+        map.removeLayer(window.marcadorPosicionamento);
+        window.marcadorPosicionamento = null;
+    }
+}
+window.removePositioningMarker = removePositioningMarker;
 
 function formatCoordForFilename(coord) {
     return coord.toFixed(6).replace('.', '_').replace('-', 'm');
@@ -788,7 +691,7 @@ function enablePivoEditingMode() {
 
         const editMarkerIcon = L.divIcon({
             className: 'pivo-edit-handle-custom-pin',
-            html: `<svg viewBox="0 0 28 40" width="${tamanho}" height="${altura}" xmlns="http://www.w3.org/2000/svg"><path d="M14 0 C7.486 0 2 5.486 2 12.014 C2 20.014 14 40 14 40 C14 40 26 20.014 26 12.014 C26 5.486 20.514 0 14 0 Z M14 18 C10.686 18 8 15.314 8 12 C8 8.686 10.686 6 14 6 C17.314 6 20 8.686 20 12 C20 15.314 17.314 18 14 18 Z" fill="#FF3333" stroke="#660000" stroke-width="1"/></svg>`,
+            html: `<svg viewBox="0 0 28 40" width="<span class="math-inline">\{tamanho\}" height\="</span>{altura}" xmlns="http://www.w3.org/2000/svg"><path d="M14 0 C7.486 0 2 5.486 2 12.014 C2 20.014 14 40 14 40 C14 40 26 20.014 26 12.014 C26 5.486 20.514 0 14 0 Z M14 18 C10.686 18 8 15.314 8 12 C8 8.686 10.686 6 14 6 C17.314 6 20 8.686 20 12 C20 15.314 17.314 18 14 18 Z" fill="#FF3333" stroke="#660000" stroke-width="1"/></svg>`,
             iconSize: [tamanho, altura],
             iconAnchor: [tamanho / 2, altura]
         });
@@ -1046,6 +949,7 @@ function handleToggleDistanciasPivos() {
         btn.title = window.distanciasPivosVisiveis ? "Esconder Distâncias dos Pivôs" : "Mostrar Distâncias dos Pivôs";
     }
 
+    // ✅ Atualiza distâncias dos pivôs
     if (typeof window.togglePivoDistances === 'function') {
         window.togglePivoDistances(window.distanciasPivosVisiveis);
     } else {
@@ -1054,8 +958,52 @@ function handleToggleDistanciasPivos() {
             console.warn("Fallback: Chamando drawPivos diretamente para atualizar distâncias.");
             drawPivos(window.lastPivosDataDrawn, true);
             mostrarMensagem(`Distâncias dos pivôs ${window.distanciasPivosVisiveis ? 'exibidas' : 'ocultas'} (via fallback).`, 'sucesso');
-        } else if (typeof drawPivos !== 'function'){
-             console.error("Função drawPivos também não encontrada globalmente.");
+        } else {
+            console.error("Dados de pivôs não disponíveis ou função drawPivos ausente.");
         }
     }
+
+    // ✅ Atualiza distâncias das bombas (se houver)
+    if (typeof drawBombas === 'function' && window.marcadoresBombasComStatus) {
+        drawBombas(window.marcadoresBombasComStatus);
+    } else {
+        console.warn("⚠️ Dados de bombas ou função drawBombas não disponíveis para atualizar distâncias.");
+    }
 }
+
+function mostrarLegendaSinal(mostrar = true) {
+  const legenda = document.getElementById("painel-legenda-sinal");
+  if (legenda) {
+    legenda.classList.toggle("hidden", !mostrar);
+    console.log("🔍 Legenda de sinal visível?", mostrar);
+  } else {
+    console.warn("❌ Elemento da legenda não encontrado no DOM.");
+  }
+}
+window.mostrarLegendaSinal = mostrarLegendaSinal;
+
+// 🧠 Atualiza a imagem da legenda ao mudar o template
+document.getElementById("template-modelo").addEventListener("change", () => {
+    const template = document.getElementById("template-modelo").value;
+    const legendaImg = document.getElementById("img-legenda-sinal");
+
+    if (!legendaImg) return;
+
+    // Aplica fade-out
+    legendaImg.classList.remove("opacity-100");
+    legendaImg.classList.add("opacity-0");
+
+    setTimeout(() => {
+        if (template === "BR Brazil_V6") {
+            legendaImg.src = "assets/images/IRRICONTRO.dBm.key.png";
+        } else if (template === "EU Europe_V6") {
+            legendaImg.src = "assets/images/IRRIEUROPE.dBm.key.png";
+        }
+
+        // Após trocar imagem, aplica fade-in
+        legendaImg.onload = () => {
+            legendaImg.classList.remove("opacity-0");
+            legendaImg.classList.add("opacity-100");
+        };
+    }, 300);
+});

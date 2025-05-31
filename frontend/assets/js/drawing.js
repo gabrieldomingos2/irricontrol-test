@@ -172,79 +172,81 @@ function drawPivos(pivosData, useEdited = false) {
     toggleLegendas(legendasAtivas);
 }
 
-function drawBombas(bombasData) { // bombasData agora é um array de objetos como: { nome, lat, lon, fora }
-    if (!map) return;
+function drawBombas(bombasData) {
+    if (!map || !bombasData) return;
 
-    Object.values(window.bombasMap || {}).forEach(bombaObj => { // Assumindo window.bombasMap de main.js
-        if (bombaObj.marker && map.hasLayer(bombaObj.marker)) map.removeLayer(bombaObj.marker);
-        if (bombaObj.label && map.hasLayer(bombaObj.label)) map.removeLayer(bombaObj.label);
-    });
-    if(window.bombasMap) window.bombasMap = {}; // Reseta
-
-    marcadoresLegenda = marcadoresLegenda.filter(m => m.options.labelType !== 'bomba');
-    // A variável marcadoresBombas (array de L.marker) que você tem pode ser usada para rastrear
-    // os marcadores de ícone para facilitar a remoção, ou você pode usar o bombasMap.
-    // Vamos manter sua lógica de limpar marcadoresBombas array por enquanto.
-    marcadoresBombas.forEach(markerIconOnly => map.removeLayer(markerIconOnly));
+    // 🧹 Remove marcadores anteriores do mapa
+    marcadoresBombas.forEach(marker => map.removeLayer(marker));
     marcadoresBombas = [];
+    window.bombasMap = {};
 
+    // 🧹 Filtra e remove as legendas antigas de bombas
+    const legendasRestantes = [];
+    marcadoresLegenda.forEach(legenda => {
+        if (legenda.options.labelType !== 'bomba') {
+            legendasRestantes.push(legenda);
+        } else {
+            map.removeLayer(legenda);
+        }
+    });
+    marcadoresLegenda = legendasRestantes;
 
-    if (!bombasData || bombasData.length === 0) {
+    // ✅ Nada para desenhar? Sai
+    if (!Array.isArray(bombasData) || bombasData.length === 0) {
         toggleLegendas(legendasAtivas);
         return;
     }
 
-    bombasData.forEach(bomba => { // Agora 'bomba' aqui tem a propriedade 'fora'
+    bombasData.forEach(bomba => {
         const pos = L.latLng(bomba.lat, bomba.lon);
+        const marker = L.marker(pos, { icon: bombaIcon }).addTo(map);
+        marcadoresBombas.push(marker);
 
-        const marcadorBombaIcon = L.marker(pos, { icon: bombaIcon }) // Renomeado para clareza
-            .addTo(map);
-        marcadoresBombas.push(marcadorBombaIcon); // Adiciona apenas o marcador do ícone à sua lista atual
+        const nome = bomba.nome || 'Bomba';
+        let distanciaHtml = "";
+        let hasDistancia = false;
 
-        const labelNome = bomba.nome;
-        const labelWidth = (labelNome.length * 7) + 10;
-        const labelHeight = 20;
-        const labelBomba = L.marker(pos, {
+        // ✅ Se botão "Mostrar distâncias" estiver ativado
+        if (window.distanciasPivosVisiveis && window.antenaGlobal && typeof window.antenaGlobal.lat === 'number') {
+            const antenaLatLng = L.latLng(window.antenaGlobal.lat, window.antenaGlobal.lon);
+            const distancia = antenaLatLng.distanceTo(pos);
+            distanciaHtml = `<br><span class="distancia-pivo">${distancia > 999 ? (distancia / 1000).toFixed(1) + ' km' : Math.round(distancia) + ' m'}</span>`;
+            hasDistancia = true;
+        }
+
+        const finalHtml = `${nome}${distanciaHtml}`;
+        const labelWidth = (nome.length * 7) + 10;
+        const labelHeight = hasDistancia ? 35 : 20;
+
+        const label = L.marker(pos, {
             icon: L.divIcon({
                 className: 'label-pivo',
-                html: labelNome,
+                html: finalHtml,
                 iconSize: [labelWidth, labelHeight],
-                iconAnchor: [labelWidth / 2, -10] // Ajustado para posicionar abaixo do ícone
+                iconAnchor: [labelWidth / 2, -10]
             }),
             labelType: 'bomba'
         }).addTo(map);
-        marcadoresLegenda.push(labelBomba);
+        marcadoresLegenda.push(label);
 
-        // --- LÓGICA DO TOOLTIP ADICIONADA ---
         const statusTexto = bomba.fora
             ? `<span style="color:#ff4d4d; font-weight:bold;">❌ Fora de sinal</span>`
             : `<span style="color:#22c55e; font-weight:bold;">✅ Com sinal</span>`;
 
-        const tooltipContent = `
-            <div style="text-align:center;">
-                ${statusTexto}
-            </div>
-        `;
-
-        marcadorBombaIcon.bindTooltip(tooltipContent, {
+        marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, {
             permanent: false,
             direction: 'top',
-            offset: [0, -28], // Ajuste conforme o tamanho do bombaIcon e seu iconAnchor
-            className: 'tooltip-sinal' // Reutiliza o estilo de tooltip dos pivôs
+            offset: [0, -28],
+            className: 'tooltip-sinal'
         });
-        // --- FIM DA LÓGICA DO TOOLTIP ---
 
-        // Armazenar no bombasMap para referência futura (se bombasMap for gerenciado em main.js)
-        if (window.bombasMap) {
-            window.bombasMap[bomba.nome] = {
-                marker: marcadorBombaIcon, // Marcador do ícone
-                label: labelBomba,      // Marcador do label
-                data: { ...bomba }      // Guarda todos os dados da bomba, incluindo o status 'fora'
-            };
-        }
+        window.bombasMap[bomba.nome] = { marker, label, data: { ...bomba } };
     });
+
     toggleLegendas(legendasAtivas);
 }
+
+
 
 function drawCirculos(ciclosData) {
     if (!map || !ciclosData) return;
