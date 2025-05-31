@@ -163,11 +163,37 @@ function setupUIEventListeners() {
     arquivoInput.addEventListener("change", updateFileName);
 
     templateSelect.addEventListener("change", (e) => {
-        templateSelecionado = e.target.value;
-        localStorage.setItem('templateSelecionado', templateSelecionado);
-        atualizarPainelDados();
-        console.log("Template selecionado:", templateSelecionado);
-    });
+    templateSelecionado = e.target.value;
+    localStorage.setItem('templateSelecionado', templateSelecionado);
+    atualizarPainelDados();
+
+    const legendaImg = document.getElementById("img-legenda-sinal");
+if (!legendaImg) return;
+
+legendaImg.onload = null;
+legendaImg.classList.remove("opacity-100");
+legendaImg.classList.add("opacity-0");
+
+setTimeout(() => {
+    let nomeImg = "IRRICONTRO"; // padrão Brasil
+    if (/Europe/i.test(templateSelecionado)) {
+        nomeImg = "IRRIEUROPE";
+    }
+
+    legendaImg.src = `assets/images/${nomeImg}.dBm.key.png`;
+
+    legendaImg.onload = () => {
+        legendaImg.classList.remove("opacity-0");
+        legendaImg.classList.add("opacity-100");
+
+        if (typeof legendasAtivas !== "undefined" && legendasAtivas) {
+            document.getElementById("painel-legenda-sinal")?.classList.remove("hidden");
+        }
+    };
+}, 300);
+
+}); 
+
 
     document.getElementById("fechar-painel-rep").addEventListener("click", () => {
         painelConfigRepetidoraDiv.classList.add('hidden');

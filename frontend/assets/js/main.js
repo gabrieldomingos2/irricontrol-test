@@ -385,7 +385,10 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
     clearMapLayers(); // Chama a função de limpeza do mapa
-    mostrarLegendaSinal(false); // 👈 Esconde a legenda de sinal no reset
+    if (legendasAtivas) {
+  mostrarLegendaSinal(false);
+}
+
 
     // Resetar variáveis de estado globais
     window.antenaGlobal = null;
@@ -980,30 +983,5 @@ function mostrarLegendaSinal(mostrar = true) {
     console.warn("❌ Elemento da legenda não encontrado no DOM.");
   }
 }
-window.mostrarLegendaSinal = mostrarLegendaSinal;
 
-// 🧠 Atualiza a imagem da legenda ao mudar o template
-document.getElementById("template-modelo").addEventListener("change", () => {
-    const template = document.getElementById("template-modelo").value;
-    const legendaImg = document.getElementById("img-legenda-sinal");
 
-    if (!legendaImg) return;
-
-    // Aplica fade-out
-    legendaImg.classList.remove("opacity-100");
-    legendaImg.classList.add("opacity-0");
-
-    setTimeout(() => {
-        if (template === "BR Brazil_V6") {
-            legendaImg.src = "assets/images/IRRICONTRO.dBm.key.png";
-        } else if (template === "EU Europe_V6") {
-            legendaImg.src = "assets/images/IRRIEUROPE.dBm.key.png";
-        }
-
-        // Após trocar imagem, aplica fade-in
-        legendaImg.onload = () => {
-            legendaImg.classList.remove("opacity-0");
-            legendaImg.classList.add("opacity-100");
-        };
-    }, 300);
-});
