@@ -84,21 +84,21 @@ class AppSettings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     TEMPLATES_DISPONIVEIS: List[TemplateSettings] = [
-        {
-            "id": "Brazil_V6", "nome": "🇧🇷 Brazil V6", "frq": 915,
-            "col": "IRRICONTRO.dBm", "site": "Brazil_V6", "rxs": -90,
-            "transmitter": {"txw": 0.3, "bwi": 0.1},
-            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 3, "rxs": -90},
-            "antenna": {"txg": 3, "fbr": 3}
-        },
-        {
-            "id": "Europe_V6_XR", "nome": "🇪🇺 Europe V6 XR", "frq": 868,
-            "col": "IRRIEUROPE.dBm", "site": "V6_XR.dBm", "rxs": -105,
-            "transmitter": {"txw": 0.02, "bwi": 0.05},
-            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 2.1, "rxs": -105},
-            "antenna": {"txg": 2.1, "fbr": 2.1}
-        }
-    ]
+    TemplateSettings(
+        id="Brazil_V6", nome="🇧🇷 Brazil V6", frq=915,
+        col="IRRICONTRO.dBm", site="Brazil_V6", rxs=-90,
+        transmitter=TransmitterSettings(txw=0.3, bwi=0.1),
+        receiver=ReceiverSettings(lat=0, lon=0, alt=3, rxg=3, rxs=-90),
+        antenna=AntennaSettings(txg=3, fbr=3)
+    ),
+    TemplateSettings(
+        id="Europe_V6_XR", nome="🇪🇺 Europe V6 XR", frq=868,
+        col="IRRIEUROPE.dBm", site="V6_XR.dBm", rxs=-105,
+        transmitter=TransmitterSettings(txw=0.02, bwi=0.05),
+        receiver=ReceiverSettings(lat=0, lon=0, alt=3, rxg=2.1, rxs=-105),
+        antenna=AntennaSettings(txg=2.1, fbr=2.1)
+    )
+]
 
     def initialize_directories(self) -> None:
         print(f"INFO: Verificando/Criando diretório de imagens em: {self.IMAGENS_DIR_PATH}")
