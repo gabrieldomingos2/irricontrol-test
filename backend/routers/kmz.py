@@ -71,32 +71,31 @@ async def exportar_kmz_endpoint(
 
     try:
         # --- Obter dados do template ---
-        # Extrair template ID do nome da imagem principal. Ex: "principal_Brazil_V6_..." -> "Brazil_V6"
-        # Esta lógica de extração pode precisar de ajustes dependendo do padrão exato do nome do arquivo.
         extracted_template_id = None
         try:
             parts = imagem.split('_')
             if len(parts) > 1 and parts[0].lower() == "principal":
                 extracted_template_id = parts[1]
-        except Exception: # Captura genérica para falha na extração
+        except Exception:
             pass
 
         if not extracted_template_id:
-            logger.error(f"Não foi possível extrair o ID do template do nome da imagem: {imagem}. Usando valores padrão ou falhando.")
-            # Você pode querer lançar um HTTPException aqui ou usar um template padrão.
-            # Por enquanto, vamos permitir que falhe se o template não for encontrado.
+            logger.error(f"Não foi possível extrair o ID do template do nome da imagem: {imagem}.")
             raise HTTPException(status_code=400, detail=f"Formato de nome de imagem inválido para extrair ID do template: {imagem}")
 
-        selected_template = next((t for t in settings.TEMPLATES_DISPONIVEIS if t["id"].lower() == extracted_template_id.lower()), None)
+        # CORREÇÃO AQUI: Usar t.id em vez de t["id"]
+        selected_template = next((t for t in settings.TEMPLATES_DISPONIVEIS if t.id.lower() == extracted_template_id.lower()), None)
         
         if not selected_template:
             raise HTTPException(status_code=404, detail=f"Template com ID '{extracted_template_id}' não encontrado nas configurações.")
 
-        template_id_for_name = selected_template["id"] # Ex: "Brazil_V6"
-        template_frq = selected_template["frq"]        # Ex: 915
-        template_txw = selected_template["transmitter"]["txw"] # Ex: 0.3
+        # CORREÇÃO AQUI: Acessar atributos com notação de ponto
+        template_id_for_name = selected_template.id 
+        template_frq = selected_template.frq        
+        # Assumindo que 'transmitter' é um dicionário dentro do objeto TemplateSettings
+        template_txw = selected_template.transmitter["txw"] 
         
-        study_date_str = datetime.now().strftime('%Y-%m-%d') # Data para o nome da subpasta
+        study_date_str = datetime.now().strftime('%Y-%m-%d')
         # --- Fim da obtenção de dados do template ---
 
         antena_data, pivos_data, ciclos_data, bombas_data = kmz_parser.parse_kmz(str(INPUT_KMZ_PATH), str(_INPUT_KMZ_DIR))
@@ -123,13 +122,13 @@ async def exportar_kmz_endpoint(
             torre_icon_name=TORRE_ICON_NAME,
             default_icon_url=DEFAULT_ICON_URL,
             colour_key_filename=COLOUR_KEY_FILENAME,
-            # Novos parâmetros passados:
             template_id_for_subfolder=template_id_for_name,
             study_date_str_for_subfolder=study_date_str,
             template_frq_for_main_coverage=template_frq,
             template_txw_for_main_coverage=template_txw
         )
 
+        # ... (restante da função exportar_kmz_endpoint como na versão anterior) ...
         caminho_kml_temp = _INPUT_KMZ_DIR / "estudo_temp.kml"
         kml.save(str(caminho_kml_temp))
         logger.info(f"  -> KML temporário salvo em: {caminho_kml_temp}")
