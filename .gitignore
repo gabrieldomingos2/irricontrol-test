@@ -1,0 +1,45 @@
+# Ambiente virtual
+.venv/
+env/
+venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos temporários
+*.log
+*.tmp
+*.bak
+
+# IDEs
+.vscode/
+.idea/
+
+# Arquivos de configuração locais
+.env
+*.env
+
+# Frontend (Node.js)
+node_modules/
+dist/
+build/
+
+# Arquivos de deploy estáticos (ignora conteúdo, mas mantém a pasta com .keep)
+backend/static/imagens/*
+!backend/static/imagens/.keep
+
+backend/static/arquivos/*
+!backend/static/arquivos/.keep
+
+
+# Bats
+start-servidor.bat
+
+
