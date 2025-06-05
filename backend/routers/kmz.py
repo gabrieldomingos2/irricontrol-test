@@ -2,35 +2,30 @@ from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Backgroun
 from fastapi.responses import FileResponse
 import zipfile
 import json
-import simplekml # Mantido, pois é a biblioteca principal para KML
+import simplekml
 from datetime import datetime
-from pathlib import Path # Adicionado para manipulação moderna de caminhos
-import logging # Adicionado para logging
-import shutil # Para operações de arquivo como mover (se necessário) ou remover árvore
-import re # Adicionado para flexibilidade em futuras lógicas de nomeação
+from pathlib import Path
+import logging
+import shutil
+import re
 
-# Usa imports absolutos
 from backend.services import kmz_parser
-from backend.config import settings # Importando o objeto settings
+from backend.config import settings
 
-# Configuração do Logger
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO) # Configuração básica, pode ser mais elaborada
+logging.basicConfig(level=logging.INFO)
 
 router = APIRouter(
-    prefix="/kmz", # Mantido o prefixo original
+    prefix="/kmz",
     tags=["KMZ Operations"],
 )
 
-# --- Constantes e Caminhos Derivados das Configurações ---
 _INPUT_KMZ_DIR: Path = settings.ARQUIVOS_DIR_PATH
 _GENERATED_IMAGES_DIR: Path = settings.IMAGENS_DIR_PATH
 _INPUT_KMZ_FILENAME = "entrada.kmz"
 INPUT_KMZ_PATH: Path = _INPUT_KMZ_DIR / _INPUT_KMZ_FILENAME
-TORRE_ICON_NAME = "cloudrf.png" # Nome do arquivo do ícone
-DEFAULT_ICON_URL = "http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png" # URL para ícone padrão
-
-# --- Funções Auxiliares para /exportar (para melhor organização) ---
+TORRE_ICON_NAME = "cloudrf.png"
+DEFAULT_ICON_URL = "http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png"
 
 def _create_kml_styles() -> tuple[simplekml.Style, simplekml.Style, simplekml.Style, simplekml.Style]:
     """Cria e retorna os estilos KML para torre, ponto padrão, repetidora e ícone de pasta."""
@@ -49,21 +44,11 @@ def _create_kml_styles() -> tuple[simplekml.Style, simplekml.Style, simplekml.St
     repetidora_style.iconstyle.scale = 1.1
     repetidora_style.labelstyle.scale = 1.0
 
-    # Estilo para o ícone das Pastas
     folder_icon_style = simplekml.Style()
-
-    # Para alterar o ícone da pasta na lista de "Lugares" (árvore),
-    # usamos ListStyle e atribuímos um objeto ItemIcon ao seu atributo 'itemicon'.
-    # Criamos o objeto ItemIcon
-    folder_icon_style.liststyle.itemicon.append(simplekml.ItemIcon(href=TORRE_ICON_NAME))
-    # Nota: A propriedade 'scale' de 'iconstyle' não afeta diretamente o tamanho
-    # do ícone em 'liststyle'. O ícone (cloudrf.png) será exibido
-    # em seu tamanho original ou em um tamanho padrão para ícones de lista do Google Earth.
-
-    # Manter um IconStyle geral para a pasta pode ser útil para outros contextos
-    # ou como fallback, mas ListStyle com ItemIcon é o principal para o ícone na lista.
-    folder_icon_style.iconstyle.icon.href = TORRE_ICON_NAME # Fallback/geral
-    folder_icon_style.iconstyle.scale = 1.0 # Escala para o IconStyle (não para o ListStyle)
+    folder_icon_style.liststyle.itemicon = [simplekml.ItemIcon(href=TORRE_ICON_NAME)] # Atribui uma lista com um ItemIcon
+    
+    folder_icon_style.iconstyle.icon.href = TORRE_ICON_NAME
+    folder_icon_style.iconstyle.scale = 1.0
 
     return torre_style, default_point_style, repetidora_style, folder_icon_style
 
@@ -73,7 +58,6 @@ def _add_placemarks_to_kml_folders(
     torre_style: simplekml.Style, default_point_style: simplekml.Style,
     folder_icon_style: simplekml.Style
 ):
-    """Adiciona antena, pivôs, ciclos e bombas ao documento KML em suas respectivas pastas."""
     antena_nome = antena.get("nome", "Antena Principal")
     folder_torre = doc.newfolder(name=antena_nome)
     folder_torre.style = folder_icon_style
@@ -84,7 +68,6 @@ def _add_placemarks_to_kml_folders(
 
     if pivos:
         folder_pivos = doc.newfolder(name="Pivôs")
-        # folder_pivos.style = folder_icon_style # Descomente se quiser o ícone customizado para esta pasta
         for i, p_data in enumerate(pivos):
             pivo_nome = p_data.get("nome", f"Pivo {i+1}")
             pnt_pivo = folder_pivos.newpoint(name=pivo_nome, coords=[(p_data["lon"], p_data["lat"])])
@@ -93,7 +76,6 @@ def _add_placemarks_to_kml_folders(
 
     if ciclos:
         folder_ciclos = doc.newfolder(name="Ciclos")
-        # folder_ciclos.style = folder_icon_style # Descomente se quiser o ícone customizado para esta pasta
         for i, ciclo_data in enumerate(ciclos):
             ciclo_nome = ciclo_data.get("nome", f"Ciclo {i+1}")
             pol = folder_ciclos.newpolygon(name=ciclo_nome)
@@ -105,7 +87,6 @@ def _add_placemarks_to_kml_folders(
 
     if bombas:
         folder_bombas = doc.newfolder(name="Bombas")
-        # folder_bombas.style = folder_icon_style # Descomente se quiser o ícone customizado para esta pasta
         for i, bomba_data in enumerate(bombas):
             bomba_nome = bomba_data.get("nome", f"Bomba {i+1}")
             pnt_bomba = folder_bombas.newpoint(name=bomba_nome, coords=[(bomba_data["lon"], bomba_data["lat"])])
@@ -119,13 +100,12 @@ def _add_ground_overlays_to_kml(
     repetidora_style: simplekml.Style,
     folder_icon_style: simplekml.Style
 ) -> list[tuple[Path, str]]:
-    """Adiciona overlays de solo (principal e repetidoras) ao KML e retorna lista de arquivos de imagem."""
     arquivos_a_adicionar_ao_kmz = []
 
     folder_torre = next((f for f in doc.features if isinstance(f, simplekml.Folder) and f.name == antena_nome_principal), None)
     if not folder_torre:
         folder_torre = doc.newfolder(name=antena_nome_principal)
-        folder_torre.style = folder_icon_style # Aplica estilo se a pasta for recriada aqui
+        folder_torre.style = folder_icon_style
         logger.warning(f"Pasta da torre principal '{antena_nome_principal}' não encontrada, criando nova para overlay.")
 
     ground_main = folder_torre.newgroundoverlay(name="Cobertura Principal")
@@ -151,7 +131,7 @@ def _add_ground_overlays_to_kml(
                 if bounds_rep_data:
                     custom_repeater_name = f"Repetidora Solar {repeater_counter}"
                     folder_rep = doc.newfolder(name=custom_repeater_name)
-                    folder_rep.style = folder_icon_style # APLICA ESTILO À PASTA DA REPETIDORA
+                    folder_rep.style = folder_icon_style
 
                     ground_rep = folder_rep.newgroundoverlay(name=f"Cobertura {custom_repeater_name}")
                     ground_rep.icon.href = img_rep_path_servidor.name
@@ -169,8 +149,6 @@ def _add_ground_overlays_to_kml(
                     
                     repeater_counter += 1
     return arquivos_a_adicionar_ao_kmz
-
-# --- Endpoints ---
 
 @router.post("/processar")
 async def processar_kmz_endpoint(file: UploadFile = File(...)):
@@ -267,8 +245,6 @@ async def exportar_kmz_endpoint(
         raise HTTPException(status_code=404, detail=f"Arquivo necessário não encontrado: {fnfe.filename}")
     except Exception as e:
         logger.error(f"❌ Erro Interno em /kmz/exportar: {e}", exc_info=True)
-        # import traceback 
-        # traceback.print_exc() # Descomente para depuração local mais detalhada se necessário
         raise HTTPException(status_code=500, detail=f"Erro ao exportar KMZ: {type(e).__name__} - {str(e)}")
 
 @router.get("/icone-torre")
