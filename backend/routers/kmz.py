@@ -45,7 +45,8 @@ def _create_kml_styles() -> tuple[simplekml.Style, simplekml.Style, simplekml.St
     repetidora_style.labelstyle.scale = 1.0
 
     folder_icon_style = simplekml.Style()
-    folder_icon_style.liststyle.itemicon = [simplekml.ItemIcon(href=TORRE_ICON_NAME)] # Atribui uma lista com um ItemIcon
+    # Atribui uma instância de ItemIcon diretamente
+    folder_icon_style.liststyle.itemicon = simplekml.ItemIcon(href=TORRE_ICON_NAME)
     
     folder_icon_style.iconstyle.icon.href = TORRE_ICON_NAME
     folder_icon_style.iconstyle.scale = 1.0
