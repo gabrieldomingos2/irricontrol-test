@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 import zipfile
 import json 
 import simplekml 
-from datetime import datetime # Necessário para a data do estudo
+from datetime import datetime 
 from pathlib import Path
 import logging
 
@@ -27,11 +27,10 @@ INPUT_KMZ_PATH: Path = _INPUT_KMZ_DIR / _INPUT_KMZ_FILENAME
 
 TORRE_ICON_NAME = "cloudrf.png"
 DEFAULT_ICON_URL = "http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png"
-COLOUR_KEY_FILENAME = "IRRICONTRO.dBm.key.png"
+# A constante COLOUR_KEY_FILENAME foi removida daqui, pois será determinada dinamicamente
 
 @router.post("/processar")
 async def processar_kmz_endpoint(file: UploadFile = File(...)):
-    # ... (conteúdo desta função permanece o mesmo)
     try:
         logger.info("📥 Recebendo arquivo KMZ...")
         conteudo = await file.read()
@@ -70,39 +69,42 @@ async def exportar_kmz_endpoint(
         raise HTTPException(status_code=404, detail=f"Bounds '{bounds_file}' não encontrados em {_GENERATED_IMAGES_DIR}.")
 
     try:
-        # --- Obter dados do template ---
         extracted_template_id = None
         try:
             parts = imagem.split('_')
             if len(parts) > 1 and parts[0].lower() == "principal":
                 extracted_template_id = parts[1]
-        except Exception:
-            pass
+        except Exception as e_split:
+            logger.warning(f"Não foi possível extrair ID do template do nome da imagem '{imagem}' por split: {e_split}")
+            pass 
 
         if not extracted_template_id:
             logger.error(f"Não foi possível extrair o ID do template do nome da imagem: {imagem}.")
             raise HTTPException(status_code=400, detail=f"Formato de nome de imagem inválido para extrair ID do template: {imagem}")
 
-        # CORREÇÃO AQUI: Usar t.id em vez de t["id"]
         selected_template = next((t for t in settings.TEMPLATES_DISPONIVEIS if t.id.lower() == extracted_template_id.lower()), None)
         
         if not selected_template:
             raise HTTPException(status_code=404, detail=f"Template com ID '{extracted_template_id}' não encontrado nas configurações.")
 
-        # CORREÇÃO AQUI: Acessar atributos com notação de ponto
         template_id_for_name = selected_template.id 
         template_frq = selected_template.frq        
-        # Assumindo que 'transmitter' é um dicionário dentro do objeto TemplateSettings
         template_txw = selected_template.transmitter["txw"] 
         
         study_date_str = datetime.now().strftime('%Y-%m-%d')
-        # --- Fim da obtenção de dados do template ---
+
+        if hasattr(selected_template, 'col') and selected_template.col:
+            dynamic_colour_key_filename = f"{selected_template.col}.key.png"
+            logger.info(f"Usando legenda específica do template: {dynamic_colour_key_filename}")
+        else:
+            logger.error(f"Atributo 'col' da legenda não encontrado ou vazio no template '{selected_template.id}'. Verifique as configurações do template.")
+            raise HTTPException(status_code=500, detail=f"Configuração da legenda (col) ausente para o template {selected_template.id}")
 
         antena_data, pivos_data, ciclos_data, bombas_data = kmz_parser.parse_kmz(str(INPUT_KMZ_PATH), str(_INPUT_KMZ_DIR))
-        
+
         with open(caminho_bounds_principal_servidor, "r") as f:
             bounds_principal_data = json.load(f).get("bounds")
-        
+
         if not antena_data or not bounds_principal_data:
             logger.warning("⚠️ Dados incompletos para exportar. Antena ou bounds_principal ausentes.")
             raise HTTPException(status_code=500, detail="Dados essenciais (antena, bounds_principal) ausentes para exportar.")
@@ -121,14 +123,13 @@ async def exportar_kmz_endpoint(
             generated_images_dir=_GENERATED_IMAGES_DIR,
             torre_icon_name=TORRE_ICON_NAME,
             default_icon_url=DEFAULT_ICON_URL,
-            colour_key_filename=COLOUR_KEY_FILENAME,
+            colour_key_filename=dynamic_colour_key_filename, 
             template_id_for_subfolder=template_id_for_name,
             study_date_str_for_subfolder=study_date_str,
             template_frq_for_main_coverage=template_frq,
             template_txw_for_main_coverage=template_txw
         )
 
-        # ... (restante da função exportar_kmz_endpoint como na versão anterior) ...
         caminho_kml_temp = _INPUT_KMZ_DIR / "estudo_temp.kml"
         kml.save(str(caminho_kml_temp))
         logger.info(f"  -> KML temporário salvo em: {caminho_kml_temp}")
