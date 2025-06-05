@@ -56,6 +56,7 @@ async def exportar_kmz_endpoint(
     imagem: str = Query(..., description="Nome da imagem PNG principal (ex: 'cobertura_principal.png'). Formato esperado: 'principal_[template_id]_...'.png"),
     bounds_file: str = Query(..., description="Nome do JSON de bounds principal (ex: 'cobertura_principal.json').")
 ):
+    # ... (lógica para extrair extracted_template_id e obter selected_template como antes) ...
     logger.info("📦 Iniciando exportação KMZ via endpoint /exportar...")
     if not INPUT_KMZ_PATH.exists():
         raise HTTPException(status_code=400, detail=f"Nenhum KMZ foi processado ainda ({_INPUT_KMZ_FILENAME}). Faça o upload primeiro.")
@@ -89,7 +90,8 @@ async def exportar_kmz_endpoint(
 
         template_id_for_name = selected_template.id 
         template_frq = selected_template.frq        
-        template_txw = selected_template.transmitter["txw"] 
+        # AJUSTE AQUI: selected_template.transmitter é um objeto TransmitterSettings
+        template_txw = selected_template.transmitter.txw # Acessa o atributo txw do objeto transmitter
         
         study_date_str = datetime.now().strftime('%Y-%m-%d')
 
@@ -130,6 +132,7 @@ async def exportar_kmz_endpoint(
             template_txw_for_main_coverage=template_txw
         )
 
+        # ... (restante da função exportar_kmz_endpoint como na versão anterior) ...
         caminho_kml_temp = _INPUT_KMZ_DIR / "estudo_temp.kml"
         kml.save(str(caminho_kml_temp))
         logger.info(f"  -> KML temporário salvo em: {caminho_kml_temp}")
