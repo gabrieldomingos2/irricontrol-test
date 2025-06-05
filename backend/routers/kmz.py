@@ -53,16 +53,15 @@ def _create_kml_styles() -> tuple[simplekml.Style, simplekml.Style, simplekml.St
     folder_icon_style = simplekml.Style()
 
     # Para alterar o ícone da pasta na lista de "Lugares" (árvore),
-    # usamos ListStyle e adicionamos um ItemIcon.
-    folder_icon_style.liststyle.add_itemicon(href=TORRE_ICON_NAME)
+    # usamos ListStyle e atribuímos um objeto ItemIcon ao seu atributo 'itemicon'.
+    # Criamos o objeto ItemIcon
+    folder_icon_style.liststyle.itemicon.append(simplekml.ItemIcon(href=TORRE_ICON_NAME))
     # Nota: A propriedade 'scale' de 'iconstyle' não afeta diretamente o tamanho
     # do ícone em 'liststyle'. O ícone (cloudrf.png) será exibido
     # em seu tamanho original ou em um tamanho padrão para ícones de lista do Google Earth.
-    # Se o ícone 'cloudrf.png' parecer muito grande ou pequeno como ícone de pasta,
-    # você pode precisar de uma versão da imagem com tamanho ajustado especificamente para isso.
 
     # Manter um IconStyle geral para a pasta pode ser útil para outros contextos
-    # ou como fallback, mas ListStyle é o principal para o ícone na lista.
+    # ou como fallback, mas ListStyle com ItemIcon é o principal para o ícone na lista.
     folder_icon_style.iconstyle.icon.href = TORRE_ICON_NAME # Fallback/geral
     folder_icon_style.iconstyle.scale = 1.0 # Escala para o IconStyle (não para o ListStyle)
 
@@ -268,6 +267,8 @@ async def exportar_kmz_endpoint(
         raise HTTPException(status_code=404, detail=f"Arquivo necessário não encontrado: {fnfe.filename}")
     except Exception as e:
         logger.error(f"❌ Erro Interno em /kmz/exportar: {e}", exc_info=True)
+        # import traceback 
+        # traceback.print_exc() # Descomente para depuração local mais detalhada se necessário
         raise HTTPException(status_code=500, detail=f"Erro ao exportar KMZ: {type(e).__name__} - {str(e)}")
 
 @router.get("/icone-torre")
