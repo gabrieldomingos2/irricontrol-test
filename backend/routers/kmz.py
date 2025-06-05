@@ -1,48 +1,40 @@
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 import zipfile
-import json # Mantido para ler o bounds_file
-import simplekml # Mantido para criar o objeto Kml e Document
-from datetime import datetime
+import json 
+import simplekml 
+from datetime import datetime # Necessário para a data do estudo
 from pathlib import Path
 import logging
-# import shutil # Não mais usado diretamente aqui
-# import re # Não mais usado diretamente aqui
 
-# Imports de Serviços
 from backend.services import kmz_parser
-from backend.services import kmz_exporter # NOVO IMPORT
+from backend.services import kmz_exporter 
 
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO) # Pode ser configurado no main da aplicação
+logging.basicConfig(level=logging.INFO) 
 
 router = APIRouter(
     prefix="/kmz",
     tags=["KMZ Operations"],
 )
 
-# Constantes de Configuração para este Router
 _INPUT_KMZ_DIR: Path = settings.ARQUIVOS_DIR_PATH
-_GENERATED_IMAGES_DIR: Path = settings.IMAGENS_DIR_PATH # Usado pelo /icone-torre e passado para o exporter
+_GENERATED_IMAGES_DIR: Path = settings.IMAGENS_DIR_PATH 
 _INPUT_KMZ_FILENAME = "entrada.kmz"
 INPUT_KMZ_PATH: Path = _INPUT_KMZ_DIR / _INPUT_KMZ_FILENAME
 
-# Constantes para definir o conteúdo do KML - serão passadas ao kmz_exporter
 TORRE_ICON_NAME = "cloudrf.png"
 DEFAULT_ICON_URL = "http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png"
 COLOUR_KEY_FILENAME = "IRRICONTRO.dBm.key.png"
-# COLOUR_KEY_KML_NAME e DETAILS_SUBFOLDER_NAME são definidos dentro do kmz_exporter.py
-
-# --- Endpoints ---
 
 @router.post("/processar")
 async def processar_kmz_endpoint(file: UploadFile = File(...)):
+    # ... (conteúdo desta função permanece o mesmo)
     try:
         logger.info("📥 Recebendo arquivo KMZ...")
         conteudo = await file.read()
-        # _INPUT_KMZ_DIR.mkdir(parents=True, exist_ok=True) # Já deve ser tratado no startup
         with open(INPUT_KMZ_PATH, "wb") as f:
             f.write(conteudo)
         logger.info(f"  -> KMZ salvo em: {INPUT_KMZ_PATH}")
@@ -62,14 +54,14 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
 @router.get("/exportar")
 async def exportar_kmz_endpoint(
     background_tasks: BackgroundTasks,
-    imagem: str = Query(..., description="Nome da imagem PNG principal (ex: 'cobertura_principal.png')."),
+    imagem: str = Query(..., description="Nome da imagem PNG principal (ex: 'cobertura_principal.png'). Formato esperado: 'principal_[template_id]_...'.png"),
     bounds_file: str = Query(..., description="Nome do JSON de bounds principal (ex: 'cobertura_principal.json').")
 ):
     logger.info("📦 Iniciando exportação KMZ via endpoint /exportar...")
     if not INPUT_KMZ_PATH.exists():
         raise HTTPException(status_code=400, detail=f"Nenhum KMZ foi processado ainda ({_INPUT_KMZ_FILENAME}). Faça o upload primeiro.")
     
-    caminho_imagem_principal_servidor = _GENERATED_IMAGES_DIR / imagem # Path completo da imagem principal
+    caminho_imagem_principal_servidor = _GENERATED_IMAGES_DIR / imagem
     caminho_bounds_principal_servidor = _GENERATED_IMAGES_DIR / bounds_file
 
     if not caminho_imagem_principal_servidor.exists():
@@ -78,6 +70,35 @@ async def exportar_kmz_endpoint(
         raise HTTPException(status_code=404, detail=f"Bounds '{bounds_file}' não encontrados em {_GENERATED_IMAGES_DIR}.")
 
     try:
+        # --- Obter dados do template ---
+        # Extrair template ID do nome da imagem principal. Ex: "principal_Brazil_V6_..." -> "Brazil_V6"
+        # Esta lógica de extração pode precisar de ajustes dependendo do padrão exato do nome do arquivo.
+        extracted_template_id = None
+        try:
+            parts = imagem.split('_')
+            if len(parts) > 1 and parts[0].lower() == "principal":
+                extracted_template_id = parts[1]
+        except Exception: # Captura genérica para falha na extração
+            pass
+
+        if not extracted_template_id:
+            logger.error(f"Não foi possível extrair o ID do template do nome da imagem: {imagem}. Usando valores padrão ou falhando.")
+            # Você pode querer lançar um HTTPException aqui ou usar um template padrão.
+            # Por enquanto, vamos permitir que falhe se o template não for encontrado.
+            raise HTTPException(status_code=400, detail=f"Formato de nome de imagem inválido para extrair ID do template: {imagem}")
+
+        selected_template = next((t for t in settings.TEMPLATES_DISPONIVEIS if t["id"].lower() == extracted_template_id.lower()), None)
+        
+        if not selected_template:
+            raise HTTPException(status_code=404, detail=f"Template com ID '{extracted_template_id}' não encontrado nas configurações.")
+
+        template_id_for_name = selected_template["id"] # Ex: "Brazil_V6"
+        template_frq = selected_template["frq"]        # Ex: 915
+        template_txw = selected_template["transmitter"]["txw"] # Ex: 0.3
+        
+        study_date_str = datetime.now().strftime('%Y-%m-%d') # Data para o nome da subpasta
+        # --- Fim da obtenção de dados do template ---
+
         antena_data, pivos_data, ciclos_data, bombas_data = kmz_parser.parse_kmz(str(INPUT_KMZ_PATH), str(_INPUT_KMZ_DIR))
         
         with open(caminho_bounds_principal_servidor, "r") as f:
@@ -87,22 +108,26 @@ async def exportar_kmz_endpoint(
             logger.warning("⚠️ Dados incompletos para exportar. Antena ou bounds_principal ausentes.")
             raise HTTPException(status_code=500, detail="Dados essenciais (antena, bounds_principal) ausentes para exportar.")
 
-        kml = simplekml.Kml(name="Estudo de Sinal Irricontrol") # Nome do arquivo KML dentro do KMZ
-        doc = kml.document # Documento KML principal
+        kml = simplekml.Kml(name="Estudo de Sinal Irricontrol") 
+        doc = kml.document 
 
-        # Chama o serviço para construir o KML e obter a lista de arquivos de imagem
         arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
             doc=doc,
             antena_data=antena_data,
             pivos_data=pivos_data,
             ciclos_data=ciclos_data,
             bombas_data=bombas_data,
-            imagem_principal_nome_relativo=imagem, # Nome relativo da imagem principal
+            imagem_principal_nome_relativo=imagem, 
             bounds_principal_data=bounds_principal_data,
             generated_images_dir=_GENERATED_IMAGES_DIR,
             torre_icon_name=TORRE_ICON_NAME,
             default_icon_url=DEFAULT_ICON_URL,
-            colour_key_filename=COLOUR_KEY_FILENAME
+            colour_key_filename=COLOUR_KEY_FILENAME,
+            # Novos parâmetros passados:
+            template_id_for_subfolder=template_id_for_name,
+            study_date_str_for_subfolder=study_date_str,
+            template_frq_for_main_coverage=template_frq,
+            template_txw_for_main_coverage=template_txw
         )
 
         caminho_kml_temp = _INPUT_KMZ_DIR / "estudo_temp.kml"
@@ -115,7 +140,7 @@ async def exportar_kmz_endpoint(
 
         logger.info(f"  -> Criando KMZ final: {caminho_kmz_final_servidor}")
         with zipfile.ZipFile(str(caminho_kmz_final_servidor), "w", zipfile.ZIP_DEFLATED) as kmz_zip:
-            kmz_zip.write(str(caminho_kml_temp), "doc.kml") # Adiciona o KML principal
+            kmz_zip.write(str(caminho_kml_temp), "doc.kml") 
             
             added_to_zip = set()
             for path_origem_img_servidor, nome_destino_img_kmz in arquivos_de_imagem_para_kmz:
