@@ -2,6 +2,8 @@ import simplekml
 from pathlib import Path
 import logging
 import json
+import zipfile
+from typing import List, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -29,103 +31,12 @@ def _create_kml_styles(
 
     return torre_style, default_point_style, repetidora_style
 
-def _setup_main_antenna_structure(
-    doc: simplekml.Document,
-    antena: dict,
-    torre_style: simplekml.Style,
-    details_subfolder_actual_name: str 
-) -> simplekml.Folder:
-    """Cria a pasta principal da antena, a subpasta de detalhes e adiciona o ponto da antena."""
-    antena_nome = antena.get("nome", "Antena Principal")
-    folder_antena_main = doc.newfolder(name=antena_nome)
-    subfolder_details = folder_antena_main.newfolder(name=details_subfolder_actual_name) 
-    
-    pnt_antena = subfolder_details.newpoint(name=antena_nome, coords=[(antena["lon"], antena["lat"])])
-    pnt_antena.description = f"Altura: {antena.get('altura', 'N/A')}m"
-    pnt_antena.style = torre_style
-    logger.info(f" -> Estrutura de pastas para '{antena_nome}' (subpasta: '{details_subfolder_actual_name}', com ponto) criada em kmz_exporter.")
-    return subfolder_details
-
-def _add_overlays_and_repeater_structures(
-    doc: simplekml.Document,
-    main_antenna_details_subfolder: simplekml.Folder,
-    imagem_principal_nome_kmz: str,
-    bounds_principal_data: list,
-    repetidora_style: simplekml.Style,
-    generated_images_dir: Path,
-    colour_key_filename: str, # Nome completo do arquivo da legenda (ex: IRRICONTRO.dBm.key.png)
-    main_coverage_actual_name: str, 
-    details_subfolder_actual_name: str 
-) -> list[tuple[Path, str]]:
-    """Adiciona overlays à subpasta da antena principal e cria a estrutura completa para repetidoras."""
-    arquivos_a_adicionar_ao_kmz = []
-
-    ground_main = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_actual_name) 
-    ground_main.icon.href = imagem_principal_nome_kmz
-    b = bounds_principal_data
-    ground_main.latlonbox.north, ground_main.latlonbox.south = b[2], b[0]
-    ground_main.latlonbox.east, ground_main.latlonbox.west = b[3], b[1]
-    ground_main.color = "ffffffff"
-    arquivos_a_adicionar_ao_kmz.append((generated_images_dir / imagem_principal_nome_kmz, imagem_principal_nome_kmz))
-
-    screen_main = main_antenna_details_subfolder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
-    screen_main.icon.href = colour_key_filename # Usa o nome do arquivo da legenda determinado dinamicamente
-    screen_main.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-    screen_main.screenxy = simplekml.ScreenXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-    screen_main.size = simplekml.Size(x=0, y=0, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-    
-    path_colour_key = generated_images_dir / colour_key_filename
-    if path_colour_key.exists():
-        if not any(item[1] == colour_key_filename for item in arquivos_a_adicionar_ao_kmz):
-            arquivos_a_adicionar_ao_kmz.append((path_colour_key, colour_key_filename))
-    else:
-        logger.warning(f"Arquivo da legenda '{colour_key_filename}' não encontrado em {generated_images_dir} (verificado por kmz_exporter).")
-    logger.info(f" -> Overlays para antena principal (cobertura: '{main_coverage_actual_name}') adicionados à sua subpasta de detalhes em kmz_exporter.")
-
-    logger.info(" -> Adicionando estruturas de repetidoras em kmz_exporter...")
-    repeater_counter = 1
-    for item_path in generated_images_dir.iterdir():
-        if item_path.name.startswith("repetidora_") and item_path.suffix == ".png":
-            img_rep_path_servidor = item_path
-            json_rep_path_servidor = img_rep_path_servidor.with_suffix(".json")
-
-            if json_rep_path_servidor.exists():
-                with open(json_rep_path_servidor, "r") as f_json:
-                    bounds_rep_data = json.load(f_json).get("bounds")
-
-                if bounds_rep_data:
-                    custom_repeater_name = f"Repetidora Solar {repeater_counter}"
-                    folder_rep_main = doc.newfolder(name=custom_repeater_name)
-                    subfolder_rep_details = folder_rep_main.newfolder(name=details_subfolder_actual_name) 
-
-                    center_lat = (bounds_rep_data[0] + bounds_rep_data[2]) / 2
-                    center_lon = (bounds_rep_data[1] + bounds_rep_data[3]) / 2
-                    pnt_rep = subfolder_rep_details.newpoint(name=custom_repeater_name, coords=[(center_lon, center_lat)])
-                    pnt_rep.style = repetidora_style
-                    
-                    ground_rep = subfolder_rep_details.newgroundoverlay(name=f"Cobertura {custom_repeater_name}") 
-                    ground_rep.icon.href = img_rep_path_servidor.name
-                    br = bounds_rep_data
-                    ground_rep.latlonbox.north, ground_rep.latlonbox.south = br[2], br[0]
-                    ground_rep.latlonbox.east, ground_rep.latlonbox.west = br[3], br[1]
-                    ground_rep.color = "ffffffff"
-                    arquivos_a_adicionar_ao_kmz.append((img_rep_path_servidor, img_rep_path_servidor.name))
-
-                    screen_rep = subfolder_rep_details.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
-                    screen_rep.icon.href = colour_key_filename # Usa o mesmo nome de arquivo de legenda
-                    screen_rep.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-                    screen_rep.screenxy = simplekml.ScreenXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-                    screen_rep.size = simplekml.Size(x=0, y=0, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-                    
-                    logger.info(f"     -> Estrutura completa para '{custom_repeater_name}' (subpasta: {details_subfolder_actual_name}) adicionada em kmz_exporter.")
-                    repeater_counter += 1
-    return arquivos_a_adicionar_ao_kmz
-
 def _add_secondary_folders(
     doc: simplekml.Document,
     pivos: list, ciclos: list, bombas: list,
     default_point_style: simplekml.Style
 ):
+    """Adiciona pastas de dados secundários (Pivôs, Ciclos, Bombas) ao documento KML principal."""
     if pivos:
         folder_pivos = doc.newfolder(name="Pivôs")
         for i, p_data in enumerate(pivos):
@@ -137,7 +48,7 @@ def _add_secondary_folders(
     if ciclos:
         folder_ciclos = doc.newfolder(name="Ciclos")
         for i, ciclo_data in enumerate(ciclos):
-            ciclo_nome = ciclo_data.get("nome", f"Ciclo {i+1}")
+            ciclo_nome = ciclo_data.get("nome_original_circulo", f"Ciclo {i+1}")
             pol = folder_ciclos.newpolygon(name=ciclo_nome)
             pol.outerboundaryis = [(lon, lat) for lat, lon in ciclo_data["coordenadas"]]
             pol.style.polystyle.fill = 0
@@ -153,7 +64,72 @@ def _add_secondary_folders(
             pnt_bomba.style = default_point_style
         logger.info(" -> Pasta 'Bombas' criada em kmz_exporter.")
 
-def build_kml_document_and_get_image_list(
+def _create_coverage_kmz(
+    entity_name: str,
+    entity_coords: List[Tuple[float, float]],
+    entity_style: simplekml.Style,
+    coverage_name: str,
+    coverage_image_path: Path,
+    coverage_bounds: List[float],
+    colour_key_path: Path,
+    torre_icon_path: Path,
+    output_dir: Path,
+    details_subfolder_name: str,
+    is_main_antenna: bool = False
+) -> Path:
+    """
+    Cria um arquivo KMZ auto-contido para uma única entidade de cobertura (antena ou repetidora).
+    Retorna o caminho para o arquivo KMZ gerado.
+    """
+    logger.info(f"   -> 🏭 Criando KMZ individual para: '{entity_name}'")
+    kml_sub = simplekml.Kml()
+    
+    # Estrutura de pastas interna do sub-KMZ
+    folder_main = kml_sub.newfolder(name=entity_name)
+    subfolder_details = folder_main.newfolder(name=details_subfolder_name)
+
+    # Ponto da antena/repetidora
+    pnt = subfolder_details.newpoint(name=entity_name, coords=entity_coords)
+    pnt.style = entity_style
+    if is_main_antenna and isinstance(pnt.style, simplekml.Style):
+         pnt.description = f"Altura: {entity_style.extendeddata.elements[0].value}m"
+
+    # Ground Overlay (mapa de cobertura)
+    ground = subfolder_details.newgroundoverlay(name=coverage_name)
+    ground.icon.href = coverage_image_path.name
+    b = coverage_bounds
+    ground.latlonbox.north, ground.latlonbox.south = b[2], b[0]
+    ground.latlonbox.east, ground.latlonbox.west = b[3], b[1]
+    ground.color = "ffffffff"
+
+    # Screen Overlay (legenda)
+    screen = subfolder_details.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
+    screen.icon.href = colour_key_path.name
+    screen.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
+    screen.screenxy = simplekml.ScreenXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
+    screen.size = simplekml.Size(x=0, y=0, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
+
+    # Salvar e empacotar o sub-KMZ
+    sub_kml_filename = f"sub_{entity_name.replace(' ', '_').lower()}.kml"
+    sub_kmz_filename = f"sub_{entity_name.replace(' ', '_').lower()}.kmz"
+    
+    path_kml_temp = output_dir / sub_kml_filename
+    path_kmz_final = output_dir / sub_kmz_filename
+    
+    kml_sub.save(str(path_kml_temp))
+
+    with zipfile.ZipFile(str(path_kmz_final), "w", zipfile.ZIP_DEFLATED) as kmz_zip:
+        kmz_zip.write(str(path_kml_temp), "doc.kml")
+        kmz_zip.write(str(coverage_image_path), coverage_image_path.name)
+        kmz_zip.write(str(colour_key_path), colour_key_path.name)
+        if torre_icon_path.exists():
+            kmz_zip.write(str(torre_icon_path), torre_icon_path.name)
+
+    path_kml_temp.unlink() # Limpa o KML temporário
+    logger.info(f"   -> ✅ KMZ individual '{path_kmz_final.name}' criado com sucesso.")
+    return path_kmz_final
+
+def build_main_kml_and_sub_kmzs(
     doc: simplekml.Document,
     antena_data: dict,
     pivos_data: list,
@@ -164,42 +140,96 @@ def build_kml_document_and_get_image_list(
     generated_images_dir: Path,
     torre_icon_name: str,
     default_icon_url: str,
-    colour_key_filename: str, # Recebe o nome dinâmico da legenda
-    template_id_for_subfolder: str, 
-    study_date_str_for_subfolder: str, 
-    template_frq_for_main_coverage: int, 
-    template_txw_for_main_coverage: float 
-) -> list[tuple[Path, str]]:
+    colour_key_filename: str,
+    template_id_for_subfolder: str,
+    study_date_str_for_subfolder: str,
+    template_frq_for_main_coverage: int,
+    template_txw_for_main_coverage: float
+) -> List[Path]:
     """
-    Constrói a estrutura do documento KML e retorna a lista de arquivos de imagem para o KMZ.
+    Constrói o KML principal com NetworkLinks e gera os sub-KMZs para cada cobertura.
+    Retorna a lista de caminhos para os sub-KMZs gerados.
     """
-    logger.info("Iniciando construção da estrutura KML em kmz_exporter.")
+    logger.info("Iniciando construção da estrutura KML principal e sub-KMZs.")
+    sub_kmz_paths_to_add = []
+    
     torre_style, default_point_style, repetidora_style = _create_kml_styles(
         torre_icon_name, default_icon_url
     )
+    # Adiciona a altura da antena aos dados do estilo para uso posterior
+    torre_style.extendeddata.add_data(antena_data.get('altura', 'N/A'))
+
 
     details_subfolder_name = f"{template_id_for_subfolder} ({study_date_str_for_subfolder})"
     main_coverage_name = f"Cobertura {template_frq_for_main_coverage}MHz {template_txw_for_main_coverage}W"
-
-    main_antenna_details_subfolder = _setup_main_antenna_structure(
-        doc,
-        antena_data,
-        torre_style,
-        details_subfolder_name 
-    )
     
-    image_files_for_kmz = _add_overlays_and_repeater_structures(
-        doc, 
-        main_antenna_details_subfolder,
-        imagem_principal_nome_relativo, 
-        bounds_principal_data,
-        repetidora_style,
-        generated_images_dir,
-        colour_key_filename, # Passa o nome dinâmico da legenda
-        main_coverage_name, 
-        details_subfolder_name 
-    )
+    # --- 1. Criar o KMZ da Antena Principal ---
+    antena_nome = antena_data.get("nome", "Antena Principal")
+    path_imagem_principal = generated_images_dir / imagem_principal_nome_relativo
+    path_colour_key = generated_images_dir / colour_key_filename
+    path_torre_icon = generated_images_dir / torre_icon_name
 
+    if path_imagem_principal.exists() and path_colour_key.exists():
+        sub_kmz_antena_path = _create_coverage_kmz(
+            entity_name=antena_nome,
+            entity_coords=[(antena_data["lon"], antena_data["lat"])],
+            entity_style=torre_style,
+            coverage_name=main_coverage_name,
+            coverage_image_path=path_imagem_principal,
+            coverage_bounds=bounds_principal_data,
+            colour_key_path=path_colour_key,
+            torre_icon_path=path_torre_icon,
+            output_dir=generated_images_dir,
+            details_subfolder_name=details_subfolder_name,
+            is_main_antenna=True
+        )
+        sub_kmz_paths_to_add.append(sub_kmz_antena_path)
+        
+        # Adicionar NetworkLink ao KML principal
+        nl_antena = doc.newnetworklink(name=antena_nome)
+        nl_antena.link.href = sub_kmz_antena_path.name
+        logger.info(f" -> 🔗 NetworkLink para '{antena_nome}' adicionado ao KML principal.")
+    else:
+        logger.error(f"Erro: Imagem principal '{path_imagem_principal}' ou legenda '{path_colour_key}' não encontrada. KMZ da antena principal não pode ser criado.")
+
+    # --- 2. Criar KMZs para cada Repetidora ---
+    logger.info(" -> Procurando e criando KMZs para repetidoras...")
+    repeater_counter = 1
+    for item_path in generated_images_dir.iterdir():
+        if item_path.name.startswith("repetidora_") and item_path.suffix == ".png":
+            img_rep_path = item_path
+            json_rep_path = img_rep_path.with_suffix(".json")
+
+            if json_rep_path.exists():
+                with open(json_rep_path, "r") as f_json:
+                    bounds_rep_data = json.load(f_json).get("bounds")
+
+                if bounds_rep_data:
+                    rep_name = f"Repetidora Solar {repeater_counter}"
+                    center_lat = (bounds_rep_data[0] + bounds_rep_data[2]) / 2
+                    center_lon = (bounds_rep_data[1] + bounds_rep_data[3]) / 2
+                    
+                    sub_kmz_rep_path = _create_coverage_kmz(
+                        entity_name=rep_name,
+                        entity_coords=[(center_lon, center_lat)],
+                        entity_style=repetidora_style,
+                        coverage_name=f"Cobertura {rep_name}",
+                        coverage_image_path=img_rep_path,
+                        coverage_bounds=bounds_rep_data,
+                        colour_key_path=path_colour_key, # Reusa a mesma legenda
+                        torre_icon_path=path_torre_icon, # Reusa o mesmo ícone
+                        output_dir=generated_images_dir,
+                        details_subfolder_name=details_subfolder_name
+                    )
+                    sub_kmz_paths_to_add.append(sub_kmz_rep_path)
+                    
+                    # Adicionar NetworkLink ao KML principal
+                    nl_rep = doc.newnetworklink(name=rep_name)
+                    nl_rep.link.href = sub_kmz_rep_path.name
+                    logger.info(f" -> 🔗 NetworkLink para '{rep_name}' adicionado ao KML principal.")
+                    repeater_counter += 1
+
+    # --- 3. Adicionar Pastas Secundárias ao KML Principal ---
     _add_secondary_folders(
         doc,
         pivos_data,
@@ -208,11 +238,5 @@ def build_kml_document_and_get_image_list(
         default_point_style
     )
 
-    path_torre_icon = generated_images_dir / torre_icon_name
-    if path_torre_icon.exists():
-        if not any(item[1] == torre_icon_name for item in image_files_for_kmz):
-            image_files_for_kmz.append((path_torre_icon, torre_icon_name))
-            logger.info(f" -> Ícone '{torre_icon_name}' adicionado à lista de arquivos para KMZ por kmz_exporter.")
-
-    logger.info("Construção da estrutura KML concluída em kmz_exporter.")
-    return image_files_for_kmz
+    logger.info("Construção da estrutura KML principal e sub-KMZs concluída.")
+    return sub_kmz_paths_to_add
