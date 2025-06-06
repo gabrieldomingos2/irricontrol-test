@@ -91,7 +91,7 @@ async def exportar_kmz_endpoint(
         kml = simplekml.Kml(name="Estudo de Sinal Irricontrol") 
         doc = kml.document 
 
-        sub_kmz_files_to_add = kmz_exporter.build_main_kml_and_sub_kmzs(
+        arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
             doc=doc,
             antena_data=antena_data,
             pivos_data=pivos_data,
