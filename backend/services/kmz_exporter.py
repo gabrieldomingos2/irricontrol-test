@@ -2,6 +2,7 @@ import simplekml
 from pathlib import Path
 import logging
 import json
+import re # NOVO: Importa o módulo de expressões regulares
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ def _setup_main_antenna_structure(
     logger.info(f" -> Estrutura de pastas para '{antena_nome}' (subpasta: '{details_subfolder_actual_name}', com ponto) criada em kmz_exporter.")
     return subfolder_details
 
-# ALTERAÇÃO: A função agora aceita a lista de repetidoras selecionadas
+# ALTERAÇÃO: Adicionado o parâmetro 'torre_icon_name'
 def _add_overlays_and_repeater_structures(
     doc: simplekml.Document,
     main_antenna_details_subfolder: simplekml.Folder,
@@ -57,26 +58,25 @@ def _add_overlays_and_repeater_structures(
     colour_key_filename: str,
     main_coverage_actual_name: str, 
     details_subfolder_actual_name: str,
-    # NOVO: Parâmetro para receber a lista com nomes dos arquivos das repetidoras
-    repetidoras_selecionadas_nomes: list[str]
+    repetidoras_selecionadas_nomes: list[str],
+    torre_icon_name: str # NOVO: Recebe o nome do arquivo do ícone
 ) -> list[tuple[Path, str]]:
     """Adiciona overlays à subpasta da antena principal e cria a estrutura para repetidoras SELECIONADAS."""
     arquivos_a_adicionar_ao_kmz = []
 
-    ground_main = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_actual_name) 
+    # ... (código do ground_main e screen_main sem alterações) ...
+    ground_main = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_actual_name)
     ground_main.icon.href = imagem_principal_nome_kmz
     b = bounds_principal_data
     ground_main.latlonbox.north, ground_main.latlonbox.south = b[2], b[0]
     ground_main.latlonbox.east, ground_main.latlonbox.west = b[3], b[1]
     ground_main.color = "ffffffff"
     arquivos_a_adicionar_ao_kmz.append((generated_images_dir / imagem_principal_nome_kmz, imagem_principal_nome_kmz))
-
     screen_main = main_antenna_details_subfolder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
     screen_main.icon.href = colour_key_filename
     screen_main.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
     screen_main.screenxy = simplekml.ScreenXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
     screen_main.size = simplekml.Size(x=0, y=0, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-    
     path_colour_key = generated_images_dir / colour_key_filename
     if path_colour_key.exists():
         if not any(item[1] == colour_key_filename for item in arquivos_a_adicionar_ao_kmz):
@@ -85,7 +85,7 @@ def _add_overlays_and_repeater_structures(
         logger.warning(f"Arquivo da legenda '{colour_key_filename}' não encontrado em {generated_images_dir} (verificado por kmz_exporter).")
     logger.info(f" -> Overlays para antena principal (cobertura: '{main_coverage_actual_name}') adicionados.")
 
-    # ALTERAÇÃO PRINCIPAL: Itera sobre a lista de repetidoras selecionadas, em vez de varrer o diretório.
+
     logger.info(f" -> Adicionando {len(repetidoras_selecionadas_nomes)} repetidora(s) selecionada(s)...")
     repeater_counter = 1
     for nome_imagem_rep in repetidoras_selecionadas_nomes:
@@ -105,9 +105,28 @@ def _add_overlays_and_repeater_structures(
                 bounds_rep_data = json.load(f_json).get("bounds")
 
             if bounds_rep_data:
+                # --- INÍCIO DAS ALTERAÇÕES ---
+
+                # 1. GERAÇÃO DO NOME DINÂMICO DA SUBPASTA
+                dynamic_subfolder_name = details_subfolder_actual_name # Nome padrão de fallback
+                # Extrai o nome descritivo do arquivo. Ex: de "repetidora_1_Brazil_V6_Tx5m..." para "Brazil_V6_Tx5m..."
+                match = re.match(r"repetidora_\d+_(.*)\.png", nome_imagem_rep, re.IGNORECASE)
+                if match:
+                    descriptive_part = match.group(1)
+                    dynamic_subfolder_name = f"Repetidora_{descriptive_part}"
+                else:
+                    logger.warning(f"Não foi possível extrair nome dinâmico de '{nome_imagem_rep}'. Usando nome padrão.")
+
                 custom_repeater_name = f"Repetidora Solar {repeater_counter}"
                 folder_rep_main = doc.newfolder(name=custom_repeater_name)
-                subfolder_rep_details = folder_rep_main.newfolder(name=details_subfolder_actual_name) 
+                
+                # 2. DEFINIÇÃO DO ÍCONE DA PASTA
+                folder_rep_main.style.iconstyle.icon.href = torre_icon_name
+                
+                # Usa o novo nome dinâmico na criação da subpasta
+                subfolder_rep_details = folder_rep_main.newfolder(name=dynamic_subfolder_name) 
+
+                # --- FIM DAS ALTERAÇÕES ---
 
                 center_lat = (bounds_rep_data[0] + bounds_rep_data[2]) / 2
                 center_lon = (bounds_rep_data[1] + bounds_rep_data[3]) / 2
@@ -128,7 +147,7 @@ def _add_overlays_and_repeater_structures(
                 screen_rep.screenxy = simplekml.ScreenXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
                 screen_rep.size = simplekml.Size(x=0, y=0, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
                 
-                logger.info(f"     -> Estrutura completa para '{custom_repeater_name}' ({nome_imagem_rep}) adicionada.")
+                logger.info(f"     -> Estrutura completa para '{custom_repeater_name}' (subpasta: {dynamic_subfolder_name}) adicionada.") # Log atualizado
                 repeater_counter += 1
         else:
             logger.warning(f"     -> ⚠️ Arquivo JSON para a repetidora '{nome_imagem_rep}' não foi encontrado. Pulando.")
@@ -205,7 +224,7 @@ def build_kml_document_and_get_image_list(
         details_subfolder_name 
     )
     
-    # ALTERAÇÃO: Passa a lista de repetidoras para a função responsável
+    # ALTERAÇÃO: Passa o 'torre_icon_name' para a função que cria as estruturas das repetidoras
     image_files_for_kmz = _add_overlays_and_repeater_structures(
         doc, 
         main_antenna_details_subfolder,
@@ -216,8 +235,8 @@ def build_kml_document_and_get_image_list(
         colour_key_filename,
         main_coverage_name, 
         details_subfolder_name,
-        # NOVO: Passando a lista para a próxima função
-        repetidoras_selecionadas_nomes=repetidoras_selecionadas_nomes
+        repetidoras_selecionadas_nomes=repetidoras_selecionadas_nomes,
+        torre_icon_name=torre_icon_name # NOVO: Passando o nome do ícone
     )
 
     _add_secondary_folders(
