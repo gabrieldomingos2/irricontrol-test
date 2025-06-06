@@ -3,6 +3,8 @@ from pathlib import Path
 import logging
 import json
 from datetime import datetime
+# Importa o módulo re para a limpeza do nome
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +59,9 @@ def _add_overlays_and_repeater_structures(
     template_id: str,
     repetidoras_selecionadas_nomes: list[str],
     torre_icon_name: str,
-    timestamp_prefix: str  # NOVO: Recebe o timestamp gerado no início
+    timestamp_prefix: str
 ) -> list[tuple[Path, str]]:
+    # Sem alterações nesta função
     arquivos_a_adicionar_ao_kmz = []
     
     ground_main = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_actual_name)
@@ -81,11 +84,7 @@ def _add_overlays_and_repeater_structures(
                     bounds_rep_data = json.load(f_json).get("bounds")
 
                 if bounds_rep_data:
-                    # ALTERAÇÃO: Geração de nome para a subpasta da REPETIDORA
-                    # Formata o contador com zero à esquerda (01, 02, etc.)
                     repeater_name_part = f"Repetidora_{repeater_counter:02d}"
-                    
-                    # Usa o timestamp recebido como prefixo
                     dynamic_subfolder_name = f"{timestamp_prefix}_{repeater_name_part}_Irricontrol_{template_id}"
 
                     custom_repeater_name = f"Repetidora Solar {repeater_counter}"
@@ -171,12 +170,12 @@ def build_kml_document_and_get_image_list(
         torre_icon_name, default_icon_url
     )
 
-    # ALTERAÇÃO: Geração de nome para a subpasta da ANTENA PRINCIPAL
-    # Gera o timestamp UMA VEZ para ser usado em todo o estudo
     timestamp_for_name = datetime.now().strftime('%m%d%H%M%S')
     
+    # --- CORREÇÃO AQUI ---
     antena_nome_base = antena_data.get("nome", "Antena Principal")
-    sanitized_antena_nome = antena_nome_base.replace(" ", "_").replace("-", "_")
+    # Usa regex para substituir uma ou mais ocorrências de espaço ou hífen por um único underscore
+    sanitized_antena_nome = re.sub(r'[\s-]+', '_', antena_nome_base)
     
     details_subfolder_name = f"{timestamp_for_name}_{sanitized_antena_nome}_Irricontrol_{template_id_for_subfolder}"
     
@@ -198,7 +197,7 @@ def build_kml_document_and_get_image_list(
         template_id=template_id_for_subfolder,
         repetidoras_selecionadas_nomes=repetidoras_selecionadas_nomes,
         torre_icon_name=torre_icon_name,
-        timestamp_prefix=timestamp_for_name  # Passa o timestamp para as repetidoras
+        timestamp_prefix=timestamp_for_name
     )
 
     _add_secondary_folders(doc, pivos_data, ciclos_data, bombas_data, default_point_style)
