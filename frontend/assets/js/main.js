@@ -276,8 +276,8 @@ async function handleConfirmRepetidoraClick() {
         altura: alturaAntena,
         altura_receiver: alturaReceiver,
         lat: window.coordenadaClicada.lat,
-        lon: window.coordenadaClicada.lng
-        // Não armazenar imagem_filename aqui, pois é específico da simulação principal
+        lon: window.coordenadaClicada.lng, // <-- CORREÇÃO: Adicionada a vírgula que faltava aqui.
+        imagem_filename: null
     };
     repetidoras.push(repetidoraObj);
 
@@ -303,7 +303,10 @@ async function handleConfirmRepetidoraClick() {
         if (data.erro) throw new Error(data.erro);
 
         repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0); // drawImageOverlay adiciona a overlaysVisiveis
-        // data.imagem_filename não é armazenado em repetidoraObj pois não é 'principal'
+        
+        // Armazena o nome do arquivo da imagem da repetidora para a exportação
+        repetidoraObj.imagem_filename = data.imagem_filename;
+        
         addRepetidoraNoPainel(repetidoraObj);
         await reavaliarPivosViaAPI();
 
@@ -607,7 +610,6 @@ async function handleDiagnosticoClick() {
 }
 
 function handleExportClick() {
-    // << INÍCIO DA ALTERAÇÃO para nome do arquivo de exportação >>
     if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename_principal) {
         mostrarMensagem("⚠️ Rode a simulação principal primeiro para gerar a imagem e dados completos!", "erro");
         return;
@@ -615,18 +617,36 @@ function handleExportClick() {
 
     try {
         const nomeImagemPrincipal = window.antenaGlobal.imagem_filename_principal;
-        const nomeBoundsPrincipal = nomeImagemPrincipal.replace(/\.png$/, '.json'); // Substitui .png por .json de forma segura
+        const nomeBoundsPrincipal = nomeImagemPrincipal.replace(/\.png$/, '.json');
 
-        console.log(`Exportando com Imagem: ${nomeImagemPrincipal}, Bounds: ${nomeBoundsPrincipal}`); // Para depuração
+        // --- INÍCIO DA ALTERAÇÃO ---
 
-        const url = getExportKmzUrl(nomeImagemPrincipal, nomeBoundsPrincipal); // getExportKmzUrl de api.js
+        // 1. Coleta os nomes dos arquivos das repetidoras cujo checkbox está marcado.
+        const repetidorasSelecionadasParaExport = [];
+        repetidoras.forEach(rep => {
+            // Encontra o checkbox correspondente no painel da UI
+            const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
+            
+            // Se o checkbox está marcado e o nome do arquivo existe, adiciona à lista
+            if (checkbox && checkbox.checked && rep.imagem_filename) {
+                repetidorasSelecionadasParaExport.push(rep.imagem_filename);
+            }
+        });
+
+        console.log("Repetidoras selecionadas para exportação:", repetidorasSelecionadasParaExport);
+
+        // 2. Chama a nova versão da função getExportKmzUrl com a lista.
+        const url = getExportKmzUrl(nomeImagemPrincipal, nomeBoundsPrincipal, repetidorasSelecionadasParaExport);
+        
+        // --- FIM DA ALTERAÇÃO ---
+        
         window.open(url, '_blank');
         mostrarMensagem("📦 Preparando KMZ para download...", "sucesso");
+
     } catch (error) {
         console.error("Erro ao exportar KMZ:", error);
         mostrarMensagem(`❌ Erro ao exportar: ${error.message}`, "erro");
     }
-    // << FIM DA ALTERAÇÃO >>
 }
 
 

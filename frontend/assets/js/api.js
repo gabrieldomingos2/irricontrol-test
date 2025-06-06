@@ -145,10 +145,20 @@ async function getElevationProfile(payload) {
  * Gera a URL para baixar o arquivo KMZ exportado.
  * @param {string} imagem - Nome do arquivo de imagem principal.
  * @param {string} boundsFile - Nome do arquivo JSON de bounds.
+ * @param {Array<string>} [listaRepetidoras=[]] - Lista de nomes de arquivo das repetidoras selecionadas.
  * @returns {string} - A URL completa para download.
  */
-function getExportKmzUrl(imagem, boundsFile) {
-    return `${BACKEND_URL}${API_PREFIX}/kmz/exportar?imagem=${encodeURIComponent(imagem)}&bounds_file=${encodeURIComponent(boundsFile)}`;
+function getExportKmzUrl(imagem, boundsFile, listaRepetidoras = []) {
+    // ALTERAÇÃO: A função agora aceita um terceiro argumento, a lista de repetidoras.
+    let url = `${BACKEND_URL}${API_PREFIX}/kmz/exportar?imagem=${encodeURIComponent(imagem)}&bounds_file=${encodeURIComponent(boundsFile)}`;
+
+    // Adiciona cada repetidora selecionada como um parâmetro de query separado.
+    // O backend FastAPI lerá isso como uma lista.
+    listaRepetidoras.forEach(repFile => {
+        url += `&repetidoras_selecionadas=${encodeURIComponent(repFile)}`;
+    });
+
+    return url;
 }
 
 /**
