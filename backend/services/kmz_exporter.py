@@ -3,7 +3,6 @@ from pathlib import Path
 import logging
 import json
 from datetime import datetime
-# Importa o módulo re para a limpeza do nome
 import re
 
 logger = logging.getLogger(__name__)
@@ -61,9 +60,9 @@ def _add_overlays_and_repeater_structures(
     torre_icon_name: str,
     timestamp_prefix: str
 ) -> list[tuple[Path, str]]:
-    # Sem alterações nesta função
     arquivos_a_adicionar_ao_kmz = []
     
+    # Adiciona o mapa de cobertura da antena principal
     ground_main = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_actual_name)
     ground_main.icon.href = imagem_principal_nome_kmz
     b = bounds_principal_data
@@ -72,6 +71,20 @@ def _add_overlays_and_repeater_structures(
     ground_main.color = "ffffffff"
     arquivos_a_adicionar_ao_kmz.append((generated_images_dir / imagem_principal_nome_kmz, imagem_principal_nome_kmz))
     
+    # --- INÍCIO DA CORREÇÃO ---
+    # NOVO: Adiciona a legenda (Colour Key) também para a antena principal
+    screen_main = main_antenna_details_subfolder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
+    screen_main.icon.href = colour_key_filename
+    screen_main.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
+    screen_main.screenxy = simplekml.ScreenXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
+    screen_main.size = simplekml.Size(x=0, y=0, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
+    
+    path_colour_key = generated_images_dir / colour_key_filename
+    if path_colour_key.exists():
+        if not any(item[1] == colour_key_filename for item in arquivos_a_adicionar_ao_kmz):
+            arquivos_a_adicionar_ao_kmz.append((path_colour_key, colour_key_filename))
+    # --- FIM DA CORREÇÃO ---
+
     logger.info(f" -> Adicionando {len(repetidoras_selecionadas_nomes)} repetidora(s) selecionada(s)...")
     repeater_counter = 1
     for nome_imagem_rep in repetidoras_selecionadas_nomes:
@@ -172,9 +185,7 @@ def build_kml_document_and_get_image_list(
 
     timestamp_for_name = datetime.now().strftime('%m%d%H%M%S')
     
-    # --- CORREÇÃO AQUI ---
     antena_nome_base = antena_data.get("nome", "Antena Principal")
-    # Usa regex para substituir uma ou mais ocorrências de espaço ou hífen por um único underscore
     sanitized_antena_nome = re.sub(r'[\s-]+', '_', antena_nome_base)
     
     details_subfolder_name = f"{timestamp_for_name}_{sanitized_antena_nome}_Irricontrol_{template_id_for_subfolder}"
