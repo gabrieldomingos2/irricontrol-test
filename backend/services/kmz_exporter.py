@@ -12,22 +12,19 @@ def _create_kml_styles(
     torre_icon_name: str,
     default_icon_url: str
 ) -> tuple[simplekml.Style, simplekml.Style, simplekml.Style]:
-    """Cria e retorna os estilos KML para os pontos da torre e repetidora."""
+    # Sem alterações
     torre_style = simplekml.Style()
     torre_style.iconstyle.icon.href = torre_icon_name
     torre_style.iconstyle.scale = 1.2
     torre_style.labelstyle.scale = 1.1
-
     default_point_style = simplekml.Style()
     default_point_style.iconstyle.icon.href = default_icon_url
     default_point_style.iconstyle.scale = 1.0
     default_point_style.labelstyle.scale = 1.0
-
     repetidora_style = simplekml.Style()
     repetidora_style.iconstyle.icon.href = torre_icon_name
     repetidora_style.iconstyle.scale = 1.1
     repetidora_style.labelstyle.scale = 1.0
-
     return torre_style, default_point_style, repetidora_style
 
 def _setup_main_antenna_structure(
@@ -37,13 +34,11 @@ def _setup_main_antenna_structure(
     details_subfolder_actual_name: str,
     torre_icon_name: str 
 ) -> simplekml.Folder:
-    """Cria a pasta principal da antena, a subpasta de detalhes e adiciona o ponto da antena."""
+    # Sem alterações
     antena_nome = antena.get("nome", "Antena Principal")
     folder_antena_main = doc.newfolder(name=antena_nome)
     folder_antena_main.style.liststyle.itemicon.href = torre_icon_name
-    
     subfolder_details = folder_antena_main.newfolder(name=details_subfolder_actual_name) 
-    
     pnt_antena = subfolder_details.newpoint(name=antena_nome, coords=[(antena["lon"], antena["lat"])])
     pnt_antena.description = f"Altura: {antena.get('altura', 'N/A')}m"
     pnt_antena.style = torre_style
@@ -61,9 +56,9 @@ def _add_overlays_and_repeater_structures(
     main_coverage_actual_name: str, 
     template_id: str,
     repetidoras_selecionadas_nomes: list[str],
-    torre_icon_name: str
+    torre_icon_name: str,
+    timestamp_prefix: str  # NOVO: Recebe o timestamp gerado no início
 ) -> list[tuple[Path, str]]:
-    """Adiciona overlays e cria a estrutura para repetidoras SELECIONADAS."""
     arquivos_a_adicionar_ao_kmz = []
     
     ground_main = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_actual_name)
@@ -86,10 +81,12 @@ def _add_overlays_and_repeater_structures(
                     bounds_rep_data = json.load(f_json).get("bounds")
 
                 if bounds_rep_data:
-                    now_rep = datetime.now()
-                    ts_rep = now_rep.strftime('%m%d%H%M%S%f')
-                    date_rep = now_rep.strftime('%Y%m%d')
-                    dynamic_subfolder_name = f"{ts_rep}_Irricontrol_{template_id}_{date_rep}"
+                    # ALTERAÇÃO: Geração de nome para a subpasta da REPETIDORA
+                    # Formata o contador com zero à esquerda (01, 02, etc.)
+                    repeater_name_part = f"Repetidora_{repeater_counter:02d}"
+                    
+                    # Usa o timestamp recebido como prefixo
+                    dynamic_subfolder_name = f"{timestamp_prefix}_{repeater_name_part}_Irricontrol_{template_id}"
 
                     custom_repeater_name = f"Repetidora Solar {repeater_counter}"
                     folder_rep_main = doc.newfolder(name=custom_repeater_name)
@@ -119,13 +116,12 @@ def _add_overlays_and_repeater_structures(
                     repeater_counter += 1
     return arquivos_a_adicionar_ao_kmz
 
-# CORREÇÃO: Corpo da função restaurado
 def _add_secondary_folders(
     doc: simplekml.Document,
     pivos: list, ciclos: list, bombas: list,
     default_point_style: simplekml.Style
 ):
-    """Adiciona as pastas para Pivôs, Ciclos e Bombas."""
+    # Sem alterações
     if pivos:
         folder_pivos = doc.newfolder(name="Pivôs")
         for i, p_data in enumerate(pivos):
@@ -133,7 +129,6 @@ def _add_secondary_folders(
             pnt_pivo = folder_pivos.newpoint(name=pivo_nome, coords=[(p_data["lon"], p_data["lat"])])
             pnt_pivo.style = default_point_style
         logger.info(" -> Pasta 'Pivôs' criada.")
-
     if ciclos:
         folder_ciclos = doc.newfolder(name="Ciclos")
         for i, ciclo_data in enumerate(ciclos):
@@ -144,7 +139,6 @@ def _add_secondary_folders(
             pol.style.linestyle.color = simplekml.Color.red
             pol.style.linestyle.width = 4
         logger.info(" -> Pasta 'Ciclos' criada.")
-
     if bombas:
         folder_bombas = doc.newfolder(name="Bombas")
         for i, bomba_data in enumerate(bombas):
@@ -152,7 +146,6 @@ def _add_secondary_folders(
             pnt_bomba = folder_bombas.newpoint(name=bomba_nome, coords=[(bomba_data["lon"], bomba_data["lat"])])
             pnt_bomba.style = default_point_style
         logger.info(" -> Pasta 'Bombas' criada.")
-
 
 def build_kml_document_and_get_image_list(
     doc: simplekml.Document,
@@ -178,10 +171,14 @@ def build_kml_document_and_get_image_list(
         torre_icon_name, default_icon_url
     )
 
-    now = datetime.now()
-    timestamp_for_name = now.strftime('%m%d%H%M%S')
-    date_for_name = now.strftime('%Y%m%d')
-    details_subfolder_name = f"{timestamp_for_name}_Irricontrol_{template_id_for_subfolder}_{date_for_name}"
+    # ALTERAÇÃO: Geração de nome para a subpasta da ANTENA PRINCIPAL
+    # Gera o timestamp UMA VEZ para ser usado em todo o estudo
+    timestamp_for_name = datetime.now().strftime('%m%d%H%M%S')
+    
+    antena_nome_base = antena_data.get("nome", "Antena Principal")
+    sanitized_antena_nome = antena_nome_base.replace(" ", "_").replace("-", "_")
+    
+    details_subfolder_name = f"{timestamp_for_name}_{sanitized_antena_nome}_Irricontrol_{template_id_for_subfolder}"
     
     main_coverage_name = f"Cobertura {template_frq_for_main_coverage}MHz {template_txw_for_main_coverage}W"
 
@@ -200,10 +197,10 @@ def build_kml_document_and_get_image_list(
         main_coverage_name, 
         template_id=template_id_for_subfolder,
         repetidoras_selecionadas_nomes=repetidoras_selecionadas_nomes,
-        torre_icon_name=torre_icon_name
+        torre_icon_name=torre_icon_name,
+        timestamp_prefix=timestamp_for_name  # Passa o timestamp para as repetidoras
     )
 
-    # CORREÇÃO: Chamada à função restaurada
     _add_secondary_folders(doc, pivos_data, ciclos_data, bombas_data, default_point_style)
 
     path_torre_icon = generated_images_dir / torre_icon_name
