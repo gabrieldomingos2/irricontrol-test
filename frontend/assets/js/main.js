@@ -643,7 +643,7 @@ async function handleDiagnosticoClick() {
 }
 
 function handleExportClick() {
-    // 👇 ALTERADO: Adicionada a verificação para garantir que um job válido está ativo (!window.jobId).
+    // 👇 A primeira verificação agora inclui o !window.jobId, o que é crucial.
     if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename_principal || !window.jobId) {
         mostrarMensagem("⚠️ Rode a simulação principal primeiro para um job válido!", "erro");
         return;
@@ -653,13 +653,10 @@ function handleExportClick() {
         const nomeImagemPrincipal = window.antenaGlobal.imagem_filename_principal;
         const nomeBoundsPrincipal = nomeImagemPrincipal.replace(/\.png$/, '.json');
 
-        // 1. Coleta os dados detalhados das repetidoras cujo checkbox está marcado.
         const repetidorasSelecionadasParaExport = [];
         repetidoras.forEach(rep => {
             const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
-            
-            // A lógica aqui já está correta, usando o .imagem_filename salvo.
-            if (checkbox && checkbox.checked && rep.imagem_filename) {
+            if (checkbox?.checked && rep.imagem_filename) {
                 repetidorasSelecionadasParaExport.push({
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
@@ -669,11 +666,8 @@ function handleExportClick() {
         });
 
         console.log("Dados das repetidoras para exportação:", repetidorasSelecionadasParaExport);
-
-        // 👇 ALTERADO: Passa o window.jobId como o primeiro argumento para a função, conforme a nova assinatura em api.js.
         const url = getExportKmzUrl(window.jobId, nomeImagemPrincipal, nomeBoundsPrincipal, repetidorasSelecionadasParaExport);
         
-        // Se a getExportKmzUrl retornar uma URL inválida (ex: por jobId nulo), não tenta abrir.
         if (url && url !== "#") {
             window.open(url, '_blank');
             mostrarMensagem("📦 Preparando KMZ para download...", "sucesso");

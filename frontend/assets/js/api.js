@@ -1,6 +1,6 @@
 // ATENÇÃO AQUI: Verifique se esta URL é EXATAMENTE a URL do seu serviço no Render.
 const BACKEND_URL = "https://irricontrol-test.onrender.com";
-const API_PREFIX = "/api/v1"; // Defina o prefixo da sua API aqui
+const API_PREFIX = "/api/v1";
 
 /**
  * Envia o arquivo KMZ para processamento no backend.
