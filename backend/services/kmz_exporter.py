@@ -5,6 +5,9 @@ import json
 from datetime import datetime
 import re
 
+# 👇 ALTERAÇÃO 1: Importa o objeto 'settings' para termos acesso ao caminho base das imagens.
+from backend.config import settings
+
 logger = logging.getLogger(__name__)
 
 COLOUR_KEY_KML_NAME = "Colour Key - dBm"
@@ -56,14 +59,12 @@ def _add_overlays_and_repeater_structures(
     colour_key_filename: str,
     main_coverage_actual_name: str, 
     template_id: str,
-    # --- ALTERAÇÃO: Parâmetro agora recebe uma lista de dicionários com os dados detalhados ---
     repetidoras_data: list[dict],
     torre_icon_name: str,
     timestamp_prefix: str
 ) -> list[tuple[Path, str]]:
     arquivos_a_adicionar_ao_kmz = []
     
-    # Adiciona o mapa de cobertura da antena principal
     ground_main = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_actual_name)
     ground_main.icon.href = imagem_principal_nome_kmz
     b = bounds_principal_data
@@ -72,19 +73,18 @@ def _add_overlays_and_repeater_structures(
     ground_main.color = "ffffffff"
     arquivos_a_adicionar_ao_kmz.append((generated_images_dir / imagem_principal_nome_kmz, imagem_principal_nome_kmz))
     
-    # Adiciona a legenda (Colour Key) também para a antena principal
     screen_main = main_antenna_details_subfolder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
     screen_main.icon.href = colour_key_filename
     screen_main.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
     screen_main.screenxy = simplekml.ScreenXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
     screen_main.size = simplekml.Size(x=0, y=0, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
     
+    # Procura a legenda no diretório do job
     path_colour_key = generated_images_dir / colour_key_filename
     if path_colour_key.exists():
         if not any(item[1] == colour_key_filename for item in arquivos_a_adicionar_ao_kmz):
             arquivos_a_adicionar_ao_kmz.append((path_colour_key, colour_key_filename))
 
-    # --- ALTERAÇÃO: Lógica de loop e nomeação das repetidoras ---
     logger.info(f" -> Adicionando {len(repetidoras_data)} repetidora(s) selecionada(s)...")
     repeater_counter = 1
     for rep_data in repetidoras_data:
@@ -100,20 +100,13 @@ def _add_overlays_and_repeater_structures(
                 bounds_rep_data = json.load(f_json).get("bounds")
 
             if bounds_rep_data:
-                # --- INÍCIO DA LÓGICA DE NOMEAÇÃO DINÂMICA ---
-                altura = rep_data.get("altura", 5)  # Usa 5m como padrão se não for fornecido
+                altura = rep_data.get("altura", 5)
                 is_on_pivot = rep_data.get("sobre_pivo", False)
-
-                if is_on_pivot:
-                    custom_repeater_name = f"Repetidora Solar Pivô - {altura}m"
-                else:
-                    custom_repeater_name = f"Repetidora Solar - {altura}m"
-                # --- FIM DA LÓGICA DE NOMEAÇÃO ---
-
+                custom_repeater_name = f"Repetidora Solar Pivô - {altura}m" if is_on_pivot else f"Repetidora Solar - {altura}m"
+                
                 repeater_name_part = f"Repetidora_{repeater_counter:02d}"
                 dynamic_subfolder_name = f"{timestamp_prefix}_{repeater_name_part}_Irricontrol_{template_id}"
 
-                # Usa o novo nome customizado para a pasta principal e o ponto no mapa
                 folder_rep_main = doc.newfolder(name=custom_repeater_name)
                 folder_rep_main.style.liststyle.itemicon.href = torre_icon_name
                 
@@ -188,7 +181,6 @@ def build_kml_document_and_get_image_list(
     study_date_str_for_subfolder: str,
     template_frq_for_main_coverage: int, 
     template_txw_for_main_coverage: float,
-    # --- ALTERAÇÃO: Parâmetro agora recebe uma lista de dicionários ---
     repetidoras_selecionadas_data: list[dict]
 ) -> list[tuple[Path, str]]:
     
@@ -198,19 +190,15 @@ def build_kml_document_and_get_image_list(
     )
 
     timestamp_for_name = datetime.now().strftime('%m%d%H%M%S')
-    
     antena_nome_base = antena_data.get("nome", "Antena Principal")
     sanitized_antena_nome = re.sub(r'[\s-]+', '_', antena_nome_base)
-    
     details_subfolder_name = f"{timestamp_for_name}_{sanitized_antena_nome}_Irricontrol_{template_id_for_subfolder}"
-    
     main_coverage_name = f"Cobertura {template_frq_for_main_coverage}MHz {template_txw_for_main_coverage}W"
 
     main_antenna_details_subfolder = _setup_main_antenna_structure(
         doc, antena_data, torre_style, details_subfolder_name, torre_icon_name
     )
     
-    # --- ALTERAÇÃO: Passando o novo argumento para a função ---
     image_files_for_kmz = _add_overlays_and_repeater_structures(
         doc, 
         main_antenna_details_subfolder,
@@ -221,7 +209,6 @@ def build_kml_document_and_get_image_list(
         colour_key_filename,
         main_coverage_name, 
         template_id=template_id_for_subfolder,
-        # Argumento alterado para passar os dados detalhados
         repetidoras_data=repetidoras_selecionadas_data,
         torre_icon_name=torre_icon_name,
         timestamp_prefix=timestamp_for_name
@@ -229,10 +216,16 @@ def build_kml_document_and_get_image_list(
 
     _add_secondary_folders(doc, pivos_data, ciclos_data, bombas_data, default_point_style)
 
-    path_torre_icon = generated_images_dir / torre_icon_name
+    # 👇 ALTERAÇÃO 2: Procura o ícone da torre no diretório PAI (o 'static/imagens' global)
+    # em vez de no diretório específico do job (generated_images_dir).
+    path_torre_icon = settings.IMAGENS_DIR_PATH / torre_icon_name
+    
     if path_torre_icon.exists():
         if not any(item[1] == torre_icon_name for item in image_files_for_kmz):
             image_files_for_kmz.append((path_torre_icon, torre_icon_name))
+            logger.info(f" -> Ícone compartilhado '{torre_icon_name}' encontrado e adicionado à lista de exportação.")
+    else:
+        logger.warning(f" -> ⚠️ Ícone compartilhado '{torre_icon_name}' não encontrado em '{settings.IMAGENS_DIR_PATH}'.")
 
     logger.info("Construção da estrutura KML concluída.")
     return image_files_for_kmz
