@@ -1,5 +1,6 @@
 // --- Variáveis Globais de Estado (Anexadas a 'window') ---
 
+window.jobId = null;
 window.modoEdicaoPivos = false;
 window.coordenadaClicada = null;
 window.marcadorPosicionamento = null;
@@ -77,39 +78,45 @@ function setupMainActionListeners() {
 
 async function handleFormSubmit(e) {
     e.preventDefault();
-
     const fileInput = document.getElementById('arquivo');
     if (!fileInput.files || fileInput.files.length === 0) {
         mostrarMensagem("Por favor, selecione um arquivo KMZ.", "erro");
         return;
     }
-
     mostrarLoader(true);
-
     const formData = new FormData();
     formData.append("file", fileInput.files[0]);
 
     try {
-        const data = await processKmz(formData);
+        const data = await processKmz(formData); //
         console.log("✅ KMZ Processado:", data);
-        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
 
-        if (data.erro) throw new Error(data.erro);
+        // 👇 ALTERADO: Armazena o ID do Job retornado pelo backend
+        if (!data.job_id) {
+            throw new Error("A resposta do servidor não incluiu um ID de job. A API pode estar desatualizada.");
+        }
+        window.jobId = data.job_id;
+        console.log(`SESSION_INFO: Job ID definido como: ${window.jobId}`);
+
+        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
 
         handleResetClick(false);
 
-        window.antenaGlobal = data.antena; // antenaGlobal vai ter {lat, lon, altura, altura_receiver, nome}
+        // 👇 NOVO: Após o reset, o jobId e os dados precisam ser restaurados, pois handleResetClick os limpa.
+        window.jobId = data.job_id;
+        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
+
+        window.antenaGlobal = data.antena;
         if (window.antenaGlobal) {
-            marcadorAntena = drawAntena(data.antena);
-            addAntenaAoPainel(window.antenaGlobal);
+            marcadorAntena = drawAntena(data.antena); //
+            addAntenaAoPainel(window.antenaGlobal); //
         } else {
-            console.warn("Dados da antena não encontrados no KMZ processado.");
             mostrarMensagem("⚠️ Antena principal não encontrada no KMZ.", "erro");
         }
 
-        drawBombas(data.bombas || []);
+        drawBombas(data.bombas || []); //
         window.ciclosGlobais = data.ciclos || [];
-        drawCirculos(window.ciclosGlobais);
+        drawCirculos(window.ciclosGlobais); //
 
         const pivosParaDesenhar = data.pivos || [];
         const pivosComStatusInicial = pivosParaDesenhar.map(p => ({
@@ -117,7 +124,7 @@ async function handleFormSubmit(e) {
             fora: true
         }));
         window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
-        drawPivos(pivosComStatusInicial);
+        drawPivos(pivosComStatusInicial); //
 
         if (window.antenaGlobal && pivosParaDesenhar.length > 0) {
             const boundsToFit = [
@@ -132,25 +139,27 @@ async function handleFormSubmit(e) {
             if (pivoBounds.length > 0) map.fitBounds(pivoBounds, { padding: [50, 50] });
         }
 
-        atualizarPainelDados();
+        atualizarPainelDados(); //
         mostrarMensagem("✅ KMZ carregado com sucesso.", "sucesso");
 
         document.getElementById("simular-btn").classList.remove("hidden");
         document.getElementById("painel-dados").classList.remove("hidden");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
-        reposicionarPaineisLaterais();
+        reposicionarPaineisLaterais(); //
 
     } catch (error) {
         console.error("❌ Erro no submit do formulário:", error);
         mostrarMensagem(`❌ Erro ao carregar KMZ: ${error.message}`, "erro");
+        window.jobId = null; // Limpa o job id em caso de erro
     } finally {
         mostrarLoader(false);
     }
 }
 
 async function handleSimulateClick() {
-    if (!window.antenaGlobal) {
-        mostrarMensagem("⚠️ Carregue um KMZ primeiro!", "erro");
+    // 👇 ALTERADO: Verifica se um job válido foi iniciado
+    if (!window.antenaGlobal || !window.jobId) {
+        mostrarMensagem("⚠️ Carregue um KMZ primeiro para iniciar um job!", "erro");
         return;
     }
 
@@ -158,48 +167,41 @@ async function handleSimulateClick() {
 
     try {
         templateSelecionado = document.getElementById('template-modelo').value;
-
-        Object.entries(posicoesEditadas).forEach(([nome, novaPos]) => {
-            if (pivotsMap[nome]) { pivotsMap[nome].setLatLng(novaPos); }
-        });
-
         const pivos_atuais = window.lastPivosDataDrawn.map(p => ({
             nome: p.nome,
             lat: p.lat,
             lon: p.lon
         }));
 
-
-        const payload = { ...window.antenaGlobal, pivos_atuais, template: templateSelecionado };
-        // Remove campos que não são esperados pelo backend para AntenaSimPayload se window.antenaGlobal os tiver
+        // 👇 ALTERADO: Adiciona o jobId ao payload da simulação
+        const payload = {
+            job_id: window.jobId,
+            ...window.antenaGlobal,
+            pivos_atuais,
+            template: templateSelecionado
+        };
         delete payload.overlay;
         delete payload.bounds;
         delete payload.imagem_filename_principal;
 
-        const data = await simulateSignal(payload); // simulateSignal vem de api.js
+        const data = await simulateSignal(payload); //
         console.log("✅ Simulação concluída:", data);
 
-        if (data.erro) throw new Error(data.erro);
-
-        // Limpa overlays antigos da antena principal, se houver
         if (window.antenaGlobal.overlay && map.hasLayer(window.antenaGlobal.overlay)) {
             map.removeLayer(window.antenaGlobal.overlay);
-            // Remove o overlay antigo da lista geral de overlays visíveis também, se estiver lá
              const index = overlaysVisiveis.indexOf(window.antenaGlobal.overlay);
              if (index > -1) {
                  overlaysVisiveis.splice(index, 1);
              }
         }
-        // Não é necessário limpar todos os overlaysVisiveis aqui, apenas o da antena principal.
-        // Os overlays de repetidoras devem permanecer.
 
-        window.antenaGlobal.overlay = drawImageOverlay(data.imagem_salva, data.bounds); // drawImageOverlay adiciona a overlaysVisiveis
+        window.antenaGlobal.overlay = drawImageOverlay(data.imagem_salva, data.bounds); //
         window.antenaGlobal.bounds = data.bounds;
-        window.antenaGlobal.imagem_filename_principal = data.imagem_filename; // << ALTERAÇÃO/ADIÇÃO: Armazena o nome do arquivo da imagem principal
+        window.antenaGlobal.imagem_filename_principal = data.imagem_filename;
 
         window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
-        drawPivos(data.pivos, true);
-        atualizarPainelDados();
+        drawPivos(data.pivos, true); //
+        atualizarPainelDados(); //
 
         mostrarMensagem("📡 Estudo de sinal concluído.", "sucesso");
         document.getElementById("btn-diagnostico").classList.remove("hidden");
@@ -226,7 +228,7 @@ function handleMapClick(e) {
     window.removePositioningMarker();
 
     window.marcadorPosicionamento = L.marker(window.coordenadaClicada, {
-        icon: posicionamentoIcon,
+        icon: posicionamentoIcon, //
         interactive: false,
         opacity: 0.7,
         zIndexOffset: 1000
@@ -238,6 +240,11 @@ function handleMapClick(e) {
 async function handleConfirmRepetidoraClick() {
     if (!window.coordenadaClicada) {
         mostrarMensagem("⚠️ Clique no mapa primeiro para definir a posição!", "erro");
+        return;
+    }
+    // 👇 ALTERADO: Verifica se um job válido foi iniciado
+    if (!window.jobId) {
+        mostrarMensagem("⚠️ Inicie um job carregando um KMZ primeiro.", "erro");
         return;
     }
 
@@ -252,25 +259,18 @@ async function handleConfirmRepetidoraClick() {
     const id = idsDisponiveis.length > 0 ? idsDisponiveis.shift() : ++contadorRepetidoras;
     const nomeRep = `Repetidora ${id}`;
 
-    const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon })
-        .addTo(map);
-
-    const labelWidth = (nomeRep.length * 7) + 10;
-    const labelHeight = 20;
-
+    const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon }).addTo(map); //
     const labelRepetidora = L.marker(window.coordenadaClicada, {
         icon: L.divIcon({
             className: 'label-pivo',
             html: nomeRep,
-            iconSize: [labelWidth, labelHeight],
-            iconAnchor: [labelWidth / 2, 45]
+            iconSize: [(nomeRep.length * 7) + 10, 20],
+            iconAnchor: [((nomeRep.length * 7) + 10) / 2, 45]
         }),
         labelType: 'repetidora'
     }).addTo(map);
     marcadoresLegenda.push(labelRepetidora);
 
-    // AQUI ESTÁ A CORREÇÃO:
-    // O objeto da repetidora agora armazena se ela foi criada sobre um pivô.
     const repetidoraObj = {
         id,
         marker: novaRepetidoraMarker,
@@ -281,17 +281,17 @@ async function handleConfirmRepetidoraClick() {
         lat: window.coordenadaClicada.lat,
         lon: window.coordenadaClicada.lng,
         imagem_filename: null,
-        sobre_pivo: window.ultimoCliqueFoiSobrePivo || false // Adiciona a propriedade com base na flag global
+        sobre_pivo: window.ultimoCliqueFoiSobrePivo || false
     };
     repetidoras.push(repetidoraObj);
 
     const pivosParaSimulacaoRepetidora = window.lastPivosDataDrawn.map(p => ({
-        nome: p.nome,
-        lat: p.lat,
-        lon: p.lon
+        nome: p.nome, lat: p.lat, lon: p.lon
     }));
 
+    // 👇 ALTERADO: Adiciona o jobId ao payload da simulação manual
     const payload = {
+        job_id: window.jobId,
         lat: window.coordenadaClicada.lat,
         lon: window.coordenadaClicada.lng,
         altura: alturaAntena,
@@ -301,22 +301,20 @@ async function handleConfirmRepetidoraClick() {
     };
 
     try {
-        const data = await simulateManual(payload); // simulateManual vem de api.js
+        const data = await simulateManual(payload); //
         console.log("Simulação Manual Concluída:", data);
 
         if (data.erro) throw new Error(data.erro);
 
-        repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0); // drawImageOverlay adiciona a overlaysVisiveis
-        
-        // Armazena o nome do arquivo da imagem da repetidora para a exportação
+        repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0); //
         repetidoraObj.imagem_filename = data.imagem_filename;
         
-        addRepetidoraNoPainel(repetidoraObj);
+        addRepetidoraNoPainel(repetidoraObj); //
         await reavaliarPivosViaAPI();
 
         mostrarMensagem(`📡 Repetidora ${id} adicionada e simulada.`, "sucesso");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
-        reposicionarPaineisLaterais();
+        reposicionarPaineisLaterais(); //
 
     } catch (error) {
         console.error("Erro ao confirmar repetidora:", error);
@@ -325,45 +323,63 @@ async function handleConfirmRepetidoraClick() {
         map.removeLayer(labelRepetidora);
         marcadoresLegenda = marcadoresLegenda.filter(l => l !== labelRepetidora);
         repetidoras = repetidoras.filter(r => r.id !== id);
-        // Se repetidoraObj.overlay foi criado antes do erro, removê-lo também:
         if (repetidoraObj.overlay && map.hasLayer(repetidoraObj.overlay)) {
              map.removeLayer(repetidoraObj.overlay);
              const index = overlaysVisiveis.indexOf(repetidoraObj.overlay);
-             if (index > -1) {
-                 overlaysVisiveis.splice(index, 1);
-             }
+             if (index > -1) overlaysVisiveis.splice(index, 1);
         }
         if (!idsDisponiveis.includes(id)) idsDisponiveis.push(id);
         idsDisponiveis.sort((a, b) => a - b);
     } finally {
         mostrarLoader(false);
         window.coordenadaClicada = null;
-        atualizarPainelDados();
+        atualizarPainelDados(); //
     }
 }
 
 function handleBuscarLocaisRepetidoraActivation() {
     window.modoBuscaLocalRepetidora = !window.modoBuscaLocalRepetidora;
     const btn = document.getElementById('btn-buscar-locais-repetidora');
-    btn.classList.toggle('glass-button-active', window.modoBuscaLocalRepetidora);
+
+    if (btn) {
+        btn.classList.toggle('glass-button-active', window.modoBuscaLocalRepetidora);
+    }
 
     if (window.modoBuscaLocalRepetidora) {
         mostrarMensagem("MODO BUSCA LOCAL REPETIDORA: Selecione um pivô SEM SINAL (vermelho) como alvo.", "sucesso");
         window.pivoAlvoParaLocalRepetidora = null;
-        if (window.marcadorPosicionamento) removePositioningMarker();
-        document.getElementById("painel-repetidora").classList.add("hidden");
 
-        if (window.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
+        if (window.marcadorPosicionamento && typeof removePositioningMarker === 'function') {
+            removePositioningMarker();
+        }
+
+        const painelRepetidora = document.getElementById("painel-repetidora");
+        if (painelRepetidora) {
+            painelRepetidora.classList.add("hidden");
+        }
+
+        if (window.modoLoSPivotAPivot && typeof toggleLoSPivotAPivotMode === 'function') {
+            toggleLoSPivotAPivotMode();
+        }
+
         if (window.modoEdicaoPivos) {
             const editarPivosBtn = document.getElementById("editar-pivos");
-            if (editarPivosBtn.classList.contains('glass-button-active')) {
+            if (editarPivosBtn && editarPivosBtn.classList.contains('glass-button-active') && typeof togglePivoEditing === 'function') {
                 togglePivoEditing();
             }
         }
-        map.getContainer().style.cursor = 'crosshair';
+        
+        if (map) {
+            map.getContainer().style.cursor = 'crosshair';
+        }
+
     } else {
         mostrarMensagem("Modo 'Buscar Locais para Repetidora' desativado.", "sucesso");
-        map.getContainer().style.cursor = '';
+
+        if (map) {
+            map.getContainer().style.cursor = '';
+        }
+
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         }
@@ -372,6 +388,12 @@ function handleBuscarLocaisRepetidoraActivation() {
 
 async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     if (!window.modoBuscaLocalRepetidora) return;
+
+    // 👇 ALTERADO: Adicionada verificação de job ativo no início da função.
+    if (!window.jobId) {
+        mostrarMensagem("⚠️ Inicie um job carregando um KMZ primeiro.", "erro");
+        return;
+    }
 
     if (pivoMarker.options.fillColor === 'green') {
         mostrarMensagem("ALVO: Selecione um pivô SEM SINAL (vermelho).", "erro");
@@ -387,27 +409,29 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
     mostrarMensagem(`Pivô alvo ${window.pivoAlvoParaLocalRepetidora.nome} selecionado. Buscando locais...`, "info");
     mostrarLoader(true);
-    map.getContainer().style.cursor = 'wait';
+    if (map) map.getContainer().style.cursor = 'wait';
 
     const activeOverlaysForSearch = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
 
-    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked)) {
+    // 👇 ALTERADO: Usa o nome do arquivo salvo (imagem_filename_principal) em vez de manipular a URL.
+    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename_principal) {
         const b = window.antenaGlobal.overlay.getBounds();
         activeOverlaysForSearch.push({
             id: 'antena_principal',
-            imagem: window.antenaGlobal.overlay._url.replace(BACKEND_URL + '/', ''), // Gera caminho relativo como 'static/imagens/...'
+            imagem: window.antenaGlobal.imagem_filename_principal,
             bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
         });
     }
 
     repetidoras.forEach(rep => {
         const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
-        if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked)) {
+         // 👇 ALTERADO: Usa o nome do arquivo salvo (imagem_filename) em vez de manipular a URL.
+        if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked) && rep.imagem_filename) {
             const b = rep.overlay.getBounds();
             activeOverlaysForSearch.push({
                 id: `repetidora_${rep.id}`,
-                imagem: rep.overlay._url.replace(BACKEND_URL + '/', ''), // Gera caminho relativo
+                imagem: rep.imagem_filename,
                 bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
             });
         }
@@ -416,22 +440,24 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     if (activeOverlaysForSearch.length === 0) {
         mostrarMensagem("Nenhuma área de sinal (antena/repetidoras) ativa para basear a busca. Ative alguma cobertura.", "erro");
         mostrarLoader(false);
-        map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
+        if (map) map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
         return;
     }
 
     try {
+        // 👇 ALTERADO: O payload agora inclui o job_id, que é obrigatório no backend.
         const payload = {
+            job_id: window.jobId,
             target_pivot_lat: window.pivoAlvoParaLocalRepetidora.lat,
             target_pivot_lon: window.pivoAlvoParaLocalRepetidora.lon,
             target_pivot_nome: window.pivoAlvoParaLocalRepetidora.nome,
             altura_antena_repetidora_proposta: parseFloat(document.getElementById("altura-antena-rep").value) || 5,
             altura_receiver_pivo: window.pivoAlvoParaLocalRepetidora.altura_receiver,
             active_overlays: activeOverlaysForSearch,
-            pivot_polygons_coords: window.ciclosGlobais ? window.ciclosGlobais.map(c => c.coordenadas) : [] // << ALTERAÇÃO/ADIÇÃO
+            pivot_polygons_coords: window.ciclosGlobais ? window.ciclosGlobais.map(c => c.coordenadas) : []
         };
 
-        const resultados = await findHighPointsForRepeater(payload); // findHighPointsForRepeater vem de api.js
+        const resultados = await findHighPointsForRepeater(payload);
 
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
@@ -448,10 +474,10 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
     } catch (error) {
         console.error("Erro ao buscar locais para repetidora:", error);
-        mostrarMensagem(`Falha ao buscar locais: ${error.message || 'Erro desconhecido'}`);
+        mostrarMensagem(`Falha ao buscar locais: ${error.message || 'Erro desconhecido'}`, "erro");
     } finally {
         mostrarLoader(false);
-        map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
+        if (map) map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
     }
 }
 
@@ -459,7 +485,11 @@ function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
     clearMapLayers(); // de drawing.js
 
-    window.antenaGlobal = null; // Reseta completamente
+    // 👇 ALTERADO: A linha mais importante - garante que a sessão/job atual seja limpa.
+    window.jobId = null;
+
+    // Reset de todas as variáveis de estado globais
+    window.antenaGlobal = null;
     marcadorAntena = null;
     window.marcadorPosicionamento = null;
     marcadoresPivos = [];
@@ -474,11 +504,10 @@ function handleResetClick(showMessage = true) {
     marcadoresBombas = [];
     posicoesEditadas = {};
     window.backupPosicoesPivos = {};
-    overlaysVisiveis = []; // Limpa todos os overlays, incluindo o da antena principal
+    overlaysVisiveis = [];
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
     window.ciclosGlobais = [];
-
     window.distanciasPivosVisiveis = false;
     window.lastPivosDataDrawn = [];
     window.currentProcessedKmzData = null;
@@ -489,75 +518,75 @@ function handleResetClick(showMessage = true) {
         btnDistancias.title = "Mostrar Distâncias dos Pivôs";
     }
 
+    // Desativa e reseta todos os modos especiais
     if (window.modoEdicaoPivos) {
-        if (typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos").classList.contains('glass-button-active')) {
-            togglePivoEditing(); // togglePivoEditing vem de ui.js
+        if (typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos")?.classList.contains('glass-button-active')) {
+            togglePivoEditing();
         }
-        window.modoEdicaoPivos = false; // Garante que o modo seja resetado
-        // Restaura o botão de edição para o estado inicial (após togglePivoEditing)
-        const btnEditarReset = document.getElementById("editar-pivos");
-         const btnEditarIconSpanReset = btnEditarReset.querySelector('.sidebar-icon');
-         if(btnEditarIconSpanReset) {
-            btnEditarIconSpanReset.style.webkitMaskImage = 'url(assets/images/pencil.svg)';
-            btnEditarIconSpanReset.style.maskImage = 'url(assets/images/pencil.svg)';
-         } else if (typeof lucide !== 'undefined') { // Fallback se o span não existir e lucide estiver disponível
-            btnEditarReset.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-            lucide.createIcons();
-         }
-        btnEditarReset.title = "Editar Pivôs";
-        btnEditarReset.classList.remove('glass-button-active');
-        document.getElementById("desfazer-edicao").classList.add("hidden");
     }
 
     if (window.modoLoSPivotAPivot) {
-        if (typeof toggleLoSPivotAPivotMode === 'function' && document.getElementById('btn-los-pivot-a-pivot').classList.contains('glass-button-active')) {
+        if (typeof toggleLoSPivotAPivotMode === 'function' && document.getElementById('btn-los-pivot-a-pivot')?.classList.contains('glass-button-active')) {
             toggleLoSPivotAPivotMode();
         }
     }
 
     if (window.modoBuscaLocalRepetidora) {
-        if (typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) {
+        if (typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora')?.classList.contains('glass-button-active')) {
             handleBuscarLocaisRepetidoraActivation();
         }
     }
 
-
     if (map) {
         map.getContainer().style.cursor = '';
-        if (window.candidateRepeaterSitesLayerGroup) { // Garante que o layer group de candidatos seja limpo
+        if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         }
     }
 
-
+    // Reseta o estado dos botões e painéis da UI
     const btnSimular = document.getElementById("simular-btn");
-    btnSimular.classList.add("hidden");
-    btnSimular.disabled = false;
-    btnSimular.classList.remove("opacity-50", "cursor-not-allowed");
-    document.getElementById("btn-diagnostico").classList.add("hidden");
+    if (btnSimular) {
+        btnSimular.classList.add("hidden");
+        btnSimular.disabled = false;
+        btnSimular.classList.remove("opacity-50", "cursor-not-allowed");
+    }
 
+    const btnDiagnostico = document.getElementById("btn-diagnostico");
+    if (btnDiagnostico) {
+        btnDiagnostico.classList.add("hidden");
+    }
 
-    document.getElementById("lista-repetidoras").innerHTML = "";
-    document.getElementById("painel-repetidora").classList.add("hidden");
-    document.getElementById("painel-dados").classList.add("hidden");
-    document.getElementById("painel-repetidoras").classList.add("hidden");
+    const listaRepetidoras = document.getElementById("lista-repetidoras");
+    if (listaRepetidoras) {
+        listaRepetidoras.innerHTML = "";
+    }
+    
+    // Esconde todos os painéis principais
+    const paineisParaEsconder = ["painel-repetidora", "painel-dados", "painel-repetidoras", "desfazer-edicao"];
+    paineisParaEsconder.forEach(id => {
+        const painel = document.getElementById(id);
+        if (painel) painel.classList.add("hidden");
+    });
 
+    // Reseta o formulário de upload de arquivo
     const formElement = document.getElementById('formulario');
     if (formElement) formElement.reset();
+
     const nomeArquivoLabelElement = document.getElementById('nome-arquivo-label');
     if (nomeArquivoLabelElement) {
         nomeArquivoLabelElement.textContent = "Escolher Arquivo KMZ";
         nomeArquivoLabelElement.title = "Escolher Arquivo KMZ";
     }
+
     const rangeOpacidadeElement = document.getElementById("range-opacidade");
     if (rangeOpacidadeElement) rangeOpacidadeElement.value = 1;
 
     if (map) map.setView([-15, -55], 5);
 
-    atualizarPainelDados(); // de ui.js
-    reposicionarPaineisLaterais(); // de ui.js
-
-    if (typeof toggleLegendas === 'function') toggleLegendas(true); // de drawing.js
+    if (typeof atualizarPainelDados === 'function') atualizarPainelDados();
+    if (typeof reposicionarPaineisLaterais === 'function') reposicionarPaineisLaterais();
+    if (typeof toggleLegendas === 'function') toggleLegendas(true);
 
     if (showMessage) mostrarMensagem("🔄 Aplicação resetada.", "sucesso");
 }
@@ -614,8 +643,9 @@ async function handleDiagnosticoClick() {
 }
 
 function handleExportClick() {
-    if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename_principal) {
-        mostrarMensagem("⚠️ Rode a simulação principal primeiro para gerar a imagem e dados completos!", "erro");
+    // 👇 ALTERADO: Adicionada a verificação para garantir que um job válido está ativo (!window.jobId).
+    if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename_principal || !window.jobId) {
+        mostrarMensagem("⚠️ Rode a simulação principal primeiro para um job válido!", "erro");
         return;
     }
 
@@ -623,32 +653,31 @@ function handleExportClick() {
         const nomeImagemPrincipal = window.antenaGlobal.imagem_filename_principal;
         const nomeBoundsPrincipal = nomeImagemPrincipal.replace(/\.png$/, '.json');
 
-        // --- INÍCIO DA GRANDE ALTERAÇÃO ---
-
         // 1. Coleta os dados detalhados das repetidoras cujo checkbox está marcado.
         const repetidorasSelecionadasParaExport = [];
         repetidoras.forEach(rep => {
             const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
             
-            // Em vez de adicionar só o nome, adicionamos um objeto completo
+            // A lógica aqui já está correta, usando o .imagem_filename salvo.
             if (checkbox && checkbox.checked && rep.imagem_filename) {
                 repetidorasSelecionadasParaExport.push({
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
-                    sobre_pivo: rep.sobre_pivo // Usamos o valor que salvamos
+                    sobre_pivo: rep.sobre_pivo
                 });
             }
         });
 
         console.log("Dados das repetidoras para exportação:", repetidorasSelecionadasParaExport);
 
-        // 2. Chama a função getExportKmzUrl com a nova estrutura de dados.
-        const url = getExportKmzUrl(nomeImagemPrincipal, nomeBoundsPrincipal, repetidorasSelecionadasParaExport);
+        // 👇 ALTERADO: Passa o window.jobId como o primeiro argumento para a função, conforme a nova assinatura em api.js.
+        const url = getExportKmzUrl(window.jobId, nomeImagemPrincipal, nomeBoundsPrincipal, repetidorasSelecionadasParaExport);
         
-        // --- FIM DA GRANDE ALTERAÇÃO ---
-        
-        window.open(url, '_blank');
-        mostrarMensagem("📦 Preparando KMZ para download...", "sucesso");
+        // Se a getExportKmzUrl retornar uma URL inválida (ex: por jobId nulo), não tenta abrir.
+        if (url && url !== "#") {
+            window.open(url, '_blank');
+            mostrarMensagem("📦 Preparando KMZ para download...", "sucesso");
+        }
 
     } catch (error) {
         console.error("Erro ao exportar KMZ:", error);
@@ -656,87 +685,88 @@ function handleExportClick() {
     }
 }
 
-
 async function reavaliarPivosViaAPI() {
     console.log("Reavaliando pivôs...");
+
+    // 👇 ALTERADO: Verifica se um job válido foi iniciado
+    if (!window.jobId) {
+        console.log("Nenhum job ativo para reavaliar.");
+        return;
+    }
+
     const pivosAtuaisParaReavaliacao = window.lastPivosDataDrawn.map(p => ({
         nome: p.nome,
         lat: p.lat,
         lon: p.lon
     }));
 
-    if (pivosAtuaisParaReavaliacao.length === 0) {
-        console.log("Nenhum pivô para reavaliar (lastPivosDataDrawn está vazio).");
-        // Se lastPivosDataDrawn está vazio mas pivotsMap não, tentamos reconstruir
-        if (Object.keys(pivotsMap).length === 0 && (!window.currentProcessedKmzData || !window.currentProcessedKmzData.pivos || window.currentProcessedKmzData.pivos.length === 0)) {
-            console.log("Nenhum pivô no mapa ou no KMZ processado para reavaliar.");
-            return;
-        }
-    }
-
-    const overlays = [];
-    const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
-
-    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked)) {
-        const b = window.antenaGlobal.overlay.getBounds();
-        overlays.push({
-            id: 'antena_principal', // Adiciona um ID para depuração, se necessário
-            imagem: window.antenaGlobal.overlay._url.replace(BACKEND_URL + '/', ''), // Gera caminho relativo como 'static/imagens/...'
-            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-        });
-    }
-
-    repetidoras.forEach(rep => {
-        const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
-        if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked)) {
-            const b = rep.overlay.getBounds();
-            overlays.push({
-                id: `repetidora_${rep.id}`, // Adiciona um ID
-                imagem: rep.overlay._url.replace(BACKEND_URL + '/', ''), // Gera caminho relativo
-                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-            });
-        }
-    });
-
-    // Tentativa de reconstruir pivosAtuaisParaReavaliacao se estiver vazio mas houver pivôs no mapa
+    // Lógica de fallback para reconstruir a lista de pivôs, caso esteja vazia (sem alterações, já era robusta)
     if (pivosAtuaisParaReavaliacao.length === 0 && Object.keys(pivotsMap).length > 0) {
         console.warn("Reavaliando pivôs: lastPivosDataDrawn estava vazio, usando pivotsMap ou currentProcessedKmzData.");
-        // Prioriza dados do KMZ processado se disponíveis, pois podem ter mais informações
-        const pivosBase = (window.currentProcessedKmzData && window.currentProcessedKmzData.pivos)
+        const pivosBase = (window.currentProcessedKmzData?.pivos) 
             ? window.currentProcessedKmzData.pivos
             : Object.entries(pivotsMap).map(([nome, marcador]) => ({
                 nome,
                 lat: marcador.getLatLng().lat,
                 lon: marcador.getLatLng().lng
               }));
-
-        if (pivosBase.length === 0) {
-            console.log("Nenhum pivô no mapa ou KMZ para reavaliar.");
-            return;
+        
+        if (pivosBase.length > 0) {
+            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosBase.map(p => ({...p, fora: true}))));
+            pivosAtuaisParaReavaliacao.push(...pivosBase.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon })));
         }
-        // Atualiza window.lastPivosDataDrawn para refletir o estado atual antes da reavaliação
-        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosBase.map(p => ({...p, fora: true})))); // Assume 'fora' até reavaliar
-        pivosAtuaisParaReavaliacao.push(...pivosBase.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon })));
-    } else if (pivosAtuaisParaReavaliacao.length === 0) {
-        console.log("Nenhum pivô para reavaliar.");
+    }
+    
+    if (pivosAtuaisParaReavaliacao.length === 0) {
+        console.log("Nenhum pivô encontrado para reavaliar.");
         return;
     }
 
+    const overlays = [];
+    const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
+
+    // 👇 ALTERADO: Usa o nome do arquivo salvo (imagem_filename_principal) em vez de manipular a URL.
+    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename_principal) {
+        const b = window.antenaGlobal.overlay.getBounds();
+        overlays.push({
+            id: 'antena_principal',
+            imagem: window.antenaGlobal.imagem_filename_principal,
+            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+        });
+    }
+
+    repetidoras.forEach(rep => {
+        const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
+        // 👇 ALTERADO: Usa o nome do arquivo salvo (imagem_filename) em vez de manipular a URL.
+        if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked) && rep.imagem_filename) {
+            const b = rep.overlay.getBounds();
+            overlays.push({
+                id: `repetidora_${rep.id}`,
+                imagem: rep.imagem_filename,
+                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+            });
+        }
+    });
 
     if (overlays.length === 0) {
         console.log("Nenhum overlay de sinal visível, marcando todos os pivôs como fora de cobertura.");
         const pivosFora = pivosAtuaisParaReavaliacao.map(p => ({ ...p, fora: true }));
-        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosFora)); // Atualiza o estado global
-        drawPivos(pivosFora, true); // Redesenha com o novo estado
+        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosFora));
+        drawPivos(pivosFora, true);
         atualizarPainelDados();
         return;
     }
 
     try {
-        const data = await reevaluatePivots({ pivos: pivosAtuaisParaReavaliacao, overlays }); // reevaluatePivots de api.js
+        // 👇 ALTERADO: Adiciona o jobId ao payload da reavaliação.
+        const data = await reevaluatePivots({
+            job_id: window.jobId,
+            pivos: pivosAtuaisParaReavaliacao,
+            overlays
+        });
         if (data.pivos) {
-            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos)); // Atualiza o estado global
-            drawPivos(data.pivos, true); // Redesenha com o novo estado
+            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
+            drawPivos(data.pivos, true);
             atualizarPainelDados();
             console.log("Pivôs reavaliados.");
         }
