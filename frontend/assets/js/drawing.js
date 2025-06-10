@@ -159,6 +159,8 @@ function drawPivos(pivosData, useEdited = false) {
                 return;
             }
             else {
+                window.ultimoCliqueFoiSobrePivo = true; 
+
                 console.log(`[DEBUG] Clique padrão no pivô (para posicionar repetidora): ${pivo.nome}`);
                 window.coordenadaClicada = e.latlng;
 

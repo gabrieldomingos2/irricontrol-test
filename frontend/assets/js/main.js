@@ -221,6 +221,7 @@ function handleMapClick(e) {
     if (window.modoLoSPivotAPivot) return;
     if (window.modoBuscaLocalRepetidora) return;
 
+    window.ultimoCliqueFoiSobrePivo = false;
     window.coordenadaClicada = e.latlng;
     window.removePositioningMarker();
 
@@ -268,6 +269,8 @@ async function handleConfirmRepetidoraClick() {
     }).addTo(map);
     marcadoresLegenda.push(labelRepetidora);
 
+    // AQUI ESTÁ A CORREÇÃO:
+    // O objeto da repetidora agora armazena se ela foi criada sobre um pivô.
     const repetidoraObj = {
         id,
         marker: novaRepetidoraMarker,
@@ -276,8 +279,9 @@ async function handleConfirmRepetidoraClick() {
         altura: alturaAntena,
         altura_receiver: alturaReceiver,
         lat: window.coordenadaClicada.lat,
-        lon: window.coordenadaClicada.lng, // <-- CORREÇÃO: Adicionada a vírgula que faltava aqui.
-        imagem_filename: null
+        lon: window.coordenadaClicada.lng,
+        imagem_filename: null,
+        sobre_pivo: window.ultimoCliqueFoiSobrePivo || false // Adiciona a propriedade com base na flag global
     };
     repetidoras.push(repetidoraObj);
 
@@ -619,26 +623,29 @@ function handleExportClick() {
         const nomeImagemPrincipal = window.antenaGlobal.imagem_filename_principal;
         const nomeBoundsPrincipal = nomeImagemPrincipal.replace(/\.png$/, '.json');
 
-        // --- INÍCIO DA ALTERAÇÃO ---
+        // --- INÍCIO DA GRANDE ALTERAÇÃO ---
 
-        // 1. Coleta os nomes dos arquivos das repetidoras cujo checkbox está marcado.
+        // 1. Coleta os dados detalhados das repetidoras cujo checkbox está marcado.
         const repetidorasSelecionadasParaExport = [];
         repetidoras.forEach(rep => {
-            // Encontra o checkbox correspondente no painel da UI
             const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
             
-            // Se o checkbox está marcado e o nome do arquivo existe, adiciona à lista
+            // Em vez de adicionar só o nome, adicionamos um objeto completo
             if (checkbox && checkbox.checked && rep.imagem_filename) {
-                repetidorasSelecionadasParaExport.push(rep.imagem_filename);
+                repetidorasSelecionadasParaExport.push({
+                    imagem: rep.imagem_filename,
+                    altura: rep.altura,
+                    sobre_pivo: rep.sobre_pivo // Usamos o valor que salvamos
+                });
             }
         });
 
-        console.log("Repetidoras selecionadas para exportação:", repetidorasSelecionadasParaExport);
+        console.log("Dados das repetidoras para exportação:", repetidorasSelecionadasParaExport);
 
-        // 2. Chama a nova versão da função getExportKmzUrl com a lista.
+        // 2. Chama a função getExportKmzUrl com a nova estrutura de dados.
         const url = getExportKmzUrl(nomeImagemPrincipal, nomeBoundsPrincipal, repetidorasSelecionadasParaExport);
         
-        // --- FIM DA ALTERAÇÃO ---
+        // --- FIM DA GRANDE ALTERAÇÃO ---
         
         window.open(url, '_blank');
         mostrarMensagem("📦 Preparando KMZ para download...", "sucesso");

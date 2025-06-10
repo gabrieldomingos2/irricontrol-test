@@ -56,8 +56,9 @@ async def exportar_kmz_endpoint(
     background_tasks: BackgroundTasks,
     imagem: str = Query(..., description="Nome da imagem PNG principal (ex: 'cobertura_principal.png'). Formato esperado: 'principal_[template_id]_...'.png"),
     bounds_file: str = Query(..., description="Nome do JSON de bounds principal (ex: 'cobertura_principal.json')."),
-    # ALTERAÇÃO: Adicionado novo parâmetro para receber a lista de repetidoras selecionadas.
-    repetidoras_selecionadas: List[str] = Query([], description="Lista dos nomes de arquivo das imagens das repetidoras selecionadas (ex: 'repetidora_1.png').")
+    # --- ALTERAÇÃO: O parâmetro agora é uma string JSON com dados detalhados das repetidoras ---
+    # Exemplo de valor esperado: '[{"imagem": "repetidora_1.png", "altura": 10, "sobre_pivo": true}]'
+    repetidoras_data: str = Query('[]', description="String JSON com os dados das repetidoras (imagem, altura, sobre_pivo).")
 ):
     logger.info("📦 Iniciando exportação KMZ via endpoint /exportar...")
     if not INPUT_KMZ_PATH.exists():
@@ -72,6 +73,15 @@ async def exportar_kmz_endpoint(
         raise HTTPException(status_code=404, detail=f"Bounds '{bounds_file}' não encontrados em {_GENERATED_IMAGES_DIR}.")
 
     try:
+        # --- NOVO: Decodificar a string JSON das repetidoras ---
+        try:
+            lista_repetidoras_selecionadas = json.loads(repetidoras_data)
+            if not isinstance(lista_repetidoras_selecionadas, list):
+                raise ValueError("O JSON das repetidoras deve ser uma lista de objetos.")
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Erro ao decodificar JSON de repetidoras: {repetidoras_data}. Erro: {e}")
+            raise HTTPException(status_code=400, detail=f"Formato de JSON inválido para o parâmetro 'repetidoras_data'. Detalhe: {e}")
+
         # --- Obter dados do template ---
         image_name_base = imagem.lower()
         if image_name_base.startswith("principal_"):
@@ -138,7 +148,7 @@ async def exportar_kmz_endpoint(
         kml = simplekml.Kml(name="Estudo de Sinal Irricontrol") 
         doc = kml.document 
 
-        # ALTERAÇÃO: Passe a nova lista para a função de construção do KML.
+        # --- ALTERAÇÃO: Passe a nova lista de dicionários para a função de construção do KML ---
         arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
             doc=doc,
             antena_data=antena_data,
@@ -155,8 +165,8 @@ async def exportar_kmz_endpoint(
             study_date_str_for_subfolder=study_date_str,
             template_frq_for_main_coverage=template_frq,
             template_txw_for_main_coverage=template_txw,
-            # NOVO: Argumento com a lista de repetidoras selecionadas.
-            repetidoras_selecionadas_nomes=repetidoras_selecionadas
+            # NOVO: Argumento com os dados detalhados das repetidoras.
+            repetidoras_selecionadas_data=lista_repetidoras_selecionadas
         )
 
         caminho_kml_temp = _INPUT_KMZ_DIR / "estudo_temp.kml"

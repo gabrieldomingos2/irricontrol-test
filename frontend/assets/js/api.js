@@ -145,18 +145,23 @@ async function getElevationProfile(payload) {
  * Gera a URL para baixar o arquivo KMZ exportado.
  * @param {string} imagem - Nome do arquivo de imagem principal.
  * @param {string} boundsFile - Nome do arquivo JSON de bounds.
- * @param {Array<string>} [listaRepetidoras=[]] - Lista de nomes de arquivo das repetidoras selecionadas.
+ * @param {Array<object>} [repetidorasData=[]] - Array de objetos com os dados detalhados das repetidoras.
  * @returns {string} - A URL completa para download.
  */
-function getExportKmzUrl(imagem, boundsFile, listaRepetidoras = []) {
-    // ALTERAÇÃO: A função agora aceita um terceiro argumento, a lista de repetidoras.
+function getExportKmzUrl(imagem, boundsFile, repetidorasData = []) {
+    // Constrói a URL base com os parâmetros da imagem principal
     let url = `${BACKEND_URL}${API_PREFIX}/kmz/exportar?imagem=${encodeURIComponent(imagem)}&bounds_file=${encodeURIComponent(boundsFile)}`;
 
-    // Adiciona cada repetidora selecionada como um parâmetro de query separado.
-    // O backend FastAPI lerá isso como uma lista.
-    listaRepetidoras.forEach(repFile => {
-        url += `&repetidoras_selecionadas=${encodeURIComponent(repFile)}`;
-    });
+    // Se houver dados de repetidoras, os processa
+    if (repetidorasData.length > 0) {
+        // Converte o array de objetos para uma string JSON.
+        // Ex: [{...}, {...}] -> "[{...},{...}]"
+        const jsonString = JSON.stringify(repetidorasData);
+
+        // Adiciona a string JSON à URL como um único parâmetro chamado 'repetidoras_data',
+        // que é o nome que o backend espera agora.
+        url += `&repetidoras_data=${encodeURIComponent(jsonString)}`;
+    }
 
     return url;
 }
@@ -178,15 +183,10 @@ async function findHighPointsForRepeater(payload) {
       throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
     }
     return await response.json();
-  } catch (error) {
+  } catch (error)
+ {
     console.error("Erro ao buscar pontos altos para repetidora:", error);
     mostrarMensagem(`Falha na busca por locais de repetidora: ${error.message}`, "erro");
     throw error;
   }
 }
-
-// As funções getTowerIconUrl e getPumpIconUrl foram removidas daqui,
-// pois os caminhos dos ícones serão definidos diretamente em drawing.js
-// ou em um arquivo de configuração do frontend.
-// A função getTowerIconUrl no backend (/kmz/icone-torre) ainda é usada
-// para incluir o ícone no KMZ exportado, mas não para exibir no mapa do frontend.
