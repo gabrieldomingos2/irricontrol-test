@@ -1,0 +1,81 @@
+{
+  "ui": {
+    "titles": {
+      "main": "Signalsimulator - Irricontrol",
+      "data_panel": "Simulationsdaten",
+      "repeater_panel": "Repeater",
+      "repeater_panel_setup": "📡 Repeater konfigurieren",
+      "line_of_sight": "Sichtverbindung",
+      "los_pivots": "Sichtverbindungsdiagnose zwischen Pivots",
+      "find_repeater_locations": "Repeater-Standorte finden",
+      "legend": "Legende",
+      "show_pivot_distances": "Pivot-Distanzen anzeigen",
+      "edit_pivots": "Pivots bearbeiten",
+      "undo_edit": "Bearbeitung rückgängig machen"
+    },
+    "labels": {
+      "template": "🌐 Vorlage:",
+      "choose_kmz": "KMZ-Datei auswählen",
+      "tools": "Werkzeuge",
+      "antenna_height": "Antennenhöhe (m)",
+      "receiver_height": "Empfängerhöhe (m)",
+      "total_pivots": "Pivots:",
+      "out_of_coverage": "Außerhalb der Reichweite:",
+      "main_antenna": "Hauptantenne:",
+      "receiver": "Empfänger:",
+      "total_repeaters": "Repeater gesamt:",
+      "pump_houses": "Pumpenhäuser:",
+      "pivo_distance_label": "Entf:",
+      "processing": "Verarbeite..."
+    },
+    "buttons": {
+      "load_kmz": "KMZ laden",
+      "run_study": "Signalstudie durchführen",
+      "run_los_diagnostic": "Sichtverbindungsdiagnose",
+      "export_kmz": "KMZ exportieren",
+      "reset": "Zurücksetzen",
+      "simulate": "Simulieren",
+      "save_edit": "Änderungen speichern"
+    }
+  },
+  "messages": {
+    "success": {
+      "kmz_loaded_select_tower": "✅ KMZ geladen. Wählen Sie einen Turm, um die Studie zu starten.",
+      "simulation_complete": "📡 Signalstudie abgeschlossen.",
+      "los_diagnostic_complete": "🔍 Sichtverbindungsdiagnose abgeschlossen.",
+      "repeater_added": "📡 Repeater {id} hinzugefügt und simuliert.",
+      "tower_simulated_as_repeater": "📡 Turm '{name}' als Repeater simuliert.",
+      "app_reset": "🔄 Anwendung zurückgesetzt.",
+      "pivots_re-evaluated": "Pivots neu bewertet.",
+      "found_candidate_sites": "{count} mögliche Standorte gefunden. Klicken Sie auf einen, um zu simulieren.",
+      "edits_undone": "↩️ Änderungen rückgängig gemacht. Bearbeitungsmodus beendet.",
+      "positions_updated": "💾 Positionen aktualisiert. Führen Sie die Simulation erneut aus, um Änderungen zu sehen.",
+      "edit_mode_on": "✏️ Bearbeitungsmodus aktiviert. Ziehen Sie die roten Stifte. Rechtsklick zum Entfernen.",
+      "los_mode_on": "PIVOT-ZU-PIVOT-DIAGNOSEMODUS: Wählen Sie den URSPRUNGS-Pivot (mit Signal/grün).",
+      "los_mode_off": "Pivot-zu-Pivot-Diagnosemodus deaktiviert."
+    },
+    "errors": {
+      "select_kmz": "Bitte wählen Sie eine KMZ-Datei aus.",
+      "kmz_load_fail": "Fehler beim Laden der KMZ: {error}",
+      "simulation_fail": "Simulation fehlgeschlagen: {error}",
+      "run_study_first": "⚠️ Führen Sie zuerst die Signalstudie durch!",
+      "invalid_data_or_session": "⚠️ Ungültige Antennendaten oder Sitzungs-ID!",
+      "no_coverage_to_search": "Kein aktiver Signalbereich für die Suche vorhanden. Aktivieren Sie eine Abdeckung."
+    },
+    "info": {
+      "no_towers_found": "Keine Türme in der KMZ-Datei gefunden. Sie können Repeater manuell hinzufügen.",
+      "no_uncovered_pivots": "✅ Keine ungedeckten Pivots zu diagnostizieren.",
+      "analyzing_pivots": "🔍 Analysiere {count} Pivots...",
+      "los_origin_selected": "URSPRUNG: {name} ausgewählt. Wählen Sie nun den ZIEL-Pivot (ohne Signal/rot).",
+      "los_origin_is_target": "URSPRUNG: {name} ist bereits der Ursprung. Wählen Sie einen ZIEL-Pivot."
+    }
+  },
+  "tooltips": {
+    "in_signal": "✅ Mit Signal",
+    "out_of_signal": "❌ Ohne Signal",
+    "blockage_point": "Kritischer Punkt: Höhe {elevation}m",
+    "blockage_present": "⛔ Blockade: {diff}m darüber",
+    "los_clear_at_critical_point": "✅ Frei am kritischen Punkt ({diff}m)",
+    "highest_point": "Höchster Punkt: Höhe {elevation}m"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "ui": {
+    "titles": {
+      "main": "Simulador de Sinal - Irricontrol",
+      "data_panel": "Dados da Simulação",
+      "repeater_panel": "Repetidoras",
+      "repeater_panel_setup": "📡 Configurar Repetidora",
+      "line_of_sight": "Linha de Visada",
+      "los_pivots": "Diagnóstico de Visada entre Pivôs",
+      "find_repeater_locations": "Buscar Locais para Repetidora",
+      "legend": "Legenda",
+      "show_pivot_distances": "Mostrar Distâncias dos Pivôs",
+      "edit_pivots": "Editar Pivôs",
+      "undo_edit": "Desfazer Edição"
+    },
+    "labels": {
+      "template": "🌐 Template:",
+      "choose_kmz": "Escolher Arquivo KMZ",
+      "tools": "Ferramentas",
+      "antenna_height": "Altura da Antena (m)",
+      "receiver_height": "Altura do Receiver (m)",
+      "total_pivots": "Pivôs:",
+      "out_of_coverage": "Fora da cobertura:",
+      "main_antenna": "Antena principal:",
+      "receiver": "Receiver:",
+      "total_repeaters": "Total Repetidoras:",
+      "pump_houses": "Casas de bomba:",
+      "pivo_distance_label": "Dist:"
+    },
+    "buttons": {
+      "load_kmz": "Carregar KMZ",
+      "run_study": "Rodar Estudo de Sinal",
+      "run_los_diagnostic": "Diagnóstico de Visada",
+      "export_kmz": "Exportar KMZ",
+      "reset": "Resetar",
+      "simulate": "Simular",
+      "save_edit": "Salvar Edição"
+    }
+  },
+  "messages": {
+    "success": {
+      "kmz_loaded_select_tower": "✅ KMZ carregado. Escolha uma torre para iniciar o estudo.",
+      "simulation_complete": "📡 Estudo de sinal concluído.",
+      "los_diagnostic_complete": "🔍 Diagnóstico de visada concluído.",
+      "repeater_added": "📡 Repetidora {id} adicionada e simulada.",
+      "tower_simulated_as_repeater": "📡 Torre '{name}' simulada como repetidora.",
+      "app_reset": "🔄 Aplicação resetada.",
+      "pivots_re-evaluated": "Pivôs reavaliados.",
+      "found_candidate_sites": "Encontrados {count} locais candidatos. Clique em um para simular.",
+      "edits_undone": "↩️ Edições desfeitas. Modo de edição encerrado.",
+      "positions_updated": "💾 Posições atualizadas. Rode a simulação novamente para refletir mudanças na cobertura.",
+      "edit_mode_on": "✏️ Modo de edição ativado. Arraste os pinos vermelhos. Clique com botão direito para remover.",
+      "los_mode_on": "MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal/verde).",
+      "los_mode_off": "Modo 'Diagnóstico Pivô a Pivô' desativado."
+    },
+    "errors": {
+      "select_kmz": "Por favor, selecione um arquivo KMZ.",
+      "kmz_load_fail": "Falha ao carregar KMZ: {error}",
+      "simulation_fail": "Falha na simulação: {error}",
+      "run_study_first": "⚠️ Rode o estudo de sinal primeiro!",
+      "invalid_data_or_session": "⚠️ Dados da antena ou ID da sessão inválidos!",
+      "no_coverage_to_search": "Nenhuma área de sinal (antena/repetidoras) ativa para basear a busca. Ative alguma cobertura."
+    },
+    "info": {
+      "no_towers_found": "Nenhuma torre encontrada no KMZ. Você pode adicionar repetidoras manualmente.",
+      "no_uncovered_pivots": "✅ Nenhum pivô fora de cobertura para diagnosticar.",
+      "analyzing_pivots": "🔍 Analisando {count} pivôs...",
+      "los_origin_selected": "ORIGEM: {name} selecionado. Agora selecione o pivô de DESTINO (sem sinal/vermelho).",
+      "los_origin_is_target": "ORIGEM: {name} já é a origem. Selecione o pivô de DESTINO."
+    }
+  },
+  "tooltips": {
+    "in_signal": "✅ Com sinal",
+    "out_of_signal": "❌ Fora de sinal",
+    "blockage_point": "Ponto Crítico: Elev. {elevation}m",
+    "blockage_present": "⛔ Bloqueio: {diff}m acima",
+    "los_clear_at_critical_point": "✅ Livre no Ponto Crítico ({diff}m)",
+    "highest_point": "Ponto Mais Alto: Elev. {elevation}m"
+  }
+}
