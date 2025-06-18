@@ -25,7 +25,8 @@
       "receiver": "Receiver:",
       "total_repeaters": "Total Repetidoras:",
       "pump_houses": "Casas de bomba:",
-      "pivo_distance_label": "Dist:"
+      "pivo_distance_label": "Dist:",
+      "processing": "Processando..."
     },
     "buttons": {
       "load_kmz": "Carregar KMZ",

@@ -25,7 +25,8 @@
       "receiver": "Receiver:",
       "total_repeaters": "Total Repeaters:",
       "pump_houses": "Pump houses:",
-      "pivo_distance_label": "Dist:"
+      "pivo_distance_label": "Dist:",
+      "processing": "Processing..."
     },
     "buttons": {
       "load_kmz": "Load KMZ",
