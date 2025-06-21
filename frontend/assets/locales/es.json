@@ -76,6 +76,9 @@
     "blockage_point": "Punto Crítico: Elev. {elevation}m",
     "blockage_present": "⛔ Bloqueo: {diff}m por encima",
     "los_clear_at_critical_point": "✅ Libre en Punto Crítico ({diff}m)",
-    "highest_point": "Punto Más Alto: Elev. {elevation}m"
+    "highest_point": "Punto Más Alto: Elev. {elevation}m",
+    "los_ok": "✅ Visión Directa OK",
+    "los_no": "⛔ Visión Obstruida",
+    "tower_suggestion": "Sugerencia: Torre de {height}m"
   }
 }

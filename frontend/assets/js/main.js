@@ -250,13 +250,14 @@ async function startMainSimulation(antenaData) {
 function handleMapClick(e) {
     if (window.modoEdicaoPivos) return;
     if (window.modoLoSPivotAPivot) return;
-    if (window.modoBuscaLocalRepetidora) return;
-
 
     window.clickedCandidateData = null;
     window.ultimoCliqueFoiSobrePivo = false;
     window.coordenadaClicada = e.latlng;
-    window.removePositioningMarker();
+    
+    if(typeof window.removePositioningMarker === 'function') {
+        window.removePositioningMarker();
+    }
 
     window.marcadorPosicionamento = L.marker(window.coordenadaClicada, {
         icon: posicionamentoIcon,
@@ -461,14 +462,16 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     mostrarLoader(true);
     if (map) map.getContainer().style.cursor = 'wait';
 
+    // --- Coleta de Overlays Ativos (Onde a correção será feita) ---
     const activeOverlaysForSearch = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
 
-    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename_principal) {
+    // ✅ CORREÇÃO AQUI: Alterado 'imagem_filename_principal' para 'imagem_filename'
+    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename) {
         const b = window.antenaGlobal.overlay.getBounds();
         activeOverlaysForSearch.push({
             id: 'antena_principal',
-            imagem: window.antenaGlobal.imagem_filename_principal,
+            imagem: window.antenaGlobal.imagem_filename, // ✅ CORREÇÃO: Usando a propriedade correta
             bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
         });
     }
@@ -486,6 +489,7 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     });
 
     if (activeOverlaysForSearch.length === 0) {
+        // Esta mensagem de erro não deve mais aparecer se houver sinal na tela.
         mostrarMensagem(t('messages.errors.no_coverage_to_search'), "erro");
         mostrarLoader(false);
         if (map) map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
@@ -508,8 +512,6 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
-        } else {
-            console.warn("candidateRepeaterSitesLayerGroup não definido.");
         }
 
         if (resultados && resultados.candidate_sites && resultados.candidate_sites.length > 0) {

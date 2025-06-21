@@ -691,7 +691,6 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
     if (window.candidateRepeaterSitesLayerGroup) {
         window.candidateRepeaterSitesLayerGroup.clearLayers();
     } else {
-        console.warn("candidateRepeaterSitesLayerGroup não está definido.");
         window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
     }
 
@@ -701,52 +700,34 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
 
     sites.forEach((site, index) => {
         if (typeof site.lat === 'undefined' || typeof site.lon === 'undefined') {
-            console.warn("Site candidato ignorado por falta de lat/lon:", site);
             return;
         }
         const siteLatLng = [site.lat, site.lon];
         const uniqueMarkerId = `candidate-${index}-${site.lat.toFixed(5)}-${site.lon.toFixed(5)}`;
 
+        // ✅ INÍCIO DA CORREÇÃO: Removida a tag <br> antes do status da visada
         const iconHtml = `
             <div class="candidate-icon-wrapper">
-                <span class="candidate-remove-btn" data-marker-id="${uniqueMarkerId}">&times;</span>
                 ⛰️ ${(site.elevation || 0).toFixed(1)}m
-                ${site.has_los ? `<br><span class="los-ok">${t('tooltips.los_ok')}</span>` : `<br><span class="los-no">${t('tooltips.los_no')}</span>`}
+                ${site.has_los ? ` <span class="los-ok">${t('tooltips.los_ok')}</span>` : ` <span class="los-no">${t('tooltips.los_no')}</span>`}
                 <br><span class="distancia-info">${t('ui.labels.pivo_distance_label')} ${site.distance_to_target ? site.distance_to_target.toFixed(0) + 'm' : 'N/A'}</span>
             </div>`;
+        // ✅ FIM DA CORREÇÃO
 
         const candidateIcon = L.divIcon({
             className: 'custom-div-icon-ponto-alto',
             html: iconHtml,
-            iconSize: [95, 48],
+            iconSize: [95, 48], // O tamanho pode precisar de ajuste se o texto ficar muito longo
             iconAnchor: [47.5, 24]
         });
 
         const marker = L.marker(siteLatLng, {
             icon: candidateIcon,
-            customId: uniqueMarkerId
+            customId: uniqueMarkerId,
+            interactive: false
         });
 
         marker.addTo(window.candidateRepeaterSitesLayerGroup);
-
-        marker.on('click', function (e) {
-            if (e.originalEvent.target.classList.contains('candidate-remove-btn')) {
-                return;
-            }
-            L.DomEvent.stopPropagation(e);
-            window.coordenadaClicada = L.latLng(site.lat, site.lon);
-            const painelRep = document.getElementById("painel-repetidora");
-            if (painelRep) {
-                painelRep.classList.remove("hidden");
-                const alturaRepInput = document.getElementById("altura-antena-rep");
-                if (alturaRepInput) {
-                    alturaRepInput.value = site.altura_necessaria_torre || alturaRepInput.value || 5;
-                }
-            }
-            if (typeof mostrarMensagem === 'function') {
-                 mostrarMensagem(t('messages.info.high_point_selected', { elevation: (site.elevation || 0).toFixed(1) }), "info");
-            }
-        });
 
         if (targetPivotData && typeof targetPivotData.lat !== 'undefined' && typeof targetPivotData.lon !== 'undefined') {
             const targetLatLng = [targetPivotData.lat, targetPivotData.lon];
@@ -754,7 +735,6 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
             if (typeof site.has_los === 'boolean') {
                 lineColor = site.has_los ? 'rgba(76, 175, 80, 0.7)' : 'rgba(255, 152, 0, 0.7)';
             }
-
             const line = L.polyline([siteLatLng, targetLatLng], {
                 color: lineColor,
                 weight: 2,

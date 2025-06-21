@@ -76,6 +76,9 @@
     "blockage_point": "Kritischer Punkt: Höhe {elevation}m",
     "blockage_present": "⛔ Blockade: {diff}m darüber",
     "los_clear_at_critical_point": "✅ Frei am kritischen Punkt ({diff}m)",
-    "highest_point": "Höchster Punkt: Höhe {elevation}m"
+    "highest_point": "Höchster Punkt: Höhe {elevation}m",
+    "los_ok": "✅ Sichtverbindung OK",
+    "los_no": "⛔ Sicht Obstruiert",
+    "tower_suggestion": "Vorschlag: {height}m Turm"
   }
 }

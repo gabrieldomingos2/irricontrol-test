@@ -76,6 +76,8 @@
     "blockage_point": "Ponto Crítico: Elev. {elevation}m",
     "blockage_present": "⛔ Bloqueio: {diff}m acima",
     "los_clear_at_critical_point": "✅ Livre no Ponto Crítico ({diff}m)",
-    "highest_point": "Ponto Mais Alto: Elev. {elevation}m"
+    "highest_point": "Ponto Mais Alto: Elev. {elevation}m",
+    "los_ok": "✅ Visada Livre",
+    "los_no": "⛔ Visada Obstruída"
   }
 }

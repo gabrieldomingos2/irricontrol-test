@@ -76,6 +76,9 @@
     "blockage_point": "Critical Point: Elev. {elevation}m",
     "blockage_present": "⛔ Blockage: {diff}m above",
     "los_clear_at_critical_point": "✅ Clear at Critical Point ({diff}m)",
-    "highest_point": "Highest Point: Elev. {elevation}m"
+    "highest_point": "Highest Point: Elev. {elevation}m",
+    "los_ok": "✅ LoS OK",
+    "los_no": "⛔ LoS Obstructed",
+    "tower_suggestion": "Suggested: {height}m Tower"
   }
 }

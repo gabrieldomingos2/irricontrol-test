@@ -76,6 +76,9 @@
     "blockage_point": "Критическая точка: Выс. {elevation}м",
     "blockage_present": "⛔ Препятствие: {diff}м выше",
     "los_clear_at_critical_point": "✅ Свободно в критической точке ({diff}м)",
-    "highest_point": "Самая высокая точка: Выс. {elevation}м"
+    "highest_point": "Самая высокая точка: Выс. {elevation}м",
+    "los_ok": "✅ Прямая видимость ЕСТЬ",
+    "los_no": "⛔ Видимость Перекрыта",
+    "tower_suggestion": "Рекомендация: Башня {height}м"
   }
 }
