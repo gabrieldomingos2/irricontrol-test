@@ -228,12 +228,43 @@ function drawBombas(bombasData) {
 
     marcadoresBombas.forEach(b => map.removeLayer(b));
     marcadoresBombas = [];
-    marcadoresLegenda = marcadoresLegenda.filter(m => m.options.labelType !== 'bomba');
+    
+    // Limpa apenas as legendas de bomba antigas
+    const legendasRestantes = marcadoresLegenda.filter(m => m.options.labelType !== 'bomba');
+    marcadoresLegenda.forEach(legenda => {
+        if (legenda.options.labelType === 'bomba') {
+            map.removeLayer(legenda);
+        }
+    });
+    marcadoresLegenda = legendasRestantes;
+
 
     bombasData.forEach(bomba => {
         const marcadorBomba = L.marker([bomba.lat, bomba.lon], { icon: bombaIcon })
             .addTo(map);
         marcadoresBombas.push(marcadorBomba);
+
+        // --- LÓGICA DO TOOLTIP (COPIADA E ADAPTADA DOS PIVÔS) ---
+        // Visto que o ícone da bomba é fixo, não mudamos a cor, apenas o tooltip.
+        // O valor de 'bomba.fora' virá da API.
+        const statusTexto = bomba.fora
+            ? `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>`
+            : `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`;
+
+        const tooltipContent = `
+            <div style="text-align:center;">
+                <strong>${bomba.nome}</strong><br>
+                ${statusTexto}
+            </div>
+        `;
+
+        marcadorBomba.bindTooltip(tooltipContent, {
+            permanent: false,
+            direction: 'top',
+            offset: [0, -28], // Ajuste o offset para posicionar acima do ícone
+            className: 'tooltip-sinal'
+        });
+        // --- FIM DA LÓGICA DO TOOLTIP ---
 
         const labelWidth = (bomba.nome.length * 7) + 10;
         const labelHeight = 20;
@@ -244,7 +275,8 @@ function drawBombas(bombasData) {
                 iconSize: [labelWidth, labelHeight],
                 iconAnchor: [labelWidth / 2, -5]
             }),
-            labelType: 'bomba'
+            labelType: 'bomba',
+            interactive: false // Legenda não deve ter interação
         }).addTo(map);
         marcadoresLegenda.push(labelBomba);
     });

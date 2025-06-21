@@ -108,6 +108,66 @@ def verificar_cobertura_pivos(pivos: List[PivoInputData], overlays_info: List[Ov
     logger.info("  -> Verificação de cobertura concluída.")
     return pivos_atualizados # type: ignore
 
+# ✅ NOVA FUNÇÃO PARA VERIFICAR COBERTURA DAS BOMBAS
+def verificar_cobertura_bombas(bombas: List[Dict], overlays_info: List[OverlayInputData]) -> List[Dict]:
+    """
+    Verifica se as casas de bomba estão dentro da área de cobertura dos overlays.
+    Esta função é uma cópia adaptada da lógica dos pivôs.
+    """
+    logger.info(f"🔎 Verificando cobertura para {len(bombas)} casas de bomba com {len(overlays_info)} overlays.")
+    imagens_abertas_cache: Dict[Path, Image.Image] = {}
+    bombas_atualizadas: List[Dict] = []
+
+    for bomba_data in bombas:
+        lat, lon = bomba_data["lat"], bomba_data["lon"]
+        coberto_por_algum_overlay = False
+
+        for overlay_data in overlays_info:
+            bounds = overlay_data["bounds"]
+            imagem_path_servidor = Path(overlay_data["imagem_path"])
+
+            if not imagem_path_servidor.is_file():
+                logger.warning(f"  -> ⚠️ Imagem não encontrada em: {imagem_path_servidor} (para overlay ID: {overlay_data.get('id', 'N/A')}). Pulando overlay.")
+                continue
+            
+            try:
+                if imagem_path_servidor not in imagens_abertas_cache:
+                    imagens_abertas_cache[imagem_path_servidor] = Image.open(imagem_path_servidor).convert("RGBA")
+                
+                pil_image = imagens_abertas_cache[imagem_path_servidor]
+                img_width, img_height = pil_image.size
+                s, w, n, e = bounds
+                
+                if s > n: s, n = n, s
+                if w > e: w, e = e, w
+                
+                delta_lon = e - w
+                delta_lat = n - s
+
+                if delta_lon == 0 or delta_lat == 0:
+                    continue
+
+                pixel_x = int(((lon - w) / delta_lon) * img_width)
+                pixel_y = int(((n - lat) / delta_lat) * img_height)
+
+                if 0 <= pixel_x < img_width and 0 <= pixel_y < img_height:
+                    _, _, _, alpha_channel = pil_image.getpixel((pixel_x, pixel_y))
+                    if alpha_channel > 50:
+                        coberto_por_algum_overlay = True
+                        break
+            except Exception as ex:
+                logger.error(f"  -> ❌ Erro ao analisar overlay {overlay_data.get('id', imagem_path_servidor.name)} para bomba '{bomba_data['nome']}': {ex}", exc_info=True)
+
+        bomba_data_atualizada = bomba_data.copy()
+        bomba_data_atualizada["fora"] = not coberto_por_algum_overlay
+        bombas_atualizadas.append(bomba_data_atualizada)
+
+    for img_obj in imagens_abertas_cache.values():
+        img_obj.close()
+        
+    logger.info("  -> Verificação de cobertura das bombas concluída.")
+    return bombas_atualizadas
+
 
 # --- Análise de Elevação com Cache ---
 

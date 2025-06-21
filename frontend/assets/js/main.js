@@ -686,56 +686,49 @@ function handleExportClick() {
 }
 
 async function reavaliarPivosViaAPI() {
-    console.log("Reavaliando pivôs...");
+    console.log("Reavaliando cobertura de pivôs e bombas...");
     if (!window.jobId) {
         console.log("Nenhum job ativo para reavaliar.");
         return;
     }
 
-    const pivosAtuaisParaReavaliacao = window.lastPivosDataDrawn.map(p => ({
-        nome: p.nome,
-        lat: p.lat,
-        lon: p.lon
-    }));
-
-    // Lógica de fallback para reconstruir a lista de pivôs, caso esteja vazia (sem alterações, já era robusta)
-    if (pivosAtuaisParaReavaliacao.length === 0 && Object.keys(pivotsMap).length > 0) {
-        console.warn("Reavaliando pivôs: lastPivosDataDrawn estava vazio, usando pivotsMap ou currentProcessedKmzData.");
-        const pivosBase = (window.currentProcessedKmzData?.pivos) 
-            ? window.currentProcessedKmzData.pivos
-            : Object.entries(pivotsMap).map(([nome, marcador]) => ({
-                nome,
-                lat: marcador.getLatLng().lat,
-                lon: marcador.getLatLng().lng
-              }));
-        
-        if (pivosBase.length > 0) {
-            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosBase.map(p => ({...p, fora: true}))));
-            pivosAtuaisParaReavaliacao.push(...pivosBase.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon })));
-        }
-    }
-    
-    if (pivosAtuaisParaReavaliacao.length === 0) {
-        console.log("Nenhum pivô encontrado para reavaliar.");
+    // Garante que a fonte de dados principal exista
+    if (!window.currentProcessedKmzData) {
+        console.error("Dados do KMZ (currentProcessedKmzData) não estão disponíveis para reavaliação.");
         return;
     }
 
+    // Coleta os dados mais recentes dos pivôs para enviar ao backend
+    const pivosAtuaisParaReavaliacao = (window.lastPivosDataDrawn || [])
+        .map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon }));
+
+    // Coleta os dados das bombas. A fonte principal é a carga inicial do KMZ.
+    const bombasParaReavaliar = (window.currentProcessedKmzData.bombas || [])
+        .map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon }));
+
+
+    // Fallback: Se a lista de pivôs desenhados estiver vazia, tenta reconstruir a partir do mapa ou dos dados originais
+    if (pivosAtuaisParaReavaliacao.length === 0 && Object.keys(pivotsMap).length > 0) {
+        console.warn("Reavaliando: lastPivosDataDrawn estava vazio, reconstruindo lista de pivôs.");
+        const pivosBase = window.currentProcessedKmzData.pivos || [];
+        pivosAtuaisParaReavaliacao.push(...pivosBase.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon })));
+    }
+
+    // Monta a lista de overlays ativos no mapa
     const overlays = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
 
-    // 👇 ALTERADO: Usa o nome do arquivo salvo (imagem_filename_principal) em vez de manipular a URL.
-    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename_principal) {
+    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename) {
         const b = window.antenaGlobal.overlay.getBounds();
         overlays.push({
             id: 'antena_principal',
-            imagem: window.antenaGlobal.imagem_filename_principal,
+            imagem: window.antenaGlobal.imagem_filename,
             bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
         });
     }
 
     repetidoras.forEach(rep => {
         const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
-        // 👇 ALTERADO: Usa o nome do arquivo salvo (imagem_filename) em vez de manipular a URL.
         if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked) && rep.imagem_filename) {
             const b = rep.overlay.getBounds();
             overlays.push({
@@ -746,29 +739,53 @@ async function reavaliarPivosViaAPI() {
         }
     });
 
+    // Se não houver overlays visíveis, marca tudo como "fora" e encerra
     if (overlays.length === 0) {
-        console.log("Nenhum overlay de sinal visível, marcando todos os pivôs como fora de cobertura.");
+        console.log("Nenhum overlay de sinal visível, marcando todos os itens como fora de cobertura.");
+        
         const pivosFora = pivosAtuaisParaReavaliacao.map(p => ({ ...p, fora: true }));
         window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosFora));
         drawPivos(pivosFora, true);
+
+        // ✅ ADIÇÃO: Marca as bombas como fora também
+        if (bombasParaReavaliar.length > 0) {
+            const bombasFora = bombasParaReavaliar.map(b => ({ ...b, fora: true }));
+            drawBombas(bombasFora);
+        }
+
         atualizarPainelDados();
         return;
     }
 
+    // Se houver overlays, chama a API
     try {
-        const data = await reevaluatePivots({
+        const payload = {
             job_id: window.jobId,
             pivos: pivosAtuaisParaReavaliacao,
+            bombas: bombasParaReavaliar, // ✅ ADIÇÃO: Envia as bombas no payload
             overlays
-        });
+        };
+        
+        // A função da API `reevaluatePivots` agora reavalia pivôs e bombas
+        const data = await reevaluatePivots(payload);
+
+        // Trata a resposta para pivôs
         if (data.pivos) {
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
             drawPivos(data.pivos, true);
-            atualizarPainelDados();
             console.log("Pivôs reavaliados.");
         }
+
+        // ✅ ADIÇÃO: Trata a resposta para bombas
+        if (data.bombas) {
+            drawBombas(data.bombas);
+            console.log("Bombas reavaliadas.");
+        }
+        
+        atualizarPainelDados();
+
     } catch (error) {
-        console.error("Erro ao reavaliar pivôs via API:", error);
+        console.error("Erro ao reavaliar cobertura via API:", error);
         mostrarMensagem(t('messages.errors.reevaluate_fail'), "erro");
     }
 }
