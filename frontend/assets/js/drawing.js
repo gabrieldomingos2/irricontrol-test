@@ -5,7 +5,8 @@
 // Exemplo: Se suas imagens estão em 'seu-projeto-frontend/assets/images/'
 // e o Netlify serve a pasta 'assets' a partir da raiz do site.
 const TORRE_ICON_PATH = '/assets/images/cloudrf.png';
-const BOMBA_ICON_PATH = '/assets/images/homegardenbusiness.png';
+const BOMBA_ICON_AZUL_PATH = '/assets/images/homegardenbusiness.png';
+const BOMBA_ICON_VERMELHO_PATH = '/assets/images/homegardenbusiness-red.png';
 const ATTENTION_ICON_PATH = '/assets/images/attention-icon-original.svg';
 const CHECK_ICON_PATH = '/assets/images/circle-check-big.svg';
 const MOUNTAIN_ICON_PATH = '/assets/images/attention-icon-original.svg';
@@ -19,8 +20,14 @@ const antenaIcon = L.icon({
   iconAnchor: [14, 28],
 });
 
-const bombaIcon = L.icon({
-  iconUrl: BOMBA_ICON_PATH,
+const bombaIconAzul = L.icon({
+  iconUrl: BOMBA_ICON_AZUL_PATH,
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+});
+
+const bombaIconVermelho = L.icon({
+  iconUrl: BOMBA_ICON_VERMELHO_PATH,
   iconSize: [28, 28],
   iconAnchor: [14, 28],
 });
@@ -226,46 +233,42 @@ function drawPivos(pivosData, useEdited = false) {
 function drawBombas(bombasData) {
     if (!map || !bombasData) return;
 
+    // Limpa marcadores e legendas de bombas existentes
     marcadoresBombas.forEach(b => map.removeLayer(b));
     marcadoresBombas = [];
-    
-    // Limpa apenas as legendas de bomba antigas
-    const legendasRestantes = marcadoresLegenda.filter(m => m.options.labelType !== 'bomba');
-    marcadoresLegenda.forEach(legenda => {
-        if (legenda.options.labelType === 'bomba') {
-            map.removeLayer(legenda);
-        }
-    });
-    marcadoresLegenda = legendasRestantes;
-
+    marcadoresLegenda.filter(m => m.options.labelType === 'bomba').forEach(l => map.removeLayer(l));
+    marcadoresLegenda = marcadoresLegenda.filter(m => m.options.labelType !== 'bomba');
 
     bombasData.forEach(bomba => {
-        const marcadorBomba = L.marker([bomba.lat, bomba.lon], { icon: bombaIcon })
+        // ✅ INÍCIO DA CORREÇÃO: Escolha dinâmica do ícone
+        // Se 'bomba.fora' for false (tem sinal), usa o ícone azul.
+        // Caso contrário (sem sinal ou estado inicial), usa o ícone vermelho.
+        const iconeASerUsado = bomba.fora === false ? bombaIconAzul : bombaIconVermelho;
+
+        // O marcador agora usa o ícone que foi escolhido dinamicamente.
+        const marcadorBomba = L.marker([bomba.lat, bomba.lon], { icon: iconeASerUsado })
             .addTo(map);
         marcadoresBombas.push(marcadorBomba);
+        // ✅ FIM DA CORREÇÃO
 
-        // --- LÓGICA DO TOOLTIP (COPIADA E ADAPTADA DOS PIVÔS) ---
-        // Visto que o ícone da bomba é fixo, não mudamos a cor, apenas o tooltip.
-        // O valor de 'bomba.fora' virá da API.
-        const statusTexto = bomba.fora
-            ? `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>`
-            : `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`;
+        // A lógica do tooltip de status continua funcionando normalmente
+        const statusTexto = bomba.fora === false
+            ? `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`
+            : `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>`;
 
         const tooltipContent = `
-            <div style="text-align:center;">
-                <strong>${bomba.nome}</strong><br>
+            <div style="text-align: center;">
                 ${statusTexto}
             </div>
         `;
-
         marcadorBomba.bindTooltip(tooltipContent, {
             permanent: false,
             direction: 'top',
-            offset: [0, -28], // Ajuste o offset para posicionar acima do ícone
+            offset: [0, -28],
             className: 'tooltip-sinal'
         });
-        // --- FIM DA LÓGICA DO TOOLTIP ---
 
+        // A legenda de texto fixa com o nome também continua funcionando
         const labelWidth = (bomba.nome.length * 7) + 10;
         const labelHeight = 20;
         const labelBomba = L.marker([bomba.lat, bomba.lon], {
@@ -276,11 +279,12 @@ function drawBombas(bombasData) {
                 iconAnchor: [labelWidth / 2, -5]
             }),
             labelType: 'bomba',
-            interactive: false // Legenda não deve ter interação
+            interactive: false
         }).addTo(map);
         marcadoresLegenda.push(labelBomba);
     });
-     toggleLegendas(legendasAtivas);
+
+    toggleLegendas(legendasAtivas);
 }
 
 function drawCirculos(ciclosData) {

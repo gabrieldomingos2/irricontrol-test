@@ -165,16 +165,14 @@ async function startMainSimulation(antenaData) {
     map.closePopup(); 
 
     try {
-        window.antenaGlobal = { ...antenaData };
-
         templateSelecionado = document.getElementById('template-modelo').value;
-        const pivos_atuais = window.lastPivosDataDrawn.map(p => ({
+        const pivos_atuais = (window.currentProcessedKmzData.pivos || []).map(p => ({
             nome: p.nome, lat: p.lat, lon: p.lon
         }));
 
         const payload = {
             job_id: window.jobId,
-            ...window.antenaGlobal,
+            ...antenaData, // Inclui lat, lon, altura, nome, etc.
             pivos_atuais,
             template: templateSelecionado
         };
@@ -182,26 +180,33 @@ async function startMainSimulation(antenaData) {
         const data = await simulateSignal(payload);
         console.log("✅ Simulação principal concluída:", data);
 
+        // Remove o item da lista de candidatos
         if (antenaCandidatesLayerGroup) {
-            const idToRemove = `candidate-${antenaData.nome}-${antenaData.lat}`;
-            const layersToRemove = [];
-            
+            const idParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
+            const camadasParaRemover = [];
             antenaCandidatesLayerGroup.eachLayer(layer => {
-                if (layer.options.customId === idToRemove) {
-                    layersToRemove.push(layer);
-                }
+                if (layer.options.customId === idParaRemover) camadasParaRemover.push(layer);
             });
-
-            layersToRemove.forEach(layer => {
-                antenaCandidatesLayerGroup.removeLayer(layer);
-            });
+            camadasParaRemover.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
         }
 
-        addAntenaAoPainel(window.antenaGlobal);
+        // ✅ INÍCIO DA CORREÇÃO: Define o estado global e desenha TUDO da antena principal
 
+        // 1. Define a antena global em um único passo, com todas as informações.
+        //    Isso garante que o estado nunca fique incompleto.
+        window.antenaGlobal = {
+            ...antenaData, // Dados originais (nome, altura, etc.)
+            overlay: drawImageOverlay(data.imagem_salva, data.bounds),
+            bounds: data.bounds,
+            imagem_filename: data.imagem_filename // Nome do arquivo para reavaliação e exportação
+        };
+
+        // 2. Desenha o ícone da antena principal e o adiciona ao painel lateral.
         if(marcadorAntena) map.removeLayer(marcadorAntena);
         marcadorAntena = L.marker([window.antenaGlobal.lat, window.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
+        addAntenaAoPainel(window.antenaGlobal);
 
+        // 3. (ESTA PARTE ESTAVA FALTANDO) Recria a legenda de texto para a antena principal.
         const nomeAntenaPrincipal = window.antenaGlobal.nome;
         const labelWidth = (nomeAntenaPrincipal.length * 7) + 10;
         const labelHeight = 20;
@@ -213,18 +218,22 @@ async function startMainSimulation(antenaData) {
                 iconSize: [labelWidth, labelHeight],
                 iconAnchor: [labelWidth / 2, 45]
             }),
-            labelType: 'antena'
+            labelType: 'antena' // Identificador para gerenciamento
         }).addTo(map);
-        marcadoresLegenda.push(labelPrincipal);
+        marcadoresLegenda.push(labelPrincipal); // Adiciona à lista de legendas
         
-        window.antenaGlobal.overlay = drawImageOverlay(data.imagem_salva, data.bounds);
-        window.antenaGlobal.bounds = data.bounds;
-        window.antenaGlobal.imagem_filename_principal = data.imagem_filename;
+        // ✅ FIM DA CORREÇÃO
 
-        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
-        drawPivos(data.pivos, true);
+        // Atualiza os pivôs e bombas
+        if (data.pivos) {
+            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
+            drawPivos(data.pivos, false);
+        }
+        if (data.bombas) { // Adicionando a atualização das bombas
+            drawBombas(data.bombas);
+        }
+
         atualizarPainelDados();
-
         mostrarMensagem(t('messages.success.simulation_complete'), "sucesso");
         document.getElementById("btn-diagnostico").classList.remove("hidden");
 
@@ -236,6 +245,8 @@ async function startMainSimulation(antenaData) {
         mostrarLoader(false);
     }
 }
+
+
 function handleMapClick(e) {
     if (window.modoEdicaoPivos) return;
     if (window.modoLoSPivotAPivot) return;
@@ -334,7 +345,7 @@ async function handleConfirmRepetidoraClick() {
         window.removePositioningMarker();
 
         const id = idsDisponiveis.length > 0 ? idsDisponiveis.shift() : ++contadorRepetidoras;
-        const nomeRep = `${t('ui.titles.repeater_panel')} ${id}`;
+        const nomeRep = 'Repetidora';
 
         const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon }).addTo(map);
         const labelRepetidora = L.marker(window.coordenadaClicada, {
@@ -645,14 +656,16 @@ async function handleDiagnosticoClick() {
 }
 
 function handleExportClick() {
-    if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename_principal || !window.jobId) {
+    // ✅ CORREÇÃO: A verificação agora procura por 'imagem_filename'
+    if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename || !window.jobId) {
         mostrarMensagem(t('messages.errors.run_study_first'), "erro");
         return;
     }
 
     try {
-        const nomeImagemPrincipal = window.antenaGlobal.imagem_filename_principal;
+        const nomeImagemPrincipal = window.antenaGlobal.imagem_filename;
         const nomeBoundsPrincipal = nomeImagemPrincipal.replace(/\.png$/, '.json');
+        
         const repetidorasSelecionadasParaExport = [];
         repetidoras.forEach(rep => {
             const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
@@ -686,35 +699,22 @@ function handleExportClick() {
 }
 
 async function reavaliarPivosViaAPI() {
-    console.log("Reavaliando cobertura de pivôs e bombas...");
-    if (!window.jobId) {
-        console.log("Nenhum job ativo para reavaliar.");
+    console.log("🔄 Reavaliando cobertura de pivôs e bombas...");
+    if (!window.jobId || !window.currentProcessedKmzData) {
+        console.error("❌ Job ID ou dados do KMZ não estão disponíveis para reavaliação.");
         return;
     }
 
-    // Garante que a fonte de dados principal exista
-    if (!window.currentProcessedKmzData) {
-        console.error("Dados do KMZ (currentProcessedKmzData) não estão disponíveis para reavaliação.");
-        return;
-    }
+    // ✅ CORREÇÃO: Usa sempre os dados originais do KMZ como a "fonte da verdade".
+    const pivosParaReavaliar = (window.currentProcessedKmzData.pivos || []).map(p => ({
+        nome: p.nome, lat: p.lat, lon: p.lon
+    }));
 
-    // Coleta os dados mais recentes dos pivôs para enviar ao backend
-    const pivosAtuaisParaReavaliacao = (window.lastPivosDataDrawn || [])
-        .map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon }));
+    const bombasParaReavaliar = (window.currentProcessedKmzData.bombas || []).map(b => ({
+        nome: b.nome, lat: b.lat, lon: b.lon
+    }));
 
-    // Coleta os dados das bombas. A fonte principal é a carga inicial do KMZ.
-    const bombasParaReavaliar = (window.currentProcessedKmzData.bombas || [])
-        .map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon }));
-
-
-    // Fallback: Se a lista de pivôs desenhados estiver vazia, tenta reconstruir a partir do mapa ou dos dados originais
-    if (pivosAtuaisParaReavaliacao.length === 0 && Object.keys(pivotsMap).length > 0) {
-        console.warn("Reavaliando: lastPivosDataDrawn estava vazio, reconstruindo lista de pivôs.");
-        const pivosBase = window.currentProcessedKmzData.pivos || [];
-        pivosAtuaisParaReavaliacao.push(...pivosBase.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon })));
-    }
-
-    // Monta a lista de overlays ativos no mapa
+    // --- Coleta de Overlays Ativos (Lógica Refinada) ---
     const overlays = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
 
@@ -738,55 +738,39 @@ async function reavaliarPivosViaAPI() {
             });
         }
     });
+    
+    console.log(`📡 Encontrados ${overlays.length} overlays de sinal ativos para a reavaliação.`);
 
-    // Se não houver overlays visíveis, marca tudo como "fora" e encerra
-    if (overlays.length === 0) {
-        console.log("Nenhum overlay de sinal visível, marcando todos os itens como fora de cobertura.");
-        
-        const pivosFora = pivosAtuaisParaReavaliacao.map(p => ({ ...p, fora: true }));
-        window.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosFora));
-        drawPivos(pivosFora, true);
-
-        // ✅ ADIÇÃO: Marca as bombas como fora também
-        if (bombasParaReavaliar.length > 0) {
-            const bombasFora = bombasParaReavaliar.map(b => ({ ...b, fora: true }));
-            drawBombas(bombasFora);
-        }
-
-        atualizarPainelDados();
-        return;
-    }
-
-    // Se houver overlays, chama a API
     try {
+        // ✅ CORREÇÃO CRUCIAL: Monta o payload completo, com pivôs e bombas.
         const payload = {
             job_id: window.jobId,
-            pivos: pivosAtuaisParaReavaliacao,
-            bombas: bombasParaReavaliar, // ✅ ADIÇÃO: Envia as bombas no payload
+            pivos: pivosParaReavaliar,
+            bombas: bombasParaReavaliar,
             overlays
         };
         
-        // A função da API `reevaluatePivots` agora reavalia pivôs e bombas
         const data = await reevaluatePivots(payload);
 
-        // Trata a resposta para pivôs
+        // ✅ CORREÇÃO CRUCIAL: Processa a resposta completa e atualiza o estado de tudo.
         if (data.pivos) {
+            window.currentProcessedKmzData.pivos = data.pivos;
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
-            drawPivos(data.pivos, true);
-            console.log("Pivôs reavaliados.");
+            drawPivos(data.pivos, false);
+            console.log("✅ Pivôs reavaliados e redesenhados.");
         }
 
-        // ✅ ADIÇÃO: Trata a resposta para bombas
         if (data.bombas) {
+            window.currentProcessedKmzData.bombas = data.bombas;
             drawBombas(data.bombas);
-            console.log("Bombas reavaliadas.");
+            console.log("✅ Bombas reavaliadas e redesenhadas.");
         }
         
         atualizarPainelDados();
 
     } catch (error) {
-        console.error("Erro ao reavaliar cobertura via API:", error);
-        mostrarMensagem(t('messages.errors.reevaluate_fail'), "erro");
+        console.error("❌ Erro ao reavaliar cobertura via API:", error);
+        mostrarMensagem(t('messages.errors.reevaluate_fail', { error: error.message }), "erro");
     }
 }
 
