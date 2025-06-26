@@ -254,7 +254,8 @@ def _consolidate_pivos(
         if centro_lat is not None and centro_lon is not None:
             nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados, "Pivô")
             
-            final_pivos_list.append({"nome": nome_pivo_gerado, "lat": centro_lat, "lon": centro_lon})
+            # 👇 ALTERAÇÃO APLICADA AQUI
+            final_pivos_list.append({"nome": nome_pivo_gerado, "lat": centro_lat, "lon": centro_lon, "type": "pivo"}) # type: ignore
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
             logger.info(f"  -> 🛰️ Pivô (de ciclo) adicionado: {nome_pivo_gerado} ({centro_lat:.6f}, {centro_lon:.6f})")
         else:
@@ -262,12 +263,13 @@ def _consolidate_pivos(
             
     return final_pivos_list
 
+
 # --- Função Principal ---
 
 def parse_kmz(
     caminho_kmz_str: str,
     pasta_extracao_str: str
-) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]: # ALTERAÇÃO 1: O tipo de retorno agora é List[AntenaData]
+) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
     """
     Processa um arquivo KMZ, extrai dados de antenas, pivôs, ciclos e bombas.
     Retorna: Tupla contendo (lista_antenas, lista_pivos, lista_ciclos, lista_bombas).
@@ -275,7 +277,6 @@ def parse_kmz(
     caminho_kmz = Path(caminho_kmz_str)
     pasta_extracao = Path(pasta_extracao_str)
 
-    # ALTERAÇÃO 2: A variável DEVE ser uma lista para coletar todas as antenas.
     antenas_list: List[AntenaData] = []
     pivos_de_pontos_list: List[PivoData] = []
     ciclos_list: List[CicloData] = []
@@ -308,7 +309,6 @@ def parse_kmz(
                     match = HEIGHT_REGEX.search(nome_normalizado)
                     altura = int(match.group(1)) if match else DEFAULT_ANTENA_HEIGHT
                     
-                    # ALTERAÇÃO 3: A lógica correta é ADICIONAR à lista (append).
                     dados_antena_encontrada = {
                         "lat": lat, "lon": lon,
                         "altura": altura, "altura_receiver": DEFAULT_RECEIVER_HEIGHT,
@@ -318,11 +318,13 @@ def parse_kmz(
                     logger.info(f"  -> Antena Candidata encontrada: {nome_original} ({lat:.6f}, {lon:.6f}) Alt: {altura}m")
                 
                 elif any(keyword in nome_normalizado for keyword in PIVO_KEYWORDS) or re.match(r"p\s?\d+", nome_normalizado):
-                    pivos_de_pontos_list.append({"nome": nome_original, "lat": lat, "lon": lon})
+                    # 👇 ALTERAÇÃO APLICADA AQUI
+                    pivos_de_pontos_list.append({"nome": nome_original, "lat": lat, "lon": lon, "type": "pivo"}) # type: ignore
                     logger.info(f"  -> Pivô (Ponto) encontrado: {nome_original} ({lat:.6f}, {lon:.6f})")
 
                 elif any(keyword in nome_normalizado for keyword in BOMBA_KEYWORDS):
-                    bombas_list.append({"nome": nome_original, "lat": lat, "lon": lon})
+                    # 👇 ALTERAÇÃO APLICADA AQUI
+                    bombas_list.append({"nome": nome_original, "lat": lat, "lon": lon, "type": "bomba"}) # type: ignore
                     logger.info(f"  -> Bomba encontrada: {nome_original} ({lat:.6f}, {lon:.6f})")
                 
                 elif any(keyword in nome_normalizado for keyword in PONTA_RETA_KEYWORDS):
@@ -339,10 +341,8 @@ def parse_kmz(
         
         pivos_finais_list = _consolidate_pivos(pivos_de_pontos_list, ciclos_list, pontas_retas_map)
 
-        # ALTERAÇÃO 4: O log correto que deve aparecer no seu servidor, incluindo a contagem de antenas.
         logger.info(f"✅ Processamento KMZ concluído: {len(antenas_list)} antenas candidatas, {len(pivos_finais_list)} pivôs, {len(bombas_list)} bombas.")
         
-        # ALTERAÇÃO 5: O retorno correto da função, devolvendo a lista.
         return antenas_list, pivos_finais_list, ciclos_list, bombas_list
 
     except (ValueError, ET.ParseError) as e_parse:

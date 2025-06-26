@@ -468,13 +468,15 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
     // ✅ CORREÇÃO AQUI: Alterado 'imagem_filename_principal' para 'imagem_filename'
     if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename) {
-        const b = window.antenaGlobal.overlay.getBounds();
-        activeOverlaysForSearch.push({
-            id: 'antena_principal',
-            imagem: window.antenaGlobal.imagem_filename, // ✅ CORREÇÃO: Usando a propriedade correta
-            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-        });
-    }
+    const b = window.antenaGlobal.overlay.getBounds();
+    activeOverlaysForSearch.push({
+        id: 'antena_principal',
+        // ✅ CORREÇÃO: Usando a propriedade correta e padronizada
+        imagem: window.antenaGlobal.imagem_filename, 
+        bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+    });
+}
+
 
     repetidoras.forEach(rep => {
         const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
@@ -660,9 +662,9 @@ async function handleDiagnosticoClick() {
 function handleExportClick() {
     // ✅ CORREÇÃO: A verificação agora procura por 'imagem_filename'
     if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename || !window.jobId) {
-        mostrarMensagem(t('messages.errors.run_study_first'), "erro");
-        return;
-    }
+    mostrarMensagem(t('messages.errors.run_study_first'), "erro");
+    return;
+}
 
     try {
         const nomeImagemPrincipal = window.antenaGlobal.imagem_filename;
@@ -708,12 +710,13 @@ async function reavaliarPivosViaAPI() {
     }
 
     // ✅ CORREÇÃO: Usa sempre os dados originais do KMZ como a "fonte da verdade".
+    //    Esta parte já estava correta.
     const pivosParaReavaliar = (window.currentProcessedKmzData.pivos || []).map(p => ({
-        nome: p.nome, lat: p.lat, lon: p.lon
+        nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' // Adicionado 'type' para consistência
     }));
 
     const bombasParaReavaliar = (window.currentProcessedKmzData.bombas || []).map(b => ({
-        nome: b.nome, lat: b.lat, lon: b.lon
+        nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' // Adicionado 'type' para consistência
     }));
 
     // --- Coleta de Overlays Ativos (Lógica Refinada) ---
@@ -744,7 +747,6 @@ async function reavaliarPivosViaAPI() {
     console.log(`📡 Encontrados ${overlays.length} overlays de sinal ativos para a reavaliação.`);
 
     try {
-        // ✅ CORREÇÃO CRUCIAL: Monta o payload completo, com pivôs e bombas.
         const payload = {
             job_id: window.jobId,
             pivos: pivosParaReavaliar,
@@ -754,16 +756,17 @@ async function reavaliarPivosViaAPI() {
         
         const data = await reevaluatePivots(payload);
 
-        // ✅ CORREÇÃO CRUCIAL: Processa a resposta completa e atualiza o estado de tudo.
+        // ✅ CORREÇÃO CRUCIAL APLICADA AQUI:
         if (data.pivos) {
-            window.currentProcessedKmzData.pivos = data.pivos;
+            // A linha que modificava "window.currentProcessedKmzData.pivos" foi REMOVIDA.
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
             drawPivos(data.pivos, false);
             console.log("✅ Pivôs reavaliados e redesenhados.");
         }
 
         if (data.bombas) {
-            window.currentProcessedKmzData.bombas = data.bombas;
+            // A linha que modificava "window.currentProcessedKmzData.bombas" foi REMOVIDA.
+            // Apenas redesenhamos as bombas com o novo status.
             drawBombas(data.bombas);
             console.log("✅ Bombas reavaliadas e redesenhadas.");
         }

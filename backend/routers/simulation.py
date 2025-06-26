@@ -25,12 +25,14 @@ class PivoData(BaseModel):
     nome: str
     lat: float
     lon: float
+    type: Literal['pivo'] = 'pivo'
     fora: Optional[bool] = None
 
 class BombaData(BaseModel):
     nome: str
     lat: float
     lon: float
+    type: Literal['bomba'] = 'bomba'
     fora: Optional[bool] = None
 
 class AntenaSimPayload(BaseModel):
