@@ -24,7 +24,7 @@
       "out_of_coverage": "Fuera de cobertura:",
       "main_antenna": "Antena principal:",
       "receiver": "Receptor:",
-      "total_repeaters": "Total de Repetidores:",
+      "total_repeaters": "Total Repetidores:",
       "repeater": "Repetidor",
       "pump_houses": "Casas de bombas:",
       "pivo_distance_label": "Dist:",
@@ -37,25 +37,26 @@
       "export_kmz": "Exportar KMZ",
       "reset": "Reiniciar",
       "simulate": "Simular",
-      "save_edit": "Guardar Cambios"
+      "save_edit": "Guardar Edición"
     }
   },
   "messages": {
     "success": {
       "kmz_loaded_select_tower": "✅ KMZ cargado. Elija una torre para iniciar el estudio.",
       "simulation_complete": "📡 Estudio de señal completado.",
-      "los_diagnostic_complete": "🔍 Diagnóstico de línea de visión completado.",
+      "los_diagnostic_complete": "🔍 Diagnóstico de visión completado.",
       "repeater_added": "📡 Repetidor {id} añadido y simulado.",
       "tower_simulated_as_repeater": "📡 Torre '{name}' simulada como repetidor.",
       "app_reset": "🔄 Aplicación reiniciada.",
       "pivots_re-evaluated": "Pivotes reevaluados.",
-      "found_candidate_sites": "Se encontraron {count} sitios candidatos. Haga clic en uno para simular.",
+      "found_candidate_sites": "Se encontraron {count} ubicaciones candidatas. Haga clic en una para simular.",
       "edits_undone": "↩️ Ediciones deshechas. Modo de edición cerrado.",
-      "positions_updated": "💾 Posiciones actualizadas. Ejecute la simulación de nuevo para reflejar los cambios.",
+      "positions_updated": "💾 Posiciones actualizadas. Ejecute la simulación de nuevo para reflejar los cambios de cobertura.",
       "edit_mode_on": "✏️ Modo de edición activado. Arrastre los pines rojos. Haga clic derecho para eliminar.",
       "los_mode_on": "MODO DIAGNÓSTICO PIVOTE A PIVOTE: Seleccione el pivote de ORIGEN (con señal/verde).",
       "los_mode_off": "Modo 'Diagnóstico Pivote a Pivote' desactivado.",
-      "pivot_created": "¡Pivote \"{name}\" creado con éxito!"
+      "pivot_created": "¡Pivote \"{name}\" creado con éxito!",
+      "draw_pivot_still_active": "Modo de dibujo aún activo. Haga clic para definir un nuevo centro."
     },
     "errors": {
       "select_kmz": "Por favor, seleccione un archivo KMZ.",
@@ -63,7 +64,7 @@
       "simulation_fail": "Fallo en la simulación: {error}",
       "run_study_first": "⚠️ ¡Ejecute el estudio de señal primero!",
       "invalid_data_or_session": "⚠️ ¡Datos de antena o ID de sesión inválidos!",
-      "no_coverage_to_search": "No hay área de señal activa para basar la búsqueda. Habilite alguna cobertura."
+      "no_coverage_to_search": "No hay área de señal activa (antena/repetidores) para basar la búsqueda. Active alguna cobertura."
     },
     "info": {
       "no_towers_found": "No se encontraron torres en el KMZ. Puede añadir repetidores manualmente.",
@@ -79,13 +80,12 @@
   },
   "tooltips": {
     "in_signal": "✅ Con señal",
-    "out_of_signal": "❌ Sin señal",
+    "out_of_signal": "❌ Fuera de señal",
     "blockage_point": "Punto Crítico: Elev. {elevation}m",
     "blockage_present": "⛔ Bloqueo: {diff}m por encima",
     "los_clear_at_critical_point": "✅ Libre en Punto Crítico ({diff}m)",
     "highest_point": "Punto Más Alto: Elev. {elevation}m",
-    "los_ok": "✅ Visión Directa OK",
-    "los_no": "⛔ Visión Obstruida",
-    "tower_suggestion": "Sugerencia: Torre de {height}m"
+    "los_ok": "✅ Visión Libre",
+    "los_no": "⛔ Visión Obstruida"
   }
 }

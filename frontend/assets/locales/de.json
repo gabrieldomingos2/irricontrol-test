@@ -16,7 +16,7 @@
     },
     "labels": {
       "template": "🌐 Vorlage:",
-      "choose_kmz": "KMZ-Datei auswählen",
+      "choose_kmz": "KMZ-Datei wählen",
       "tools": "Werkzeuge",
       "antenna_height": "Antennenhöhe (m)",
       "receiver_height": "Empfängerhöhe (m)",
@@ -37,7 +37,7 @@
       "export_kmz": "KMZ exportieren",
       "reset": "Zurücksetzen",
       "simulate": "Simulieren",
-      "save_edit": "Änderungen speichern"
+      "save_edit": "Bearbeitung speichern"
     }
   },
   "messages": {
@@ -49,13 +49,14 @@
       "tower_simulated_as_repeater": "📡 Turm '{name}' als Repeater simuliert.",
       "app_reset": "🔄 Anwendung zurückgesetzt.",
       "pivots_re-evaluated": "Pivots neu bewertet.",
-      "found_candidate_sites": "{count} mögliche Standorte gefunden. Klicken Sie auf einen, um zu simulieren.",
-      "edits_undone": "↩️ Änderungen rückgängig gemacht. Bearbeitungsmodus beendet.",
-      "positions_updated": "💾 Positionen aktualisiert. Führen Sie die Simulation erneut aus, um Änderungen zu sehen.",
-      "edit_mode_on": "✏️ Bearbeitungsmodus aktiviert. Ziehen Sie die roten Stifte. Rechtsklick zum Entfernen.",
-      "los_mode_on": "PIVOT-ZU-PIVOT-DIAGNOSEMODUS: Wählen Sie den URSPRUNGS-Pivot (mit Signal/grün).",
-      "los_mode_off": "Pivot-zu-Pivot-Diagnosemodus deaktiviert.",
-      "pivot_created": "Pivot \"{name}\" erfolgreich erstellt!"
+      "found_candidate_sites": "{count} Kandidaten-Standorte gefunden. Klicken Sie auf einen, um zu simulieren.",
+      "edits_undone": "↩️ Bearbeitungen rückgängig gemacht. Bearbeitungsmodus geschlossen.",
+      "positions_updated": "💾 Positionen aktualisiert. Führen Sie die Simulation erneut aus, um Abdeckungsänderungen zu sehen.",
+      "edit_mode_on": "✏️ Bearbeitungsmodus aktiviert. Ziehen Sie die roten Pins. Rechtsklick zum Entfernen.",
+      "los_mode_on": "PIVOT-ZU-PIVOT-DIAGNOSEMODUS: Wählen Sie den QUELL-Pivot (mit Signal/grün).",
+      "los_mode_off": "Modus 'Pivot-zu-Pivot-Diagnose' deaktiviert.",
+      "pivot_created": "Pivot \"{name}\" erfolgreich erstellt!",
+      "draw_pivot_still_active": "Zeichenmodus noch aktiv. Klicken Sie, um ein neues Zentrum festzulegen."
     },
     "errors": {
       "select_kmz": "Bitte wählen Sie eine KMZ-Datei aus.",
@@ -63,7 +64,7 @@
       "simulation_fail": "Simulation fehlgeschlagen: {error}",
       "run_study_first": "⚠️ Führen Sie zuerst die Signalstudie durch!",
       "invalid_data_or_session": "⚠️ Ungültige Antennendaten oder Sitzungs-ID!",
-      "no_coverage_to_search": "Kein aktiver Signalbereich für die Suche vorhanden. Aktivieren Sie eine Abdeckung."
+      "no_coverage_to_search": "Kein aktiver Signalbereich (Antenne/Repeater) für die Suche vorhanden. Aktivieren Sie eine Abdeckung."
     },
     "info": {
       "no_towers_found": "Keine Türme in der KMZ-Datei gefunden. Sie können Repeater manuell hinzufügen.",
@@ -79,13 +80,12 @@
   },
   "tooltips": {
     "in_signal": "✅ Mit Signal",
-    "out_of_signal": "❌ Ohne Signal",
+    "out_of_signal": "❌ Außerhalb des Signals",
     "blockage_point": "Kritischer Punkt: Höhe {elevation}m",
     "blockage_present": "⛔ Blockade: {diff}m darüber",
     "los_clear_at_critical_point": "✅ Frei am kritischen Punkt ({diff}m)",
     "highest_point": "Höchster Punkt: Höhe {elevation}m",
-    "los_ok": "✅ Sichtverbindung OK",
-    "los_no": "⛔ Sicht Obstruiert",
-    "tower_suggestion": "Vorschlag: {height}m Turm"
+    "los_ok": "✅ Freie Sicht",
+    "los_no": "⛔ Sicht verdeckt"
   }
 }

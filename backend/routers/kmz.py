@@ -2,13 +2,15 @@
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
+# ✅ Adicionado: Importar BaseModel do Pydantic e tipos adicionais
+from pydantic import BaseModel
+from typing import List, Dict, Any
 import zipfile
 import json 
 import simplekml 
 from datetime import datetime 
 from pathlib import Path
 import logging
-from typing import List
 import uuid
 
 from backend.services import kmz_parser
@@ -43,7 +45,6 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         antenas, pivos, ciclos, bombas = kmz_parser.parse_kmz(str(input_kmz_path), str(job_input_dir))
         parsed_data_path = job_input_dir / "parsed_data.json"
         parsed_content = {
-
             "antenas": antenas,
             "pivos": pivos,
             "ciclos": ciclos,
@@ -62,79 +63,66 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         logger.error(f"❌ Erro Interno em /kmz/processar (job: {job_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro interno ao processar KMZ: {type(e).__name__} - {str(e)}")
 
-@router.get("/exportar")
-async def exportar_kmz_endpoint(
-    background_tasks: BackgroundTasks,
-    job_id: str = Query(..., description="O ID único do job retornado pelo endpoint /processar."),
-    imagem: str = Query(..., description="Nome do arquivo da imagem PNG principal."),
-    bounds_file: str = Query(..., description="Nome do arquivo JSON de bounds principal."),
-    antena_principal_data: str = Query(..., description="String JSON com os dados da antena principal selecionada."),
-    
-    # ✅ INÍCIO DAS ALTERAÇÕES: Adiciona os novos parâmetros para receber os dados atuais.
-    pivos_data: str = Query(..., description="String JSON com a lista atual de pivôs."),
-    ciclos_data: str = Query('[]', description="String JSON com a lista atual de ciclos."),
-    # ✅ FIM DAS ALTERAÇÕES
+# ✅ NOVO: Modelo Pydantic para o corpo da requisição POST de exportação
+class ExportPayload(BaseModel):
+    job_id: str
+    imagem: str
+    bounds_file: str
+    antena_principal_data: Dict[str, Any]
+    pivos_data: List[Dict[str, Any]]
+    ciclos_data: List[Dict[str, Any]]
+    repetidoras_data: List[Dict[str, Any]]
 
-    repetidoras_data: str = Query('[]', description="String JSON com os dados das repetidoras selecionadas.")
-):
-    logger.info(f"📦 Iniciando exportação KMZ para o job: {job_id}")
+# ✅ ALTERADO: O endpoint agora é um POST e recebe o payload no corpo
+@router.post("/exportar")
+async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: BackgroundTasks):
+    logger.info(f"📦 Iniciando exportação KMZ via POST para o job: {payload.job_id}")
 
-    job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
-    job_images_dir = settings.IMAGENS_DIR_PATH / job_id
+    job_input_dir = settings.ARQUIVOS_DIR_PATH / payload.job_id
+    job_images_dir = settings.IMAGENS_DIR_PATH / payload.job_id
     
-    caminho_imagem_principal_servidor = job_images_dir / imagem
-    caminho_bounds_principal_servidor = job_images_dir / bounds_file
+    caminho_imagem_principal_servidor = job_images_dir / payload.imagem
+    caminho_bounds_principal_servidor = job_images_dir / payload.bounds_file
 
     if not caminho_imagem_principal_servidor.exists():
-        raise HTTPException(status_code=404, detail=f"Imagem principal '{imagem}' não encontrada no job '{job_id}'.")
+        raise HTTPException(status_code=404, detail=f"Imagem principal '{payload.imagem}' não encontrada no job '{payload.job_id}'.")
     if not caminho_bounds_principal_servidor.exists():
-        raise HTTPException(status_code=404, detail=f"Bounds '{bounds_file}' não encontrados no job '{job_id}'.")
+        raise HTTPException(status_code=404, detail=f"Bounds '{payload.bounds_file}' não encontrados no job '{payload.job_id}'.")
 
     try:
-        lista_repetidoras_selecionadas = json.loads(repetidoras_data)
-        if not isinstance(lista_repetidoras_selecionadas, list):
-            raise ValueError("O JSON das repetidoras deve ser uma lista de objetos.")
-
+        # Carrega os dados diretamente do payload Pydantic
+        lista_repetidoras_selecionadas = payload.repetidoras_data
+        antena_data = payload.antena_principal_data
+        pivos_data_list = payload.pivos_data
+        ciclos_data_list = payload.ciclos_data
+        
         metadata_path = job_input_dir / "job_metadata.json"
         if not metadata_path.exists():
-            raise HTTPException(status_code=404, detail=f"Metadados do job '{job_id}' não encontrados.")
+            raise HTTPException(status_code=404, detail=f"Metadados do job '{payload.job_id}' não encontrados.")
 
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
         
         template_id_do_job = metadata.get("template_id")
         if not template_id_do_job:
-            raise HTTPException(status_code=500, detail=f"O arquivo de metadados do job '{job_id}' não contém um 'template_id'.")
+            raise HTTPException(status_code=500, detail=f"O arquivo de metadados do job '{payload.job_id}' não contém um 'template_id'.")
 
         selected_template = settings.obter_template(template_id_do_job)
         if not selected_template:
             raise HTTPException(status_code=404, detail=f"O template com ID '{template_id_do_job}' não foi encontrado.")
 
-        logger.info(f"Template '{selected_template.id}' lido dos metadados do job.")
-        
-        study_date_str = datetime.now().strftime('%Y-%m-%d')
+        logger.info(f"  -> Template '{selected_template.id}' lido dos metadados do job.")
         
         parsed_data_path = job_input_dir / "parsed_data.json"
-        if not parsed_data_path.exists():
-            raise HTTPException(status_code=404, detail=f"Dados processados para o job '{job_id}' não encontrados.")
-        
-        logger.info(f"  -> Lendo dados parseados de: {parsed_data_path}")
-        with open(parsed_data_path, "r", encoding="utf-8") as f:
-            parsed_data = json.load(f)
-        
-        # 👇 ALTERAÇÃO 2: Carregar os dados da antena a partir do novo parâmetro da URL,
-        # em vez de tentar ler do arquivo JSON, que não tem mais a chave 'antena'.
-        antena_data = json.loads(antena_principal_data)
-        
-        # O resto dos dados continua vindo do arquivo parseado.
-        pivos_data_list = json.loads(pivos_data)
-        ciclos_data_list = json.loads(ciclos_data)
-        bombas_data = parsed_data.get("bombas", [])
+        bombas_data = []
+        if parsed_data_path.exists():
+            with open(parsed_data_path, "r", encoding="utf-8") as f:
+                parsed_data = json.load(f)
+                bombas_data = parsed_data.get("bombas", [])
 
         with open(caminho_bounds_principal_servidor, "r") as f:
             bounds_principal_data = json.load(f).get("bounds")
-
-        # Esta verificação agora funcionará corretamente.
+        
         if not antena_data or not bounds_principal_data:
             raise HTTPException(status_code=500, detail="Dados essenciais (antena, bounds_principal) ausentes para exportar.")
 
@@ -147,11 +135,11 @@ async def exportar_kmz_endpoint(
             pivos_data=pivos_data_list,
             ciclos_data=ciclos_data_list,
             bombas_data=bombas_data,
-            imagem_principal_nome_relativo=imagem, 
+            imagem_principal_nome_relativo=payload.imagem, 
             bounds_principal_data=bounds_principal_data,
             generated_images_dir=job_images_dir,
             selected_template=selected_template,
-            study_date_str_for_subfolder=study_date_str,
+            study_date_str_for_subfolder=datetime.now().strftime('%Y-%m-%d'),
             repetidoras_selecionadas_data=lista_repetidoras_selecionadas
         )
 
@@ -185,15 +173,15 @@ async def exportar_kmz_endpoint(
             background=background_tasks
         )
     except FileNotFoundError as fnfe:
-        logger.error(f"❌ Arquivo não encontrado durante a exportação (job: {job_id}): {fnfe}", exc_info=True)
+        logger.error(f"❌ Arquivo não encontrado durante a exportação (job: {payload.job_id}): {fnfe}", exc_info=True)
         raise HTTPException(status_code=404, detail=f"Arquivo necessário não encontrado: {str(fnfe)}")
     except Exception as e:
-        logger.error(f"❌ Erro Interno em /kmz/exportar (job: {job_id}): {e}", exc_info=True)
+        logger.error(f"❌ Erro Interno em /kmz/exportar (job: {payload.job_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao exportar KMZ: {type(e).__name__} - {str(e)}")
 
 @router.get("/icone-torre")
 async def get_icone_torre():
-    caminho_icone = settings.IMAGENS_DIR_PATH / "cloudrf.png" # Usando o nome diretamente
+    caminho_icone = settings.IMAGENS_DIR_PATH / "cloudrf.png"
     if caminho_icone.is_file():
         return FileResponse(str(caminho_icone), media_type="image/png")
     logger.warning(f"Ícone da torre não encontrado no caminho base: {caminho_icone}")

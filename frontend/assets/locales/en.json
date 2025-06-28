@@ -33,29 +33,30 @@
     "buttons": {
       "load_kmz": "Load KMZ",
       "run_study": "Run Signal Study",
-      "run_los_diagnostic": "LoS Diagnostic",
+      "run_los_diagnostic": "Line of Sight Diagnostic",
       "export_kmz": "Export KMZ",
       "reset": "Reset",
       "simulate": "Simulate",
-      "save_edit": "Save Edits"
+      "save_edit": "Save Edit"
     }
   },
   "messages": {
     "success": {
       "kmz_loaded_select_tower": "✅ KMZ loaded. Choose a tower to start the study.",
       "simulation_complete": "📡 Signal study complete.",
-      "los_diagnostic_complete": "🔍 Line of sight diagnostic complete.",
+      "los_diagnostic_complete": "🔍 Line of sight diagnosis complete.",
       "repeater_added": "📡 Repeater {id} added and simulated.",
       "tower_simulated_as_repeater": "📡 Tower '{name}' simulated as a repeater.",
       "app_reset": "🔄 Application reset.",
       "pivots_re-evaluated": "Pivots re-evaluated.",
-      "found_candidate_sites": "Found {count} candidate sites. Click one to simulate.",
+      "found_candidate_sites": "Found {count} candidate locations. Click one to simulate.",
       "edits_undone": "↩️ Edits undone. Editing mode closed.",
-      "positions_updated": "💾 Positions updated. Run the simulation again to reflect changes in coverage.",
-      "edit_mode_on": "✏️ Edit mode enabled. Drag the red pins. Right-click to remove.",
-      "los_mode_on": "PIVOT-TO-PIVOT DIAGNOSTIC MODE: Select the ORIGIN pivot (with signal/green).",
-      "los_mode_off": "Pivot-to-Pivot Diagnostic mode disabled.",
-      "pivot_created": "Pivot \"{name}\" created successfully!"
+      "positions_updated": "💾 Positions updated. Run the simulation again to reflect coverage changes.",
+      "edit_mode_on": "✏️ Editing mode enabled. Drag the red pins. Right-click to remove.",
+      "los_mode_on": "PIVOT-TO-PIVOT DIAGNOSTIC MODE: Select the SOURCE pivot (with signal/green).",
+      "los_mode_off": "'Pivot-to-Pivot Diagnostic' mode disabled.",
+      "pivot_created": "Pivot \"{name}\" created successfully!",
+      "draw_pivot_still_active": "Drawing mode is still active. Click to create a new center."
     },
     "errors": {
       "select_kmz": "Please select a KMZ file.",
@@ -67,7 +68,7 @@
     },
     "info": {
       "no_towers_found": "No towers found in the KMZ. You can add repeaters manually.",
-      "no_uncovered_pivots": "✅ No uncovered pivots to diagnose.",
+      "no_uncovered_pivots": "✅ No pivots out of coverage to diagnose.",
       "analyzing_pivots": "🔍 Analyzing {count} pivots...",
       "los_origin_selected": "ORIGIN: {name} selected. Now select the DESTINATION pivot (no signal/red).",
       "los_origin_is_target": "ORIGIN: {name} is already the origin. Select a DESTINATION pivot.",
@@ -84,8 +85,7 @@
     "blockage_present": "⛔ Blockage: {diff}m above",
     "los_clear_at_critical_point": "✅ Clear at Critical Point ({diff}m)",
     "highest_point": "Highest Point: Elev. {elevation}m",
-    "los_ok": "✅ LoS OK",
-    "los_no": "⛔ LoS Obstructed",
-    "tower_suggestion": "Suggested: {height}m Tower"
+    "los_ok": "✅ Clear LoS",
+    "los_no": "⛔ Obstructed LoS"
   }
 }

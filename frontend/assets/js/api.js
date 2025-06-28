@@ -143,38 +143,52 @@ async function getElevationProfile(payload) {
 }
 
 /**
- * 👇 ALTERADO: A função agora aceita 'jobId' como o primeiro parâmetro.
- * Gera a URL para baixar o arquivo KMZ exportado.
- * @param {string} jobId - O ID do job atual.
- * @param {string} imagem - Nome do arquivo de imagem principal.
- * @param {string} boundsFile - Nome do arquivo JSON de bounds.
- * @param {Array<object>} [repetidorasData=[]] - Array de objetos com os dados detalhados das repetidoras.
- * @returns {string} - A URL completa para download.
+ * ✅ NOVO E CORRIGIDO: Envia os dados via POST para gerar e baixar o arquivo KMZ.
+ * @param {object} payload - O objeto contendo todos os dados para a exportação.
  */
-function getExportKmzUrl(jobId, antenaPrincipalData, pivosData, ciclosData, imagem, boundsFile, repetidorasData = []) {
-    if (!jobId || !antenaPrincipalData) {
-        console.error("Erro fatal: Job ID e dados da antena principal são necessários para exportar.");
-        mostrarMensagem("Erro: Dados da sessão ou da antena principal não encontrados para exportação.", "erro");
-        return "#";
+async function exportKmz(payload) {
+  try {
+    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/kmz/exportar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(`Erro ${response.status}: ${errorData.detail || 'Falha na exportação'}`);
     }
 
-    // Converte os objetos em strings JSON para enviar pela URL
-    const antenaJsonString = JSON.stringify(antenaPrincipalData);
-    const pivosJsonString = JSON.stringify(pivosData);
-    const ciclosJsonString = JSON.stringify(ciclosData);
-    const repetidorasJsonString = JSON.stringify(repetidorasData);
+    // Pega o nome do arquivo do header da resposta
+    const disposition = response.headers.get('content-disposition');
+    let filename = 'estudo-irricontrol.kmz';
+    if (disposition && disposition.indexOf('attachment') !== -1) {
+      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+      const matches = filenameRegex.exec(disposition);
+      if (matches != null && matches[1]) {
+        filename = matches[1].replace(/['"]/g, '');
+      }
+    }
 
-    // Constrói a URL completa com todos os parâmetros
-    let url = new URL(`${BACKEND_URL}${API_PREFIX}/kmz/exportar`);
-    url.searchParams.append('job_id', jobId);
-    url.searchParams.append('imagem', imagem);
-    url.searchParams.append('bounds_file', boundsFile);
-    url.searchParams.append('antena_principal_data', antenaJsonString);
-    url.searchParams.append('pivos_data', pivosJsonString);
-    url.searchParams.append('ciclos_data', ciclosJsonString);
-    url.searchParams.append('repetidoras_data', repetidorasJsonString);
+    // Converte a resposta em um 'blob' (arquivo binário)
+    const blob = await response.blob();
+    
+    // Cria uma URL temporária para o arquivo e simula um clique para iniciar o download
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
 
-    return url.toString();
+  } catch (error) {
+    console.error("Erro ao exportar KMZ:", error);
+    mostrarMensagem(`Falha ao exportar KMZ: ${error.message}`, "erro");
+    throw error;
+  }
 }
 
 /**
@@ -203,7 +217,7 @@ async function findHighPointsForRepeater(payload) {
 }
 
 /**
- * ✅ NOVO: Envia os dados para gerar um novo pivô no centro de um círculo.
+ * Envia os dados para gerar um novo pivô no centro de um círculo.
  * @param {object} payload - Contém job_id, as coordenadas do centro e a lista de pivôs atuais.
  * @returns {Promise<object>} - A resposta da API com o novo pivô.
  */
@@ -225,4 +239,3 @@ async function generatePivotInCircle(payload) {
     throw error;
   }
 }
-

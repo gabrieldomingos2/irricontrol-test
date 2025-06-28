@@ -55,7 +55,8 @@
       "edit_mode_on": "✏️ Modo de edição ativado. Arraste os pinos vermelhos. Clique com botão direito para remover.",
       "los_mode_on": "MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal/verde).",
       "los_mode_off": "Modo 'Diagnóstico Pivô a Pivô' desativado.",
-      "pivot_created": "Pivô \"{name}\" criado com sucesso!"
+      "pivot_created": "Pivô \"{name}\" criado com sucesso!",
+      "draw_pivot_still_active": "Modo de desenho ainda ativo. Clique para criar um novo centro."
     },
     "errors": {
       "select_kmz": "Por favor, selecione um arquivo KMZ.",

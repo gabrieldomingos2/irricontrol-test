@@ -72,7 +72,7 @@ function setupMainActionListeners() {
     
     // Listeners do mapa
     map.on("click", handleMapClick); 
-    map.on("contextmenu", handleCancelDraw); // ✅ ADICIONADO: Listener para o clique direito
+    map.on("contextmenu", handleCancelDraw);
 
     // Listeners de botões da UI
     document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
@@ -183,7 +183,6 @@ async function startMainSimulation(antenaData) {
         const data = await simulateSignal(payload);
         console.log("✅ Simulação principal concluída:", data);
 
-        // Remove o item da lista de candidatos
         if (antenaCandidatesLayerGroup) {
             const idParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
             const camadasParaRemover = [];
@@ -554,19 +553,16 @@ function handlePivotDrawMouseMove(e) {
 }
 
 async function handlePivotDrawClick(e) {
-    // Verificação de segurança: não permite criar pivô sem um estudo carregado
     if (!window.jobId) {
         mostrarMensagem(t('messages.errors.run_study_first'), "erro");
-        toggleModoDesenhoPivo(); // Desativa o modo automaticamente
+        toggleModoDesenhoPivo();
         return;
     }
 
-    // Primeiro clique: define o centro
     if (!centroPivoTemporario) {
         centroPivoTemporario = e.latlng;
         mostrarMensagem(t('messages.info.draw_pivot_step2'), "info");
     }
-    // Segundo clique: define o raio e cria o pivô e o círculo permanente
     else {
         const radiusPoint = e.latlng;
         if (typeof drawTempCircle === 'function') {
@@ -582,12 +578,9 @@ async function handlePivotDrawClick(e) {
 
         try {
             const result = await generatePivotInCircle(payload);
-            
             const novoPivo = { ...result.novo_pivo, fora: true };
-
             const radiusInMeters = centroPivoTemporario.distanceTo(radiusPoint);
             const circleCoords = generateCircleCoords(centroPivoTemporario, radiusInMeters);
-
             const novoCiclo = {
                 nome_original_circulo: `Ciclo ${novoPivo.nome}`,
                 coordenadas: circleCoords
@@ -595,39 +588,31 @@ async function handlePivotDrawClick(e) {
 
             window.lastPivosDataDrawn.push(novoPivo);
             window.ciclosGlobais.push(novoCiclo);
-            
-            if (window.currentProcessedKmzData?.pivos) {
-                window.currentProcessedKmzData.pivos.push(novoPivo);
-            }
-            if (window.currentProcessedKmzData?.ciclos) {
-                window.currentProcessedKmzData.ciclos.push(novoCiclo);
-            }
+            if (window.currentProcessedKmzData?.pivos) window.currentProcessedKmzData.pivos.push(novoPivo);
+            if (window.currentProcessedKmzData?.ciclos) window.currentProcessedKmzData.ciclos.push(novoCiclo);
 
-            if (typeof drawPivos === 'function') {
-                drawPivos(window.lastPivosDataDrawn, false);
-            }
-            if (typeof drawCirculos === 'function') {
-                drawCirculos(window.ciclosGlobais);
-            }
+            if (typeof drawPivos === 'function') drawPivos(window.lastPivosDataDrawn, false);
+            if (typeof drawCirculos === 'function') drawCirculos(window.ciclosGlobais);
+            if (typeof atualizarPainelDados === 'function') atualizarPainelDados();
 
-            if (typeof atualizarPainelDados === 'function') {
-                atualizarPainelDados();
-            }
-
-            // ✅ INÍCIO DA NOVA LÓGICA: "MINI-SAVE" AUTOMÁTICO
-            // Chama a reavaliação da API para que o novo pivô já mostre seu status de cobertura (cor e tooltip).
             await reavaliarPivosViaAPI();
-            // ✅ FIM DA NOVA LÓGICA
             
             mostrarMensagem(t('messages.success.pivot_created', { name: novoPivo.nome }), "sucesso");
+            
+            setTimeout(() => {
+                if(window.modoDesenhoPivo) {
+                    mostrarMensagem(t('messages.info.draw_pivot_still_active'), "info");
+                }
+            }, 4100);
+
 
         } catch (error) {
             console.error("Falha ao criar o pivô:", error);
         } finally {
             mostrarLoader(false);
+            
             centroPivoTemporario = null;
             if (typeof removeTempCircle === 'function') removeTempCircle();
-            if (window.modoDesenhoPivo) toggleModoDesenhoPivo(); 
         }
     }
 }
@@ -763,16 +748,16 @@ async function handleDiagnosticoClick() {
     mostrarMensagem(t('messages.success.los_diagnostic_complete'), "sucesso");
 }
 
-function handleExportClick() {
+async function handleExportClick() {
     if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename || !window.jobId) {
         mostrarMensagem(t('messages.errors.run_study_first'), "erro");
         return;
     }
 
+    mostrarLoader(true);
+    mostrarMensagem(t('messages.success.kmz_export_preparing'), "info");
+
     try {
-        const nomeImagemPrincipal = window.antenaGlobal.imagem_filename;
-        const nomeBoundsPrincipal = nomeImagemPrincipal.replace(/\.png$/, '.json');
-        
         const repetidorasSelecionadasParaExport = [];
         repetidoras.forEach(rep => {
             const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
@@ -793,24 +778,25 @@ function handleExportClick() {
             altura_receiver: window.antenaGlobal.altura_receiver
         };
 
-        // ✅ ALTERAÇÃO: Chamando a nova versão de getExportKmzUrl com os dados atuais das variáveis globais.
-        const url = getExportKmzUrl(
-            window.jobId, 
-            antenaDataParaExport, 
-            window.lastPivosDataDrawn,      // <--- DADOS ATUALIZADOS DE PIVÔS
-            window.ciclosGlobais,           // <--- DADOS ATUALIZADOS DE CÍRCULOS
-            nomeImagemPrincipal, 
-            nomeBoundsPrincipal, 
-            repetidorasSelecionadasParaExport
-        );
-        
-        if (url && url !== "#") {
-            window.open(url, '_blank');
-            mostrarMensagem(t('messages.success.kmz_export_preparing'), "sucesso");
-        }
+        // 1. Monta o objeto de payload com todos os dados
+        const payload = {
+            job_id: window.jobId,
+            imagem: window.antenaGlobal.imagem_filename,
+            bounds_file: window.antenaGlobal.imagem_filename.replace(/\.png$/, '.json'),
+            antena_principal_data: antenaDataParaExport,
+            pivos_data: window.lastPivosDataDrawn,
+            ciclos_data: window.ciclosGlobais,
+            repetidoras_data: repetidorasSelecionadasParaExport
+        };
+
+        // 2. Chama a nova função 'exportKmz' que faz o POST
+        await exportKmz(payload);
+
     } catch (error) {
-        console.error("Erro ao exportar KMZ:", error);
-        mostrarMensagem(t('messages.errors.kmz_export_fail', { error: error.message }), "erro");
+        // A função da API já mostra a mensagem de erro detalhada
+        console.error("Erro no processo de exportação KMZ:", error);
+    } finally {
+        mostrarLoader(false);
     }
 }
 
@@ -1217,10 +1203,6 @@ function handleToggleDistanciasPivos() {
     }
 }
 
-/**
- * ✅ NOVO: Cancela a operação de desenho de pivô com o botão direito do mouse.
- * @param {L.LeafletEvent} e O evento de clique do Leaflet.
- */
 function handleCancelDraw(e) {
     // Só executa se estivermos no modo de desenho e já tivermos um ponto central definido
     if (window.modoDesenhoPivo && centroPivoTemporario) {
