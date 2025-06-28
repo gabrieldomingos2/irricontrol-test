@@ -1,3 +1,5 @@
+import re
+from backend.services.kmz_parser import normalizar_nome
 from PIL import Image
 import httpx
 from math import sqrt, radians, sin, cos, atan2, degrees
@@ -63,6 +65,11 @@ class CandidateSite(TypedDict):
     distance_to_target: float
     ponto_bloqueio: Optional[Union[BlockageInfo, Dict[str, str]]]
     altura_necessaria_torre: Optional[float]
+
+class GeneratePivotPayload(BaseModel):
+    job_id: str
+    center: Tuple[float, float] = Field(..., description="Coordenadas [lat, lon] do centro do círculo.")
+    pivos_atuais: List[PivoData] = Field(..., description="Lista de todos os pivôs atualmente no frontend.")  
 
 # --- Análise de Cobertura (sem alterações) ---
 def verificar_cobertura_pivos(pivos: List[PivoInputData], overlays_info: List[OverlayInputData]) -> List[PivoInputData]:
@@ -477,3 +484,53 @@ async def encontrar_locais_altos_para_repetidora(
     ))
     MAX_SITES_PARA_RETORNAR = 25
     return candidate_sites_list[:MAX_SITES_PARA_RETORNAR]
+
+
+def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
+    """
+    Analisa os nomes dos pivôs existentes e encontra o próximo número sequencial.
+    Ex: Se "Pivô 3", "Pivô Teste 5" existem, retorna 6.
+    """
+    max_number = 0
+    # Regex para encontrar um ou mais dígitos no final do nome, opcionalmente precedido por espaço.
+    regex = re.compile(r'(\d+)$') 
+
+    for pivo in pivos:
+        nome_norm = normalizar_nome(pivo['nome'])
+        match = regex.search(nome_norm)
+        if match:
+            number = int(match.group(1))
+            if number > max_number:
+                max_number = number
+    
+    return max_number + 1
+
+def generate_pivot_at_center(
+    center_lat: float, 
+    center_lon: float, 
+    existing_pivos: List[PivoInputData]
+) -> PivoInputData:
+    """
+    Gera um novo pivô no ponto central com um nome sequencial único.
+
+    Retorna:
+        Um dicionário contendo os dados do novo pivô criado.
+    """
+    logger.info(f"💡 Gerando novo pivô em ({center_lat:.6f}, {center_lon:.6f}).")
+    
+    # 1. Encontrar o próximo número de pivô disponível
+    next_num = _find_next_pivot_number(existing_pivos)
+    new_pivot_name = f"Pivô {next_num}"
+
+    logger.info(f"  -> Nome do novo pivô determinado: '{new_pivot_name}'")
+
+    # 2. Criar o objeto do novo pivô
+    new_pivot_data: PivoInputData = {
+        "nome": new_pivot_name,
+        "lat": center_lat,
+        "lon": center_lon,
+        "type": "pivo",
+        "fora": None # O status de cobertura será definido posteriormente
+    }
+
+    return new_pivot_data

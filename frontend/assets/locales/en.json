@@ -24,6 +24,7 @@
       "main_antenna": "Main antenna:",
       "receiver": "Receiver:",
       "total_repeaters": "Total Repeaters:",
+      "repeater": "Repeater",
       "pump_houses": "Pump houses:",
       "pivo_distance_label": "Dist:",
       "processing": "Processing..."

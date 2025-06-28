@@ -196,3 +196,27 @@ async function findHighPointsForRepeater(payload) {
     throw error;
   }
 }
+
+/**
+ * ✅ NOVO: Envia os dados para gerar um novo pivô no centro de um círculo.
+ * @param {object} payload - Contém job_id, as coordenadas do centro e a lista de pivôs atuais.
+ * @returns {Promise<object>} - A resposta da API com o novo pivô.
+ */
+async function generatePivotInCircle(payload) {
+  try {
+    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/generate_pivot_in_circle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(`Erro ${response.status}: ${errorData.detail || 'Erro desconhecido'}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro ao gerar novo pivô:", error);
+    mostrarMensagem(`Falha ao criar pivô: ${error.message}`, "erro");
+    throw error;
+  }
+}

@@ -11,13 +11,9 @@ window.losTargetPivot = null;
 window.modoBuscaLocalRepetidora = false;
 window.pivoAlvoParaLocalRepetidora = null;
 window.ciclosGlobais = [];
+window.lastBombasDataDrawn = [];
+window.modoDesenhoPivo = false;
 window.antenaGlobal = null; 
-window.distanciasPivosVisiveis = false;
-window.lastPivosDataDrawn = [];
-window.currentProcessedKmzData = null;
-
-// Novas/Modificadas variáveis globais para a funcionalidade de distância
-window.antenaGlobal = null; // Será um objeto como { lat, lon, altura, altura_receiver, nome, overlay, bounds, imagem_filename_principal }
 window.distanciasPivosVisiveis = false;
 window.lastPivosDataDrawn = [];
 window.currentProcessedKmzData = null;
@@ -38,6 +34,7 @@ let overlaysVisiveis = [];
 let templateSelecionado = "";
 let linhasDiagnostico = [];
 let marcadoresBloqueio = [];
+let centroPivoTemporario = null;
 
 
 // --- Inicialização ---
@@ -45,7 +42,7 @@ let marcadoresBloqueio = [];
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("DOM Carregado. Iniciando Aplicação...");
     
-    // Adicionado: Inicializa o sistema de tradução antes de tudo
+    // Inicializa o sistema de tradução antes de tudo
     const savedLang = localStorage.getItem('preferredLanguage') || 'pt-br';
     await setLanguage(savedLang);
     
@@ -72,7 +69,8 @@ function setupMainActionListeners() {
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
     document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
-    map.on("click", handleMapClick);
+    map.on("click", handleMapClick); 
+    document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
 
     const toggleDistanciasBtn = document.getElementById('toggle-distancias-pivos');
     if (toggleDistanciasBtn) {
@@ -190,23 +188,17 @@ async function startMainSimulation(antenaData) {
             camadasParaRemover.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
         }
 
-        // ✅ INÍCIO DA CORREÇÃO: Define o estado global e desenha TUDO da antena principal
-
-        // 1. Define a antena global em um único passo, com todas as informações.
-        //    Isso garante que o estado nunca fique incompleto.
         window.antenaGlobal = {
-            ...antenaData, // Dados originais (nome, altura, etc.)
+            ...antenaData,
             overlay: drawImageOverlay(data.imagem_salva, data.bounds),
             bounds: data.bounds,
-            imagem_filename: data.imagem_filename // Nome do arquivo para reavaliação e exportação
+            imagem_filename: data.imagem_filename
         };
 
-        // 2. Desenha o ícone da antena principal e o adiciona ao painel lateral.
         if(marcadorAntena) map.removeLayer(marcadorAntena);
         marcadorAntena = L.marker([window.antenaGlobal.lat, window.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
         addAntenaAoPainel(window.antenaGlobal);
 
-        // 3. (ESTA PARTE ESTAVA FALTANDO) Recria a legenda de texto para a antena principal.
         const nomeAntenaPrincipal = window.antenaGlobal.nome;
         const labelWidth = (nomeAntenaPrincipal.length * 7) + 10;
         const labelHeight = 20;
@@ -218,18 +210,16 @@ async function startMainSimulation(antenaData) {
                 iconSize: [labelWidth, labelHeight],
                 iconAnchor: [labelWidth / 2, 45]
             }),
-            labelType: 'antena' // Identificador para gerenciamento
+            labelType: 'antena'
         }).addTo(map);
-        marcadoresLegenda.push(labelPrincipal); // Adiciona à lista de legendas
+        marcadoresLegenda.push(labelPrincipal);
         
-        // ✅ FIM DA CORREÇÃO
-
-        // Atualiza os pivôs e bombas
         if (data.pivos) {
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
             drawPivos(data.pivos, false);
         }
-        if (data.bombas) { // Adicionando a atualização das bombas
+        if (data.bombas) {
+            window.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
             drawBombas(data.bombas);
         }
 
@@ -248,6 +238,11 @@ async function startMainSimulation(antenaData) {
 
 
 function handleMapClick(e) {
+    if (window.modoDesenhoPivo) {
+        handlePivotDrawClick(e);
+        return;
+    }
+
     if (window.modoEdicaoPivos) return;
     if (window.modoLoSPivotAPivot) return;
 
@@ -282,17 +277,18 @@ async function handleConfirmRepetidoraClick() {
     document.getElementById('painel-repetidora').classList.add('hidden');
     mostrarLoader(true);
 
+    let repetidoraObj;
+
     if (window.clickedCandidateData) {
         const candidateData = { ...window.clickedCandidateData };
         window.clickedCandidateData = null;
 
         if (!window.antenaGlobal) {
-            console.log("CENÁRIO A: Iniciando simulação para ANTENA PRINCIPAL.");
-            const antenaParaSimular = { ...candidateData, altura: alturaAntena || candidateData.altura };
-            await startMainSimulation(antenaParaSimular);
-        } else {
-            console.log("CENÁRIO B: Promovendo candidato a REPETIDORA com nome original.");
-            
+            await startMainSimulation({ ...candidateData, altura: alturaAntena || candidateData.altura });
+            mostrarLoader(false);
+            return;
+        } 
+        else {
             if (antenaCandidatesLayerGroup) {
                 const idToRemove = `candidate-${candidateData.nome}-${candidateData.lat}`;
                 const layersToRemove = [];
@@ -302,8 +298,8 @@ async function handleConfirmRepetidoraClick() {
                 layersToRemove.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
             }
             
-            const nomeRep = candidateData.nome;
             const id = idsDisponiveis.length > 0 ? idsDisponiveis.shift() : ++contadorRepetidoras;
+            const nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
 
             const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon }).addTo(map);
             const labelRepetidora = L.marker(window.coordenadaClicada, {
@@ -316,37 +312,19 @@ async function handleConfirmRepetidoraClick() {
                 labelType: 'repetidora'
             }).addTo(map);
             marcadoresLegenda.push(labelRepetidora);
-
-            const repetidoraObj = {
+            
+            repetidoraObj = {
                 id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
                 altura: alturaAntena, altura_receiver: alturaReceiver,
                 lat: window.coordenadaClicada.lat, lon: window.coordenadaClicada.lng,
-                imagem_filename: null, sobre_pivo: false
+                imagem_filename: null, sobre_pivo: false, nome: nomeRep
             };
-            repetidoras.push(repetidoraObj);
-
-            const payload = {
-                job_id: window.jobId, lat: repetidoraObj.lat, lon: repetidoraObj.lon,
-                altura: repetidoraObj.altura, altura_receiver: repetidoraObj.altura_receiver,
-                pivos_atuais: window.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon })),
-                template: templateSelecionado
-            };
-
-            try {
-                const data = await simulateManual(payload);
-                repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0);
-                repetidoraObj.imagem_filename = data.imagem_filename;
-                addRepetidoraNoPainel(repetidoraObj);
-                await reavaliarPivosViaAPI();
-                mostrarMensagem(t('messages.success.tower_simulated_as_repeater', { name: nomeRep }), "sucesso");
-            } catch(error) { /* Tratamento de erro... */ }
         }
-    } else {
-        console.log("CENÁRIO C: Iniciando simulação de REPETIDORA MANUAL.");
+    } 
+    else {
         window.removePositioningMarker();
-
         const id = idsDisponiveis.length > 0 ? idsDisponiveis.shift() : ++contadorRepetidoras;
-        const nomeRep = 'Repetidora';
+        const nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
 
         const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon }).addTo(map);
         const labelRepetidora = L.marker(window.coordenadaClicada, {
@@ -359,14 +337,18 @@ async function handleConfirmRepetidoraClick() {
         }).addTo(map);
         marcadoresLegenda.push(labelRepetidora);
         
-        const repetidoraObj = {
+        repetidoraObj = {
             id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
             altura: alturaAntena, altura_receiver: alturaReceiver,
             lat: window.coordenadaClicada.lat, lon: window.coordenadaClicada.lng,
-            imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false
+            imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false, nome: nomeRep
         };
-        repetidoras.push(repetidoraObj);
+    }
 
+    if (repetidoraObj) {
+        repetidoras.push(repetidoraObj);
+        window.fonteDeDistanciaPrioritaria = repetidoraObj;
+        
         const payload = {
             job_id: window.jobId, lat: repetidoraObj.lat, lon: repetidoraObj.lon,
             altura: repetidoraObj.altura, altura_receiver: repetidoraObj.altura_receiver,
@@ -379,8 +361,14 @@ async function handleConfirmRepetidoraClick() {
             repetidoraObj.imagem_filename = data.imagem_filename;
             addRepetidoraNoPainel(repetidoraObj);
             await reavaliarPivosViaAPI();
-            mostrarMensagem(t('messages.success.repeater_added', { id: id }), "sucesso");
-        } catch(error) { /* Tratamento de erro... */ }
+            mostrarMensagem(t('messages.success.repeater_added', { name: repetidoraObj.nome }), "sucesso");
+        } catch(error) {
+             mostrarMensagem(t('messages.errors.simulation_fail', { error: error.message }), "erro");
+             map.removeLayer(repetidoraObj.marker);
+             if (repetidoraObj.label) map.removeLayer(repetidoraObj.label);
+             repetidoras = repetidoras.filter(r => r.id !== repetidoraObj.id);
+             idsDisponiveis.push(repetidoraObj.id);
+        }
     }
 
     mostrarLoader(false);
@@ -462,20 +450,17 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     mostrarLoader(true);
     if (map) map.getContainer().style.cursor = 'wait';
 
-    // --- Coleta de Overlays Ativos (Onde a correção será feita) ---
     const activeOverlaysForSearch = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
 
-    // ✅ CORREÇÃO AQUI: Alterado 'imagem_filename_principal' para 'imagem_filename'
     if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename) {
-    const b = window.antenaGlobal.overlay.getBounds();
-    activeOverlaysForSearch.push({
-        id: 'antena_principal',
-        // ✅ CORREÇÃO: Usando a propriedade correta e padronizada
-        imagem: window.antenaGlobal.imagem_filename, 
-        bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-    });
-}
+        const b = window.antenaGlobal.overlay.getBounds();
+        activeOverlaysForSearch.push({
+            id: 'antena_principal',
+            imagem: window.antenaGlobal.imagem_filename, 
+            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+        });
+    }
 
 
     repetidoras.forEach(rep => {
@@ -491,7 +476,6 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     });
 
     if (activeOverlaysForSearch.length === 0) {
-        // Esta mensagem de erro não deve mais aparecer se houver sinal na tela.
         mostrarMensagem(t('messages.errors.no_coverage_to_search'), "erro");
         mostrarLoader(false);
         if (map) map.getContainer().style.cursor = window.modoBuscaLocalRepetidora ? 'crosshair' : '';
@@ -532,6 +516,92 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     }
 }
 
+function toggleModoDesenhoPivo() {
+    window.modoDesenhoPivo = !window.modoDesenhoPivo;
+    const btn = document.getElementById('btn-draw-pivot');
+    btn.classList.toggle('glass-button-active', window.modoDesenhoPivo);
+
+    if (window.modoDesenhoPivo) {
+        if (window.modoEdicaoPivos) togglePivoEditing();
+        if (window.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
+        if (window.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
+
+        map.getContainer().style.cursor = 'crosshair';
+        mostrarMensagem(t('messages.info.draw_pivot_step1'), "info");
+        
+        map.on('mousemove', handlePivotDrawMouseMove);
+    } else {
+        map.getContainer().style.cursor = '';
+        centroPivoTemporario = null;
+        if (typeof removeTempCircle === 'function') removeTempCircle();
+        mostrarMensagem(t('messages.info.draw_pivot_off'), "sucesso");
+        
+        map.off('mousemove', handlePivotDrawMouseMove);
+    }
+}
+
+function handlePivotDrawMouseMove(e) {
+    if (window.modoDesenhoPivo && centroPivoTemporario) {
+        if (typeof drawTempCircle === 'function') {
+            drawTempCircle(centroPivoTemporario, e.latlng);
+        }
+    }
+}
+
+async function handlePivotDrawClick(e) {
+    if (!window.jobId) {
+        mostrarMensagem(t('messages.errors.run_study_first'), "erro");
+        toggleModoDesenhoPivo();
+        return;
+    }
+
+    if (!centroPivoTemporario) {
+        centroPivoTemporario = e.latlng;
+        mostrarMensagem(t('messages.info.draw_pivot_step2'), "info");
+    }
+    else {
+        const radiusPoint = e.latlng;
+        if (typeof drawTempCircle === 'function') {
+            drawTempCircle(centroPivoTemporario, radiusPoint);
+        }
+        mostrarLoader(true);
+
+        const payload = {
+            job_id: window.jobId,
+            center: [centroPivoTemporario.lat, centroPivoTemporario.lng],
+            pivos_atuais: window.lastPivosDataDrawn
+        };
+
+        try {
+            const result = await generatePivotInCircle(payload);
+            const novoPivo = result.novo_pivo;
+
+            window.lastPivosDataDrawn.push(novoPivo);
+            if (window.currentProcessedKmzData?.pivos) {
+                window.currentProcessedKmzData.pivos.push(novoPivo);
+            }
+
+            if (typeof drawPivos === 'function') {
+                drawPivos(window.lastPivosDataDrawn, false);
+            }
+
+            if (typeof atualizarPainelDados === 'function') {
+                atualizarPainelDados();
+            }
+            
+            mostrarMensagem(t('messages.success.pivot_created', { name: novoPivo.nome }), "sucesso");
+
+        } catch (error) {
+            console.error("Falha ao criar o pivô:", error);
+        } finally {
+            mostrarLoader(false);
+            centroPivoTemporario = null;
+            if (typeof removeTempCircle === 'function') removeTempCircle();
+            if (window.modoDesenhoPivo) toggleModoDesenhoPivo(); 
+        }
+    }
+}
+
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
     clearMapLayers(); 
@@ -558,6 +628,10 @@ function handleResetClick(showMessage = true) {
     window.distanciasPivosVisiveis = false;
     window.lastPivosDataDrawn = [];
     window.currentProcessedKmzData = null;
+
+    if (window.modoDesenhoPivo) {
+        toggleModoDesenhoPivo();
+    }
 
     const btnDistancias = document.getElementById('toggle-distancias-pivos');
     if (btnDistancias) {
@@ -660,11 +734,10 @@ async function handleDiagnosticoClick() {
 }
 
 function handleExportClick() {
-    // ✅ CORREÇÃO: A verificação agora procura por 'imagem_filename'
     if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename || !window.jobId) {
-    mostrarMensagem(t('messages.errors.run_study_first'), "erro");
-    return;
-}
+        mostrarMensagem(t('messages.errors.run_study_first'), "erro");
+        return;
+    }
 
     try {
         const nomeImagemPrincipal = window.antenaGlobal.imagem_filename;
@@ -709,17 +782,14 @@ async function reavaliarPivosViaAPI() {
         return;
     }
 
-    // ✅ CORREÇÃO: Usa sempre os dados originais do KMZ como a "fonte da verdade".
-    //    Esta parte já estava correta.
     const pivosParaReavaliar = (window.currentProcessedKmzData.pivos || []).map(p => ({
-        nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' // Adicionado 'type' para consistência
+        nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo'
     }));
 
     const bombasParaReavaliar = (window.currentProcessedKmzData.bombas || []).map(b => ({
-        nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' // Adicionado 'type' para consistência
+        nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba'
     }));
 
-    // --- Coleta de Overlays Ativos (Lógica Refinada) ---
     const overlays = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
 
@@ -756,17 +826,14 @@ async function reavaliarPivosViaAPI() {
         
         const data = await reevaluatePivots(payload);
 
-        // ✅ CORREÇÃO CRUCIAL APLICADA AQUI:
         if (data.pivos) {
-            // A linha que modificava "window.currentProcessedKmzData.pivos" foi REMOVIDA.
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
             drawPivos(data.pivos, false);
             console.log("✅ Pivôs reavaliados e redesenhados.");
         }
 
         if (data.bombas) {
-            // A linha que modificava "window.currentProcessedKmzData.bombas" foi REMOVIDA.
-            // Apenas redesenhamos as bombas com o novo status.
+            window.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
             drawBombas(data.bombas);
             console.log("✅ Bombas reavaliadas e redesenhadas.");
         }
@@ -796,12 +863,11 @@ window.removePositioningMarker = removePositioningMarker;
 function enablePivoEditingMode() {
     window.modoEdicaoPivos = true;
     console.log("✏️ Ativando modo de edição com ícone de pino SVG.");
-    window.backupPosicoesPivos = {}; // Limpa backups antigos
+    window.backupPosicoesPivos = {};
 
-    const tamanho = 18; // Tamanho do ícone de edição
-    const altura = 26;  // Altura do ícone de edição
+    const tamanho = 18;
+    const altura = 26;
 
-    // Remove os marcadores de pivô existentes (círculos coloridos e legendas)
     marcadoresPivos.forEach(m => map.removeLayer(m));
     marcadoresPivos = [];
     marcadoresLegenda.filter(l => l.options.labelType === 'pivot').forEach(l => {
@@ -809,25 +875,23 @@ function enablePivoEditingMode() {
     });
     marcadoresLegenda = marcadoresLegenda.filter(l => l.options.labelType !== 'pivot');
 
-    // Remove referências antigas de pivotsMap se ainda estiverem no mapa (improvável, mas seguro)
     Object.values(pivotsMap).forEach(marker => {
         if (marker && map.hasLayer(marker)) {
             map.removeLayer(marker);
         }
     });
-    pivotsMap = {}; // Reseta o pivotsMap para os novos marcadores de edição
+    pivotsMap = {};
 
-    // Adiciona novos marcadores de edição para cada pivô em lastPivosDataDrawn
     window.lastPivosDataDrawn.forEach(pivoInfo => {
         const nome = pivoInfo.nome;
         const currentLatLng = L.latLng(pivoInfo.lat, pivoInfo.lon);
-        window.backupPosicoesPivos[nome] = currentLatLng; // Salva posição original para 'desfazer'
+        window.backupPosicoesPivos[nome] = currentLatLng;
 
         const editMarkerIcon = L.divIcon({
-            className: 'pivo-edit-handle-custom-pin', // Classe para estilização CSS se necessário
+            className: 'pivo-edit-handle-custom-pin',
             html: `<svg viewBox="0 0 28 40" width="${tamanho}" height="${altura}" xmlns="http://www.w3.org/2000/svg"><path d="M14 0 C7.486 0 2 5.486 2 12.014 C2 20.014 14 40 14 40 C14 40 26 20.014 26 12.014 C26 5.486 20.514 0 14 0 Z M14 18 C10.686 18 8 15.314 8 12 C8 8.686 10.686 6 14 6 C17.314 6 20 8.686 20 12 C20 15.314 17.314 18 14 18 Z" fill="#FF3333" stroke="#660000" stroke-width="1"/></svg>`,
             iconSize: [tamanho, altura],
-            iconAnchor: [tamanho / 2, altura] // Ponta do pino
+            iconAnchor: [tamanho / 2, altura]
         });
 
         const editMarker = L.marker(currentLatLng, {
@@ -835,14 +899,12 @@ function enablePivoEditingMode() {
             icon: editMarkerIcon
         }).addTo(map);
 
-        pivotsMap[nome] = editMarker; // Adiciona o marcador de EDIÇÃO ao pivotsMap
+        pivotsMap[nome] = editMarker;
 
         editMarker.on("dragend", (e) => {
             const novaPos = e.target.getLatLng();
-            posicoesEditadas[nome] = { lat: novaPos.lat, lng: novaPos.lng }; // Armazena a nova posição editada
+            posicoesEditadas[nome] = { lat: novaPos.lat, lng: novaPos.lng };
 
-            // Atualiza a posição em lastPivosDataDrawn para que, se o modo for desativado,
-            // os pivôs sejam redesenhados na nova posição.
             const pivoEmLastData = window.lastPivosDataDrawn.find(p => p.nome === nome);
             if (pivoEmLastData) {
                 pivoEmLastData.lat = novaPos.lat;
@@ -851,17 +913,15 @@ function enablePivoEditingMode() {
             console.log(`📍 Pivô ${nome} movido para:`, novaPos);
         });
 
-        editMarker.on("contextmenu", (e) => { // Botão direito para remover
+        editMarker.on("contextmenu", (e) => {
             L.DomEvent.stopPropagation(e);
             L.DomEvent.preventDefault(e);
             if (confirm(`❌ Tem certeza que deseja remover o pivô ${nome}? Esta ação não pode ser desfeita aqui.`)) {
                 map.removeLayer(editMarker);
-                // Remove dos dados principais
                 window.lastPivosDataDrawn = window.lastPivosDataDrawn.filter(p => p.nome !== nome);
-                if (window.currentProcessedKmzData && window.currentProcessedKmzData.pivos) {
+                if (window.currentProcessedKmzData?.pivos) {
                      window.currentProcessedKmzData.pivos = window.currentProcessedKmzData.pivos.filter(p => p.nome !== nome);
                 }
-                // Remove das estruturas de edição
                 delete pivotsMap[nome];
                 delete posicoesEditadas[nome];
                 delete window.backupPosicoesPivos[nome];
@@ -877,57 +937,38 @@ function disablePivoEditingMode() {
     window.modoEdicaoPivos = false;
     console.log("Desativando modo de edição e 'salvando' posições em lastPivosDataDrawn.");
 
-    // Remove os marcadores de edição (pinos vermelhos) do mapa
     Object.values(pivotsMap).forEach(editMarker => {
         if (editMarker && map.hasLayer(editMarker)) {
             map.removeLayer(editMarker);
         }
     });
-    pivotsMap = {}; // Limpa o pivotsMap, pois os marcadores de edição foram removidos
+    pivotsMap = {};
 
-    // As posições já foram atualizadas em window.lastPivosDataDrawn durante o 'dragend'.
-    // Agora, apenas redesenha os pivôs no modo normal (círculos coloridos e legendas).
-    // O 'true' em drawPivos(..., true) indica para usar posicoesEditadas, mas como elas
-    // já foram refletidas em lastPivosDataDrawn, e posicoesEditadas será limpo,
-    // passar 'false' ou não passar o segundo argumento seria mais limpo aqui,
-    // confiando que lastPivosDataDrawn é a fonte da verdade.
-    // No entanto, a lógica atual de drawPivos pode depender de posicoesEditadas se `useEdited` for true.
-    // Para segurança, vamos manter como estava, assumindo que drawPivos(..., true) pega de lastPivosDataDrawn
-    // se posicoesEditadas[nome] não existir.
-    // Melhor: drawPivos deve ser chamado com os dados de lastPivosDataDrawn, e ele decide internamente
-    // se usa posicoesEditadas ou não.
-
-    // Redesenha os pivôs com base nas posições atualizadas em window.lastPivosDataDrawn
-    drawPivos(window.lastPivosDataDrawn, false); // Passa 'false' para useEdited, pois as posições já estão em lastPivosDataDrawn
+    drawPivos(window.lastPivosDataDrawn, false);
 
     mostrarMensagem("💾 Posições atualizadas. Rode a simulação novamente para refletir mudanças na cobertura.", "sucesso");
-    window.backupPosicoesPivos = {}; // Limpa o backup, pois as "edições" foram "salvas"
-    posicoesEditadas = {}; // Limpa as edições pendentes
+    window.backupPosicoesPivos = {};
+    posicoesEditadas = {};
 }
 
 function undoPivoEdits() {
     console.log("Desfazendo edições.");
-    // Restaura as posições em lastPivosDataDrawn a partir do backup
     Object.entries(window.backupPosicoesPivos).forEach(([nome, posicaoOriginalLatLng]) => {
         const pivoEmLastData = window.lastPivosDataDrawn.find(p => p.nome === nome);
         if (pivoEmLastData) {
             pivoEmLastData.lat = posicaoOriginalLatLng.lat;
             pivoEmLastData.lon = posicaoOriginalLatLng.lng;
         }
-        // Se os marcadores de edição ainda estiverem no mapa (o que não deveriam estar se o modo foi desativado antes),
-        // atualiza suas posições. Mas o principal é atualizar lastPivosDataDrawn.
-        const editMarker = pivotsMap[nome]; // pivotsMap ainda conteria os marcadores de edição
+        const editMarker = pivotsMap[nome];
         if (editMarker && map.hasLayer(editMarker)) {
             editMarker.setLatLng(posicaoOriginalLatLng);
         }
     });
 
-    posicoesEditadas = {}; // Limpa quaisquer edições pendentes
-    // Não precisa limpar backupPosicoesPivos aqui, pois o modo de edição será desativado.
+    posicoesEditadas = {};
 
-    // Desativa o modo de edição, o que irá redesenhar os pivôs com as posições restauradas de lastPivosDataDrawn.
-    if (typeof togglePivoEditing === 'function' && window.modoEdicaoPivos) { // togglePivoEditing está em ui.js
-        togglePivoEditing(); // Isso chamará disablePivoEditingMode
+    if (typeof togglePivoEditing === 'function' && window.modoEdicaoPivos) {
+        togglePivoEditing();
     }
     mostrarMensagem("↩️ Edições desfeitas. Modo de edição encerrado.", "sucesso");
 }
@@ -945,7 +986,6 @@ function toggleLoSPivotAPivotMode() {
         window.losSourcePivot = null;
         window.losTargetPivot = null;
 
-        // Desativa outros modos
         if (window.modoEdicaoPivos && typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos").classList.contains('glass-button-active')) {
             togglePivoEditing();
         }
@@ -958,12 +998,7 @@ function toggleLoSPivotAPivotMode() {
         window.losSourcePivot = null;
         window.losTargetPivot = null;
         map.getContainer().style.cursor = '';
-         // Limpa apenas as linhas de diagnóstico LoS se existirem
-        if (visadaLayerGroup) { // visadaLayerGroup é de map.js
-            // É melhor ter uma forma mais seletiva de limpar apenas as linhas de diagnóstico LoS,
-            // em vez de limpar todo o grupo, que pode conter outras coisas.
-            // Por agora, se este modo é o único que adiciona a este grupo, pode ser ok.
-            // Assumindo que drawDiagnostico adiciona a visadaLayerGroup.
+       if (visadaLayerGroup) {
             visadaLayerGroup.clearLayers();
             linhasDiagnostico = [];
             marcadoresBloqueio = [];
@@ -978,7 +1013,7 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
     const pivotLatlng = pivoMarker.getLatLng();
     const defaultPivotHeight = (window.antenaGlobal && typeof window.antenaGlobal.altura_receiver === 'number') ? window.antenaGlobal.altura_receiver : 3;
 
-    if (!window.losSourcePivot) { // Fase 1: Selecionando o Pivô de Origem
+    if (!window.losSourcePivot) {
         if (!isGoodSignalPivot) {
             mostrarMensagem("ORIGEM: Selecione um pivô COM SINAL (verde).", "erro");
             return;
@@ -990,13 +1025,13 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
         };
         mostrarMensagem(`ORIGEM: ${pivoData.nome} selecionado. Agora selecione o pivô de DESTINO (sem sinal/vermelho).`, "sucesso");
 
-    } else { // Fase 2: Selecionando o Pivô de Destino (ou mudando a origem)
+    } else {
         if (pivoData.nome === window.losSourcePivot.nome) {
             mostrarMensagem(`ORIGEM: ${pivoData.nome} já é a origem. Selecione o pivô de DESTINO.`, "info");
             return;
         }
 
-        if (isGoodSignalPivot) { // Usuário clicou em outro pivô verde, talvez queira mudar a origem
+        if (isGoodSignalPivot) {
             const confirmaMudanca = confirm(`Você já selecionou ${window.losSourcePivot.nome} como origem. Deseja alterar a origem para ${pivoData.nome}? As linhas de diagnóstico anteriores serão removidas.`);
             if (confirmaMudanca) {
                 window.losSourcePivot = {
@@ -1004,7 +1039,7 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
                     latlng: pivotLatlng,
                     altura: defaultPivotHeight
                 };
-                window.losTargetPivot = null; // Reseta o alvo ao mudar a origem
+                window.losTargetPivot = null;
                 linhasDiagnostico = [];
                 marcadoresBloqueio = [];
                 mostrarMensagem(`ORIGEM ALTERADA para: ${pivoData.nome}. Selecione o pivô de DESTINO (sem sinal/vermelho).`, "sucesso");
@@ -1012,7 +1047,6 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
             return;
         }
 
-        // Se chegou aqui, é um pivô vermelho (destino)
         window.losTargetPivot = {
             nome: pivoData.nome,
             latlng: pivotLatlng,
@@ -1027,30 +1061,22 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
             linhasDiagnostico = [];
             marcadoresBloqueio = [];
 
-            console.log("[DEBUG LoS] Source Pivot:", JSON.stringify(window.losSourcePivot));
-            console.log("[DEBUG LoS] Target Pivot:", JSON.stringify(window.losTargetPivot));
-
             if (!window.losSourcePivot.latlng || !window.losTargetPivot.latlng) {
-                console.error("[DEBUG LoS] Erro: LatLng de origem ou destino indefinido.");
                 throw new Error("LatLng de origem ou destino indefinido para cálculo de distância.");
             }
             if (!(window.losSourcePivot.latlng instanceof L.LatLng) || !(window.losTargetPivot.latlng instanceof L.LatLng) ) {
-                 console.error("[DEBUG LoS] Erro: latlng não é um objeto L.LatLng válido.");
                  throw new Error("Objeto LatLng inválido para cálculo de distância.");
             }
 
             const distanciaEntrePivos = window.losSourcePivot.latlng.distanceTo(window.losTargetPivot.latlng);
-            console.log("[DEBUG LoS] Distância calculada (metros):", distanciaEntrePivos);
 
             if (isNaN(distanciaEntrePivos)) {
-                console.error("[DEBUG LoS] Erro: Distância calculada resultou em NaN.");
                 distanciaFormatada = "Erro no cálculo";
             } else {
                 distanciaFormatada = distanciaEntrePivos > 999
                     ? (distanciaEntrePivos / 1000).toFixed(1) + ' km'
                     : Math.round(distanciaEntrePivos) + ' m';
             }
-            console.log("[DEBUG LoS] Distância formatada:", distanciaFormatada);
 
             const payload = {
                 pontos: [
@@ -1061,12 +1087,11 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
                 altura_receiver: window.losTargetPivot.altura
             };
 
-            const resultadoApi = await getElevationProfile(payload); // de api.js
-            console.log("[DEBUG LoS] Resultado API:", resultadoApi);
+            const resultadoApi = await getElevationProfile(payload);
 
-            const estaBloqueado = resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number' && resultadoApi.bloqueio.diff > 0.1; // Pequena margem para bloqueio
+            const estaBloqueado = resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number' && resultadoApi.bloqueio.diff > 0.1;
 
-            drawDiagnostico( // de drawing.js
+            drawDiagnostico(
                 payload.pontos[0],
                 payload.pontos[1],
                 resultadoApi.bloqueio,
@@ -1078,12 +1103,11 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
             let mensagemVisada = `Visada ${window.losSourcePivot.nome} → ${window.losTargetPivot.nome} (Dist: ${distanciaFormatada})`;
             if (estaBloqueado) {
                 mensagemVisada += ` ⛔ Bloqueada.`;
-            } else if (resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number') { // Não bloqueado, mas tem ponto crítico
+            } else if (resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number') {
                 mensagemVisada += ` ✅ Livre no ponto crítico.`;
-            } else { // Sem ponto crítico retornado (LoS completamente livre ou erro na API não capturado antes)
+            } else {
                  mensagemVisada += ` ✅ Livre.`;
             }
-            console.log("[DEBUG LoS] Mensagem de visada final:", mensagemVisada);
             mostrarMensagem(mensagemVisada, estaBloqueado ? "erro" : "sucesso");
 
         } catch (error) {
@@ -1098,16 +1122,15 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
         } finally {
             mostrarLoader(false);
 
-            // Reseta para permitir nova seleção de origem e destino
             window.losSourcePivot = null;
             window.losTargetPivot = null;
 
-            if (window.modoLoSPivotAPivot) { // Se o modo ainda estiver ativo
+            if (window.modoLoSPivotAPivot) {
                 setTimeout(() => {
-                    if (window.modoLoSPivotAPivot) { // Verifica novamente, caso o usuário tenha desativado rapidamente
+                    if (window.modoLoSPivotAPivot) {
                         mostrarMensagem("Selecione um novo pivô de ORIGEM (com sinal/verde) ou desative o modo.", "info");
                     }
-                }, ocorreuErroNaAnalise ? 700 : 1800); // Delay para não sobrepor a mensagem de erro/sucesso
+                }, ocorreuErroNaAnalise ? 700 : 1800);
             }
         }
     }
@@ -1121,20 +1144,15 @@ function handleToggleDistanciasPivos() {
         btn.title = window.distanciasPivosVisiveis ? "Esconder Distâncias dos Pivôs" : "Mostrar Distâncias dos Pivôs";
     }
 
-    // A função window.togglePivoDistances é definida em drawing.js e atribuída a window lá.
-    // Ela internamente chama drawPivos.
     if (typeof window.togglePivoDistances === 'function') {
         window.togglePivoDistances(window.distanciasPivosVisiveis);
     } else {
-        console.error("Função togglePivoDistances não encontrada em drawing.js. Tentando fallback direto para drawPivos.");
-        // Fallback caso togglePivoDistances não esteja disponível por algum motivo
+        console.error("Função togglePivoDistances não encontrada em drawing.js. Tentando fallback.");
         if (window.lastPivosDataDrawn && window.lastPivosDataDrawn.length > 0 && typeof drawPivos === 'function') {
-            drawPivos(window.lastPivosDataDrawn, true); // true para useEdited, assumindo que as posições editadas são relevantes
+            drawPivos(window.lastPivosDataDrawn, true);
             mostrarMensagem(`Distâncias dos pivôs ${window.distanciasPivosVisiveis ? 'exibidas' : 'ocultas'} (via fallback).`, 'sucesso');
-        } else if (typeof drawPivos !== 'function'){
-             console.error("Função drawPivos também não encontrada globalmente para o fallback.");
         } else {
-            console.warn("Fallback para drawPivos não executado: lastPivosDataDrawn está vazio ou drawPivos não existe.");
+             console.error("Fallback para drawPivos falhou.");
         }
     }
 }

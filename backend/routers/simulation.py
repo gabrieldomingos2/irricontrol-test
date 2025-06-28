@@ -81,6 +81,11 @@ class FindRepeaterSitesPayload(BaseModel):
     active_overlays: List[OverlayData]
     pivot_polygons_coords: Optional[List[List[Tuple[float, float]]]] = None
 
+class GeneratePivotPayload(BaseModel):
+    job_id: str
+    center: Tuple[float, float] = Field(..., description="Coordenadas [lat, lon] do centro do círculo.")
+    pivos_atuais: List[PivoData] = Field(..., description="Lista de todos os pivôs atualmente no frontend.")
+
 
 # --- Funções Auxiliares ---
 def _get_image_filepath_for_analysis(image_filename: str, job_id: str) -> Path:
@@ -94,6 +99,33 @@ def _get_image_filepath_for_analysis(image_filename: str, job_id: str) -> Path:
 @router.get("/templates")
 async def get_templates_endpoint():
     return settings.listar_templates_ids()
+
+@router.post("/generate_pivot_in_circle")
+async def generate_pivot_in_circle_endpoint(payload: GeneratePivotPayload):
+    """
+    Recebe as coordenadas do centro de um círculo desenhado pelo usuário
+    e a lista de pivôs existentes para gerar um novo pivô com nome sequencial.
+    """
+    try:
+        logger.info(f"🔄 Gerando novo pivô via círculo para o job: {payload.job_id}")
+        
+        center_lat, center_lon = payload.center
+        
+        # Chama o serviço de análise para criar o novo pivô
+        novo_pivo = analysis_service.generate_pivot_at_center(
+            center_lat=center_lat,
+            center_lon=center_lon,
+            existing_pivos=[p.model_dump() for p in payload.pivos_atuais]
+        )
+        
+        logger.info(f"✅ Novo pivô '{novo_pivo['nome']}' criado com sucesso para o job {payload.job_id}.")
+        
+        # Retorna o pivô recém-criado para o frontend
+        return {"novo_pivo": novo_pivo}
+
+    except Exception as e:
+        logger.error(f"❌ Erro em /simulation/generate_pivot_in_circle (job: {payload.job_id}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar novo pivô: {str(e)}")
 
 @router.post("/run_main")
 async def run_main_simulation_endpoint(payload: AntenaSimPayload):

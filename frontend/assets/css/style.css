@@ -418,6 +418,16 @@ button, .glass-button, label[for="arquivo"] {
 }
 
 
+/* distance */
+
+/* Estilo para o nome da fonte de sinal no rótulo */
+.source-name-pivo {
+  font-size: 0.9em; /* Um pouco menor que o nome principal */
+  color: #c0c0c0;   /* Uma cor cinza claro para diferenciar */
+  font-weight: normal;
+}
+
+
 /* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */
 /* ============================ */
