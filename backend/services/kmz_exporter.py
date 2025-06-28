@@ -173,11 +173,10 @@ def _add_secondary_folders(
 ):
     if pivos:
         folder_pivos = doc.newfolder(name="Pivôs")
-        folder_pivos.visibility = 0  # ✅ NOVO: Define a pasta para estar desmarcada por padrão
         for i, p_data in enumerate(pivos):
             pnt_pivo = folder_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])])
             pnt_pivo.style = default_point_style
-        logger.info(" -> Pasta 'Pivôs' criada e configurada como invisível por padrão.")
+        logger.info(" -> Pasta 'Pivôs' criada.")
     if ciclos:
         folder_ciclos = doc.newfolder(name="Ciclos")
         for i, ciclo_data in enumerate(ciclos):

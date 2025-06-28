@@ -1,48 +1,58 @@
 import logging.config
 from backend.config import settings
 
-# Este dicionário é o padrão do Python para configurar logging de forma avançada.
-# Ele nos dá controle total sobre formatadores, handlers e os próprios loggers.
 LOGGING_CONFIG = {
     "version": 1,
-    "disable_existing_loggers": False, # Mantém os loggers de bibliotecas de terceiros funcionando.
+    "disable_existing_loggers": False,
     
-    # Define como as mensagens de log serão formatadas.
     "formatters": {
+        # Formatter padrão para o console
         "default": {
             "()": "uvicorn.logging.DefaultFormatter",
             "fmt": "%(levelprefix)s %(asctime)s [%(name)s] :: %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
+        # ✅ NOVO: Formatter para logs estruturados em JSON
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d"
+        }
     },
 
-    # Define para onde as mensagens de log são enviadas (handlers).
     "handlers": {
+        # Handler padrão para o console
         "default": {
             "formatter": "default",
-            "class": "logging.StreamHandler", # Envia para o console (saída padrão).
+            "class": "logging.StreamHandler",
             "stream": "ext://sys.stderr",
         },
+        # ✅ NOVO: Handler para salvar em arquivo com rotação
+        "rotating_file": {
+            "formatter": "json", # Usando o novo formatter JSON
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "irricontrol_app.log", # Nome do arquivo de log
+            "maxBytes": 10485760,  # 10 MB
+            "backupCount": 5,      # Mantém 5 arquivos de backup
+            "encoding": "utf8"
+        }
     },
 
-    # Define o comportamento dos loggers.
     "loggers": {
-        # Nosso logger principal da aplicação.
         "irricontrol": {
-            "handlers": ["default"],
-            "level": settings.LOG_LEVEL.upper(), # Pega o nível do arquivo .env
+            # ✅ ALTERADO: Envia logs para o console E para o arquivo
+            "handlers": ["default", "rotating_file"],
+            "level": settings.LOG_LEVEL.upper(),
             "propagate": False
         },
-        # Logger de erros do Uvicorn.
         "uvicorn.error": {
-            "handlers": ["default"],
+            # ✅ ALTERADO: Envia erros do Uvicorn para o arquivo também
+            "handlers": ["default", "rotating_file"],
             "level": "INFO",
             "propagate": False
         },
-        # Logger de acesso do Uvicorn (requisições).
         "uvicorn.access": {
-            "handlers": ["default"],
-            "level": "INFO",
+            "handlers": ["default"], # Mantemos o acesso apenas no console (ou podemos remover se quisermos)
+            "level": "WARNING",
             "propagate": False
         },
     },
@@ -50,6 +60,17 @@ LOGGING_CONFIG = {
 
 def setup_logging():
     """Aplica a configuração de logging definida acima."""
+    # Instala a dependência se não existir (opcional, mas útil)
+    try:
+        import pythonjsonlogger
+    except ImportError:
+        print("AVISO: 'python-json-logger' não está instalado. Logs JSON não funcionarão.")
+        # Remove a configuração de JSON se a lib não estiver presente
+        del LOGGING_CONFIG["formatters"]["json"]
+        del LOGGING_CONFIG["handlers"]["rotating_file"]
+        LOGGING_CONFIG["loggers"]["irricontrol"]["handlers"] = ["default"]
+        LOGGING_CONFIG["loggers"]["uvicorn.error"]["handlers"] = ["default"]
+
     logging.config.dictConfig(LOGGING_CONFIG)
     logger = logging.getLogger("irricontrol")
     logger.info("Sistema de logging centralizado configurado com sucesso.")
