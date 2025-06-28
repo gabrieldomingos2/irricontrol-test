@@ -68,8 +68,13 @@ async def exportar_kmz_endpoint(
     job_id: str = Query(..., description="O ID único do job retornado pelo endpoint /processar."),
     imagem: str = Query(..., description="Nome do arquivo da imagem PNG principal."),
     bounds_file: str = Query(..., description="Nome do arquivo JSON de bounds principal."),
-    # 👇 ALTERAÇÃO 1: Adicionar um novo parâmetro para receber os dados da antena principal como uma string JSON.
     antena_principal_data: str = Query(..., description="String JSON com os dados da antena principal selecionada."),
+    
+    # ✅ INÍCIO DAS ALTERAÇÕES: Adiciona os novos parâmetros para receber os dados atuais.
+    pivos_data: str = Query(..., description="String JSON com a lista atual de pivôs."),
+    ciclos_data: str = Query('[]', description="String JSON com a lista atual de ciclos."),
+    # ✅ FIM DAS ALTERAÇÕES
+
     repetidoras_data: str = Query('[]', description="String JSON com os dados das repetidoras selecionadas.")
 ):
     logger.info(f"📦 Iniciando exportação KMZ para o job: {job_id}")
@@ -122,8 +127,8 @@ async def exportar_kmz_endpoint(
         antena_data = json.loads(antena_principal_data)
         
         # O resto dos dados continua vindo do arquivo parseado.
-        pivos_data = parsed_data.get("pivos", [])
-        ciclos_data = parsed_data.get("ciclos", [])
+        pivos_data_list = json.loads(pivos_data)
+        ciclos_data_list = json.loads(ciclos_data)
         bombas_data = parsed_data.get("bombas", [])
 
         with open(caminho_bounds_principal_servidor, "r") as f:
@@ -139,8 +144,8 @@ async def exportar_kmz_endpoint(
         arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
             doc=doc,
             antena_data=antena_data,
-            pivos_data=pivos_data,
-            ciclos_data=ciclos_data,
+            pivos_data=pivos_data_list,
+            ciclos_data=ciclos_data_list,
             bombas_data=bombas_data,
             imagem_principal_nome_relativo=imagem, 
             bounds_principal_data=bounds_principal_data,

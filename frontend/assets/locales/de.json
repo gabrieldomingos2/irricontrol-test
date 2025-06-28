@@ -11,7 +11,8 @@
       "legend": "Legende",
       "show_pivot_distances": "Pivot-Distanzen anzeigen",
       "edit_pivots": "Pivots bearbeiten",
-      "undo_edit": "Bearbeitung rückgängig machen"
+      "undo_edit": "Bearbeitung rückgängig machen",
+      "draw_pivot": "Pivot mit Kreis hinzufügen"
     },
     "labels": {
       "template": "🌐 Vorlage:",
@@ -53,7 +54,8 @@
       "positions_updated": "💾 Positionen aktualisiert. Führen Sie die Simulation erneut aus, um Änderungen zu sehen.",
       "edit_mode_on": "✏️ Bearbeitungsmodus aktiviert. Ziehen Sie die roten Stifte. Rechtsklick zum Entfernen.",
       "los_mode_on": "PIVOT-ZU-PIVOT-DIAGNOSEMODUS: Wählen Sie den URSPRUNGS-Pivot (mit Signal/grün).",
-      "los_mode_off": "Pivot-zu-Pivot-Diagnosemodus deaktiviert."
+      "los_mode_off": "Pivot-zu-Pivot-Diagnosemodus deaktiviert.",
+      "pivot_created": "Pivot \"{name}\" erfolgreich erstellt!"
     },
     "errors": {
       "select_kmz": "Bitte wählen Sie eine KMZ-Datei aus.",
@@ -68,7 +70,11 @@
       "no_uncovered_pivots": "✅ Keine ungedeckten Pivots zu diagnostizieren.",
       "analyzing_pivots": "🔍 Analysiere {count} Pivots...",
       "los_origin_selected": "URSPRUNG: {name} ausgewählt. Wählen Sie nun den ZIEL-Pivot (ohne Signal/rot).",
-      "los_origin_is_target": "URSPRUNG: {name} ist bereits der Ursprung. Wählen Sie einen ZIEL-Pivot."
+      "los_origin_is_target": "URSPRUNG: {name} ist bereits der Ursprung. Wählen Sie einen ZIEL-Pivot.",
+      "draw_pivot_step1": "Zeichenmodus: Klicken Sie auf die Karte, um das ZENTRUM des Pivots festzulegen.",
+      "draw_pivot_step2": "Zentrum festgelegt. Klicken Sie nun, um den RAND des Kreises festzulegen.",
+      "draw_pivot_off": "Zeichenmodus deaktiviert.",
+      "draw_pivot_cancelled": "Pivot-Zeichnung abgebrochen. Klicken Sie erneut, um ein neues Zentrum festzulegen."
     }
   },
   "tooltips": {

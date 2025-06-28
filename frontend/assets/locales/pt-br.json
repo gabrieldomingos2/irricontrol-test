@@ -11,7 +11,8 @@
       "legend": "Legenda",
       "show_pivot_distances": "Mostrar Distâncias dos Pivôs",
       "edit_pivots": "Editar Pivôs",
-      "undo_edit": "Desfazer Edição"
+      "undo_edit": "Desfazer Edição",
+      "draw_pivot": "Adicionar Pivô com Círculo"
     },
     "labels": {
       "template": "🌐 Template:",
@@ -53,7 +54,8 @@
       "positions_updated": "💾 Posições atualizadas. Rode a simulação novamente para refletir mudanças na cobertura.",
       "edit_mode_on": "✏️ Modo de edição ativado. Arraste os pinos vermelhos. Clique com botão direito para remover.",
       "los_mode_on": "MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal/verde).",
-      "los_mode_off": "Modo 'Diagnóstico Pivô a Pivô' desativado."
+      "los_mode_off": "Modo 'Diagnóstico Pivô a Pivô' desativado.",
+      "pivot_created": "Pivô \"{name}\" criado com sucesso!"
     },
     "errors": {
       "select_kmz": "Por favor, selecione um arquivo KMZ.",
@@ -68,7 +70,11 @@
       "no_uncovered_pivots": "✅ Nenhum pivô fora de cobertura para diagnosticar.",
       "analyzing_pivots": "🔍 Analisando {count} pivôs...",
       "los_origin_selected": "ORIGEM: {name} selecionado. Agora selecione o pivô de DESTINO (sem sinal/vermelho).",
-      "los_origin_is_target": "ORIGEM: {name} já é a origem. Selecione o pivô de DESTINO."
+      "los_origin_is_target": "ORIGEM: {name} já é a origem. Selecione o pivô de DESTINO.",
+      "draw_pivot_step1": "Modo de Desenho: Clique no mapa para definir o CENTRO do pivô.",
+      "draw_pivot_step2": "Centro definido. Agora clique para definir a BORDA do círculo.",
+      "draw_pivot_off": "Modo de Desenho desativado.",
+      "draw_pivot_cancelled": "Desenho de pivô cancelado. Clique novamente para definir um novo centro."
     }
   },
   "tooltips": {

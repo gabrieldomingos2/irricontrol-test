@@ -711,3 +711,33 @@ function removeTempCircle() {
         tempCircle = null;
     }
 }
+
+/**
+ * ✅ NOVO: Gera um array de coordenadas [lat, lon] que formam um círculo.
+ * @param {L.LatLng} center - O centro do círculo.
+ * @param {number} radius - O raio em metros.
+ * @param {number} [points=60] - O número de pontos para formar o polígono.
+ * @returns {Array<[number, number]>} - Array de coordenadas.
+ */
+function generateCircleCoords(center, radius, points = 60) {
+    const coords = [];
+    const earthRadius = 6378137; // Raio da Terra em metros
+    const lat = center.lat * (Math.PI / 180); // Radianos
+    const lon = center.lng * (Math.PI / 180); // Radianos
+
+    for (let i = 0; i < points; i++) {
+        const angle = (i / points) * 360;
+        const bearing = angle * (Math.PI / 180); // Radianos
+
+        const newLat = Math.asin(Math.sin(lat) * Math.cos(radius / earthRadius) +
+                      Math.cos(lat) * Math.sin(radius / earthRadius) * Math.cos(bearing));
+        
+        const newLon = lon + Math.atan2(Math.sin(bearing) * Math.sin(radius / earthRadius) * Math.cos(lat),
+                               Math.cos(radius / earthRadius) - Math.sin(lat) * Math.sin(newLat));
+
+        coords.push([newLat * (180 / Math.PI), newLon * (180 / Math.PI)]);
+    }
+    // Adiciona o primeiro ponto ao final para fechar o polígono
+    coords.push(coords[0]);
+    return coords;
+}

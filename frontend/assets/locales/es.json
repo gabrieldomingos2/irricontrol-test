@@ -11,7 +11,8 @@
       "legend": "Leyenda",
       "show_pivot_distances": "Mostrar Distancias de Pivotes",
       "edit_pivots": "Editar Pivotes",
-      "undo_edit": "Deshacer Edición"
+      "undo_edit": "Deshacer Edición",
+      "draw_pivot": "Añadir Pivote con Círculo"
     },
     "labels": {
       "template": "🌐 Plantilla:",
@@ -53,7 +54,8 @@
       "positions_updated": "💾 Posiciones actualizadas. Ejecute la simulación de nuevo para reflejar los cambios.",
       "edit_mode_on": "✏️ Modo de edición activado. Arrastre los pines rojos. Haga clic derecho para eliminar.",
       "los_mode_on": "MODO DIAGNÓSTICO PIVOTE A PIVOTE: Seleccione el pivote de ORIGEN (con señal/verde).",
-      "los_mode_off": "Modo 'Diagnóstico Pivote a Pivote' desactivado."
+      "los_mode_off": "Modo 'Diagnóstico Pivote a Pivote' desactivado.",
+      "pivot_created": "¡Pivote \"{name}\" creado con éxito!"
     },
     "errors": {
       "select_kmz": "Por favor, seleccione un archivo KMZ.",
@@ -68,7 +70,11 @@
       "no_uncovered_pivots": "✅ No hay pivotes sin cobertura para diagnosticar.",
       "analyzing_pivots": "🔍 Analizando {count} pivotes...",
       "los_origin_selected": "ORIGEN: {name} seleccionado. Ahora seleccione el pivote de DESTINO (sin señal/rojo).",
-      "los_origin_is_target": "ORIGEN: {name} ya es el origen. Seleccione un pivote de DESTINO."
+      "los_origin_is_target": "ORIGEN: {name} ya es el origen. Seleccione un pivote de DESTINO.",
+      "draw_pivot_step1": "Modo de Dibujo: Haga clic en el mapa para definir el CENTRO del pivote.",
+      "draw_pivot_step2": "Centro definido. Ahora haga clic para definir el BORDE del círculo.",
+      "draw_pivot_off": "Modo de Dibujo desactivado.",
+      "draw_pivot_cancelled": "Dibujo de pivote cancelado. Haga clic de nuevo para definir un nuevo centro."
     }
   },
   "tooltips": {

@@ -151,25 +151,30 @@ async function getElevationProfile(payload) {
  * @param {Array<object>} [repetidorasData=[]] - Array de objetos com os dados detalhados das repetidoras.
  * @returns {string} - A URL completa para download.
  */
-function getExportKmzUrl(jobId, antenaPrincipalData, imagem, boundsFile, repetidorasData = []) {
+function getExportKmzUrl(jobId, antenaPrincipalData, pivosData, ciclosData, imagem, boundsFile, repetidorasData = []) {
     if (!jobId || !antenaPrincipalData) {
         console.error("Erro fatal: Job ID e dados da antena principal são necessários para exportar.");
         mostrarMensagem("Erro: Dados da sessão ou da antena principal não encontrados para exportação.", "erro");
         return "#";
     }
 
-    // Converte o objeto da antena em uma string JSON para enviar pela URL
+    // Converte os objetos em strings JSON para enviar pela URL
     const antenaJsonString = JSON.stringify(antenaPrincipalData);
+    const pivosJsonString = JSON.stringify(pivosData);
+    const ciclosJsonString = JSON.stringify(ciclosData);
+    const repetidorasJsonString = JSON.stringify(repetidorasData);
 
-    // Constrói a URL completa com o novo parâmetro 'antena_principal_data'
-    let url = `${BACKEND_URL}${API_PREFIX}/kmz/exportar?job_id=${jobId}&imagem=${encodeURIComponent(imagem)}&bounds_file=${encodeURIComponent(boundsFile)}&antena_principal_data=${encodeURIComponent(antenaJsonString)}`;
+    // Constrói a URL completa com todos os parâmetros
+    let url = new URL(`${BACKEND_URL}${API_PREFIX}/kmz/exportar`);
+    url.searchParams.append('job_id', jobId);
+    url.searchParams.append('imagem', imagem);
+    url.searchParams.append('bounds_file', boundsFile);
+    url.searchParams.append('antena_principal_data', antenaJsonString);
+    url.searchParams.append('pivos_data', pivosJsonString);
+    url.searchParams.append('ciclos_data', ciclosJsonString);
+    url.searchParams.append('repetidoras_data', repetidorasJsonString);
 
-    if (repetidorasData.length > 0) {
-        const jsonString = JSON.stringify(repetidorasData);
-        url += `&repetidoras_data=${encodeURIComponent(jsonString)}`;
-    }
-
-    return url;
+    return url.toString();
 }
 
 /**
@@ -220,3 +225,4 @@ async function generatePivotInCircle(payload) {
     throw error;
   }
 }
+

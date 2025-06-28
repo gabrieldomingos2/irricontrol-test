@@ -69,7 +69,12 @@ function setupMainActionListeners() {
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
     document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
+    
+    // Listeners do mapa
     map.on("click", handleMapClick); 
+    map.on("contextmenu", handleCancelDraw); // ✅ ADICIONADO: Listener para o clique direito
+
+    // Listeners de botões da UI
     document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
 
     const toggleDistanciasBtn = document.getElementById('toggle-distancias-pivos');
@@ -549,16 +554,19 @@ function handlePivotDrawMouseMove(e) {
 }
 
 async function handlePivotDrawClick(e) {
+    // Verificação de segurança: não permite criar pivô sem um estudo carregado
     if (!window.jobId) {
         mostrarMensagem(t('messages.errors.run_study_first'), "erro");
-        toggleModoDesenhoPivo();
+        toggleModoDesenhoPivo(); // Desativa o modo automaticamente
         return;
     }
 
+    // Primeiro clique: define o centro
     if (!centroPivoTemporario) {
         centroPivoTemporario = e.latlng;
         mostrarMensagem(t('messages.info.draw_pivot_step2'), "info");
     }
+    // Segundo clique: define o raio e cria o pivô e o círculo permanente
     else {
         const radiusPoint = e.latlng;
         if (typeof drawTempCircle === 'function') {
@@ -574,20 +582,42 @@ async function handlePivotDrawClick(e) {
 
         try {
             const result = await generatePivotInCircle(payload);
-            const novoPivo = result.novo_pivo;
+            
+            const novoPivo = { ...result.novo_pivo, fora: true };
+
+            const radiusInMeters = centroPivoTemporario.distanceTo(radiusPoint);
+            const circleCoords = generateCircleCoords(centroPivoTemporario, radiusInMeters);
+
+            const novoCiclo = {
+                nome_original_circulo: `Ciclo ${novoPivo.nome}`,
+                coordenadas: circleCoords
+            };
 
             window.lastPivosDataDrawn.push(novoPivo);
+            window.ciclosGlobais.push(novoCiclo);
+            
             if (window.currentProcessedKmzData?.pivos) {
                 window.currentProcessedKmzData.pivos.push(novoPivo);
+            }
+            if (window.currentProcessedKmzData?.ciclos) {
+                window.currentProcessedKmzData.ciclos.push(novoCiclo);
             }
 
             if (typeof drawPivos === 'function') {
                 drawPivos(window.lastPivosDataDrawn, false);
             }
+            if (typeof drawCirculos === 'function') {
+                drawCirculos(window.ciclosGlobais);
+            }
 
             if (typeof atualizarPainelDados === 'function') {
                 atualizarPainelDados();
             }
+
+            // ✅ INÍCIO DA NOVA LÓGICA: "MINI-SAVE" AUTOMÁTICO
+            // Chama a reavaliação da API para que o novo pivô já mostre seu status de cobertura (cor e tooltip).
+            await reavaliarPivosViaAPI();
+            // ✅ FIM DA NOVA LÓGICA
             
             mostrarMensagem(t('messages.success.pivot_created', { name: novoPivo.nome }), "sucesso");
 
@@ -763,7 +793,16 @@ function handleExportClick() {
             altura_receiver: window.antenaGlobal.altura_receiver
         };
 
-        const url = getExportKmzUrl(window.jobId, antenaDataParaExport, nomeImagemPrincipal, nomeBoundsPrincipal, repetidorasSelecionadasParaExport);
+        // ✅ ALTERAÇÃO: Chamando a nova versão de getExportKmzUrl com os dados atuais das variáveis globais.
+        const url = getExportKmzUrl(
+            window.jobId, 
+            antenaDataParaExport, 
+            window.lastPivosDataDrawn,      // <--- DADOS ATUALIZADOS DE PIVÔS
+            window.ciclosGlobais,           // <--- DADOS ATUALIZADOS DE CÍRCULOS
+            nomeImagemPrincipal, 
+            nomeBoundsPrincipal, 
+            repetidorasSelecionadasParaExport
+        );
         
         if (url && url !== "#") {
             window.open(url, '_blank');
@@ -913,19 +952,40 @@ function enablePivoEditingMode() {
             console.log(`📍 Pivô ${nome} movido para:`, novaPos);
         });
 
-        editMarker.on("contextmenu", (e) => {
+        editMarker.on("contextmenu", (e) => { // Botão direito para remover
             L.DomEvent.stopPropagation(e);
             L.DomEvent.preventDefault(e);
-            if (confirm(`❌ Tem certeza que deseja remover o pivô ${nome}? Esta ação não pode ser desfeita aqui.`)) {
+            
+            if (confirm(`❌ Tem certeza que deseja remover o pivô ${nome}? O círculo associado também será removido.`)) {
                 map.removeLayer(editMarker);
+                
+                // --- Lógica existente para remover o PIVÔ ---
                 window.lastPivosDataDrawn = window.lastPivosDataDrawn.filter(p => p.nome !== nome);
                 if (window.currentProcessedKmzData?.pivos) {
                      window.currentProcessedKmzData.pivos = window.currentProcessedKmzData.pivos.filter(p => p.nome !== nome);
                 }
+                
+                // ✅ --- INÍCIO DA NOVA LÓGICA PARA REMOVER O CÍRCULO ---
+
+                // 1. Define o nome do círculo a ser procurado, com base no nome do pivô.
+                const nomeCicloParaRemover = `Ciclo ${nome}`;
+
+                // 2. Filtra as listas de círculos, removendo o que corresponde ao nome.
+                window.ciclosGlobais = window.ciclosGlobais.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
+                if (window.currentProcessedKmzData?.ciclos) {
+                    window.currentProcessedKmzData.ciclos = window.currentProcessedKmzData.ciclos.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
+                }
+
+                // 3. Redesenha todos os círculos restantes. A função drawCirculos já limpa a camada antiga.
+                if (typeof drawCirculos === 'function') {
+                    drawCirculos(window.ciclosGlobais);
+                }
+
                 delete pivotsMap[nome];
                 delete posicoesEditadas[nome];
                 delete window.backupPosicoesPivos[nome];
-                mostrarMensagem(`🗑️ Pivô ${nome} removido.`, "sucesso");
+                
+                mostrarMensagem(`🗑️ Pivô ${nome} e seu círculo foram removidos.`, "sucesso");
                 atualizarPainelDados();
             }
         });
@@ -1154,5 +1214,29 @@ function handleToggleDistanciasPivos() {
         } else {
              console.error("Fallback para drawPivos falhou.");
         }
+    }
+}
+
+/**
+ * ✅ NOVO: Cancela a operação de desenho de pivô com o botão direito do mouse.
+ * @param {L.LeafletEvent} e O evento de clique do Leaflet.
+ */
+function handleCancelDraw(e) {
+    // Só executa se estivermos no modo de desenho e já tivermos um ponto central definido
+    if (window.modoDesenhoPivo && centroPivoTemporario) {
+        // Impede o menu de contexto padrão do navegador de aparecer
+        L.DomEvent.preventDefault(e);
+        L.DomEvent.stopPropagation(e);
+
+        console.log("✏️ Ação de desenho cancelada pelo usuário.");
+
+        // Limpa o estado da ação em progresso
+        centroPivoTemporario = null;
+        if (typeof removeTempCircle === 'function') {
+            removeTempCircle();
+        }
+
+        // Informa o usuário que ele pode começar de novo, mantendo o modo ativo
+        mostrarMensagem(t('messages.info.draw_pivot_cancelled'), "info");
     }
 }

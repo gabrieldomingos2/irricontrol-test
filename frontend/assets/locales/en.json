@@ -11,7 +11,8 @@
       "legend": "Legend",
       "show_pivot_distances": "Show Pivot Distances",
       "edit_pivots": "Edit Pivots",
-      "undo_edit": "Undo Edit"
+      "undo_edit": "Undo Edit",
+      "draw_pivot": "Add Pivot with Circle"
     },
     "labels": {
       "template": "🌐 Template:",
@@ -53,7 +54,8 @@
       "positions_updated": "💾 Positions updated. Run the simulation again to reflect changes in coverage.",
       "edit_mode_on": "✏️ Edit mode enabled. Drag the red pins. Right-click to remove.",
       "los_mode_on": "PIVOT-TO-PIVOT DIAGNOSTIC MODE: Select the ORIGIN pivot (with signal/green).",
-      "los_mode_off": "Pivot-to-Pivot Diagnostic mode disabled."
+      "los_mode_off": "Pivot-to-Pivot Diagnostic mode disabled.",
+      "pivot_created": "Pivot \"{name}\" created successfully!"
     },
     "errors": {
       "select_kmz": "Please select a KMZ file.",
@@ -68,7 +70,11 @@
       "no_uncovered_pivots": "✅ No uncovered pivots to diagnose.",
       "analyzing_pivots": "🔍 Analyzing {count} pivots...",
       "los_origin_selected": "ORIGIN: {name} selected. Now select the DESTINATION pivot (no signal/red).",
-      "los_origin_is_target": "ORIGIN: {name} is already the origin. Select a DESTINATION pivot."
+      "los_origin_is_target": "ORIGIN: {name} is already the origin. Select a DESTINATION pivot.",
+      "draw_pivot_step1": "Drawing Mode: Click on the map to set the pivot's CENTER.",
+      "draw_pivot_step2": "Center defined. Now click to set the EDGE of the circle.",
+      "draw_pivot_off": "Drawing Mode disabled.",
+      "draw_pivot_cancelled": "Pivot drawing cancelled. Click again to set a new center."
     }
   },
   "tooltips": {
