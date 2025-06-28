@@ -1,4 +1,5 @@
 import re
+from pydantic import BaseModel
 from backend.services.kmz_parser import normalizar_nome
 from PIL import Image
 import httpx
@@ -65,11 +66,6 @@ class CandidateSite(TypedDict):
     distance_to_target: float
     ponto_bloqueio: Optional[Union[BlockageInfo, Dict[str, str]]]
     altura_necessaria_torre: Optional[float]
-
-class GeneratePivotPayload(BaseModel):
-    job_id: str
-    center: Tuple[float, float] = Field(..., description="Coordenadas [lat, lon] do centro do círculo.")
-    pivos_atuais: List[PivoData] = Field(..., description="Lista de todos os pivôs atualmente no frontend.")  
 
 # --- Análise de Cobertura (sem alterações) ---
 def verificar_cobertura_pivos(pivos: List[PivoInputData], overlays_info: List[OverlayInputData]) -> List[PivoInputData]:
