@@ -1,6 +1,7 @@
 # backend/routers/kmz.py
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse # ✅ ESTA LINHA CORRIGE O ERRO
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import zipfile
@@ -67,7 +68,6 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Erro interno ao processar KMZ: {type(e).__name__} - {str(e)}")
 
 
-# ✅ Modelo de dados para a exportação agora é flexível
 class ExportPayload(BaseModel):
     job_id: str
     template_id: str
@@ -89,7 +89,6 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
     
     bounds_principal_data = None
     
-    # ✅ Valida dados da antena principal somente se eles foram enviados
     if payload.antena_principal_data and payload.imagem and payload.bounds_file:
         logger.info(" -> Antena principal detectada no payload. Verificando arquivos...")
         caminho_imagem_principal_servidor = job_images_dir / payload.imagem
@@ -104,7 +103,6 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         logger.info(" -> Nenhuma antena principal no payload. Exportando sem ela.")
 
     try:
-        # ✅ Pega o template diretamente do payload, sem depender de arquivos
         selected_template = settings.obter_template(payload.template_id)
         if not selected_template:
             raise HTTPException(status_code=404, detail=f"O template com ID '{payload.template_id}' não foi encontrado.")
