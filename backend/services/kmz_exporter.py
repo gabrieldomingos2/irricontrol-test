@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import re
 from math import log10
-from typing import Any
+from typing import Any, Optional
 from shutil import copyfile
 
 from backend.config import settings # type: ignore
@@ -101,49 +101,40 @@ def _setup_main_antenna_structure(
     logger.info(f" -> Estrutura de pastas para '{antena_nome}' criada.")
     return subfolder_details
 
-def _add_overlays_and_repeater_structures(
-    doc: simplekml.Document, main_folder: simplekml.Folder,
-    image_name: str, bounds_data: list, repetidora_style: simplekml.Style,
+def _add_repeaters(
+    doc: simplekml.Document, repetidoras_data: list[dict], repetidora_style: simplekml.Style,
     images_dir: Path, overlay_legend_name: str, desc_legend_name: str,
-    coverage_name: str, template: Any, repeaters_data: list[dict],
-    timestamp_prefix: str
+    template: Any, timestamp_prefix: str
 ) -> list[tuple[Path, str]]:
     files_to_add = []
-    ground = main_folder.newgroundoverlay(name=coverage_name)
-    ground.icon.href = image_name
-    b = bounds_data
-    ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = b[2], b[0], b[3], b[1]
-    ground.color = "ffffffff"
-    files_to_add.append((images_dir / image_name, image_name))
-    
-    screen = main_folder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
-    screen.icon.href = overlay_legend_name
-    screen.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
-    screen.screenxy = simplekml.ScreenXY(x=10, y=1, xunits=simplekml.Units.pixels, yunits=simplekml.Units.fraction)
-    screen.size = simplekml.Size(x=40, y=70, xunits=simplekml.Units.pixels, yunits=simplekml.Units.pixels)
-
-    for i, rep_data in enumerate(repeaters_data):
+    for i, rep_data in enumerate(repetidoras_data):
         nome_img_rep = rep_data.get("imagem")
         if not nome_img_rep or not nome_img_rep.lower().endswith(".png"):
             continue
+
         path_img_rep = images_dir / nome_img_rep
         path_json_rep = path_img_rep.with_suffix(".json")
         if not path_json_rep.exists():
             continue
+
         with open(path_json_rep, "r") as f:
             bounds = json.load(f).get("bounds")
         if not bounds:
             continue
+        
         altura = rep_data.get("altura", 5)
         sobre_pivo = rep_data.get("sobre_pivo", False)
         nome_personalizado = f"Repetidora Solar Pivô - {altura}m" if sobre_pivo else f"Repetidora Solar - {altura}m"
         nome_repetidora_id = f"Repetidora_{i+1:02d}"
         subpasta_nome = f"{timestamp_prefix}_{nome_repetidora_id}_Irricontrol_{template.id}"
+        
         folder_rep = doc.newfolder(name=nome_personalizado)
         folder_rep.style.liststyle.itemicon.href = TORRE_ICON_NAME
         subfolder = folder_rep.newfolder(name=subpasta_nome)
+        
         centro_lat = (bounds[0] + bounds[2]) / 2
         centro_lon = (bounds[1] + bounds[3]) / 2
+        
         ponto = subfolder.newpoint(name=nome_personalizado, coords=[(centro_lon, centro_lat)])
         ponto.description = _create_html_description_table(
             sim_type="Repetidora",
@@ -153,6 +144,7 @@ def _add_overlays_and_repeater_structures(
             colour_key_filename=desc_legend_name
         )
         ponto.style = repetidora_style
+        
         ground_rep = subfolder.newgroundoverlay(name=f"Cobertura {nome_personalizado}")
         ground_rep.icon.href = nome_img_rep
         ground_rep.latlonbox.north, ground_rep.latlonbox.south, ground_rep.latlonbox.east, ground_rep.latlonbox.west = bounds[2], bounds[0], bounds[3], bounds[1]
@@ -195,11 +187,19 @@ def _add_secondary_folders(
             pnt_bomba.style = default_point_style
         logger.info(" -> Pasta 'Bombas' criada.")
 
+# ✅ FUNÇÃO PRINCIPAL ATUALIZADA para ser mais flexível
 def build_kml_document_and_get_image_list(
-    doc: simplekml.Document, antena_data: dict, pivos_data: list,
-    ciclos_data: list, bombas_data: list, imagem_principal_nome_relativo: str,
-    bounds_principal_data: list, generated_images_dir: Path, selected_template: Any,
-    study_date_str_for_subfolder: str, repetidoras_selecionadas_data: list[dict]
+    doc: simplekml.Document,
+    pivos_data: list,
+    ciclos_data: list,
+    bombas_data: list,
+    repetidoras_selecionadas_data: list[dict],
+    generated_images_dir: Path,
+    selected_template: Any,
+    # Dados da antena principal agora são opcionais
+    antena_data: Optional[dict],
+    imagem_principal_nome_relativo: Optional[str],
+    bounds_principal_data: Optional[list],
 ) -> list[tuple[Path, str]]:
     
     logger.info("Iniciando construção da estrutura KML.")
@@ -218,31 +218,55 @@ def build_kml_document_and_get_image_list(
         except Exception as e:
             logger.error(f" -> ❌ Falha ao copiar arquivo de legenda: {e}")
     
+    image_files_for_kmz: list[tuple[Path, str]] = []
     timestamp_for_name = datetime.now().strftime('%m%d%H%M%S')
-    antena_nome_base = antena_data.get("nome", "Antena Principal")
-    sanitized_antena_nome = re.sub(r'[\s-]+', '_', antena_nome_base)
-    details_subfolder_name = f"{timestamp_for_name}_{sanitized_antena_nome}_Irricontrol_{selected_template.id}"
-    main_coverage_name = f"Cobertura {selected_template.frq}MHz {selected_template.transmitter.txw}W"
-    
-    file_id_principal = f"{timestamp_for_name[4:]}_{antena_nome_base.replace(' ', '')}_{selected_template.id}"
-    main_antenna_details_subfolder = _setup_main_antenna_structure(
-        doc, antena_data, torre_style, details_subfolder_name,
-        template=selected_template, file_id_str=file_id_principal,
-        colour_key_desc_filename=colour_key_desc_filename
-    )
-    
-    image_files_for_kmz = _add_overlays_and_repeater_structures(
-        doc, main_antenna_details_subfolder, imagem_principal_nome_relativo,
-        bounds_principal_data, repetidora_style, generated_images_dir,
+
+    # ✅ Lógica da Antena Principal só executa se os dados forem fornecidos
+    if antena_data and imagem_principal_nome_relativo and bounds_principal_data:
+        logger.info(" -> Adicionando estrutura da Antena Principal.")
+        antena_nome_base = antena_data.get("nome", "Antena Principal")
+        sanitized_antena_nome = re.sub(r'[\s-]+', '_', antena_nome_base)
+        details_subfolder_name = f"{timestamp_for_name}_{sanitized_antena_nome}_Irricontrol_{selected_template.id}"
+        main_coverage_name = f"Cobertura {selected_template.frq}MHz {selected_template.transmitter.txw}W"
+        file_id_principal = f"{timestamp_for_name[4:]}_{antena_nome_base.replace(' ', '')}_{selected_template.id}"
+
+        main_antenna_details_subfolder = _setup_main_antenna_structure(
+            doc, antena_data, torre_style, details_subfolder_name,
+            template=selected_template, file_id_str=file_id_principal,
+            colour_key_desc_filename=colour_key_desc_filename
+        )
+        
+        # Adiciona o overlay da antena principal
+        ground = main_antenna_details_subfolder.newgroundoverlay(name=main_coverage_name)
+        ground.icon.href = imagem_principal_nome_relativo
+        b = bounds_principal_data
+        ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = b[2], b[0], b[3], b[1]
+        ground.color = "ffffffff"
+        image_files_for_kmz.append((generated_images_dir / imagem_principal_nome_relativo, imagem_principal_nome_relativo))
+        
+        # Adiciona a legenda de cores na tela
+        screen = main_antenna_details_subfolder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
+        screen.icon.href = colour_key_overlay_filename
+        screen.overlayxy = simplekml.OverlayXY(x=0, y=1, xunits=simplekml.Units.fraction, yunits=simplekml.Units.fraction)
+        screen.screenxy = simplekml.ScreenXY(x=10, y=1, xunits=simplekml.Units.pixels, yunits=simplekml.Units.fraction)
+        screen.size = simplekml.Size(x=40, y=70, xunits=simplekml.Units.pixels, yunits=simplekml.Units.pixels)
+    else:
+        logger.info(" -> Nenhum dado de Antena Principal fornecido. Pulando sua estrutura.")
+
+    # ✅ Lógica das Repetidoras agora é independente
+    repeater_files = _add_repeaters(
+        doc, repetidoras_selecionadas_data, repetidora_style, generated_images_dir,
         overlay_legend_name=colour_key_overlay_filename,
         desc_legend_name=colour_key_desc_filename,
-        coverage_name=main_coverage_name, template=selected_template,
-        repeaters_data=repetidoras_selecionadas_data,
+        template=selected_template,
         timestamp_prefix=timestamp_for_name
     )
+    image_files_for_kmz.extend(repeater_files)
     
+    # Adiciona pastas de Pivôs, Ciclos e Bombas (sempre executa)
     _add_secondary_folders(doc, pivos_data, ciclos_data, bombas_data, default_point_style)
 
+    # Adiciona arquivos de ícones e legendas comuns
     arquivos_a_incluir = [
         (settings.IMAGENS_DIR_PATH / TORRE_ICON_NAME, TORRE_ICON_NAME),
         (original_legend_path, colour_key_desc_filename),

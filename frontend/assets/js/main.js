@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     reposicionarPaineisLaterais();
     lucide.createIcons();
     
-    // ✅ NOVO: Inicia uma sessão de trabalho vazia ao carregar a página
+    // Inicia uma sessão de trabalho vazia ao carregar a página
     await startNewSession();
 
     console.log("Aplicação Pronta.");
@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 /**
- * ✅ NOVO: Inicia uma nova sessão de trabalho (job) no backend.
+ * Inicia uma nova sessão de trabalho (job) no backend.
  * Esta função destrava a aplicação para uso imediato.
  */
 async function startNewSession() {
@@ -229,7 +229,7 @@ async function startMainSimulation(antenaData) {
             ...antenaData,
             overlay: drawImageOverlay(data.imagem_salva, data.bounds),
             bounds: data.bounds,
-            imagem_filename: data.imagem_filename
+            imagem_filename: data.imagem_salva.split('/').pop() // Correção para pegar apenas o nome do arquivo
         };
 
         if(marcadorAntena) map.removeLayer(marcadorAntena);
@@ -395,7 +395,7 @@ async function handleConfirmRepetidoraClick() {
         try {
             const data = await simulateManual(payload);
             repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0);
-            repetidoraObj.imagem_filename = data.imagem_filename;
+            repetidoraObj.imagem_filename = data.imagem_filename.split('/').pop();
             addRepetidoraNoPainel(repetidoraObj);
             await reavaliarPivosViaAPI();
             mostrarMensagem(t('messages.success.repeater_added', { name: repetidoraObj.nome }), "sucesso");
@@ -587,7 +587,7 @@ function handlePivotDrawMouseMove(e) {
 
 async function handlePivotDrawClick(e) {
     if (!window.jobId) {
-        mostrarMensagem(t('messages.errors.run_study_first'), "erro");
+        mostrarMensagem(t('messages.errors.session_not_started_for_draw'), "erro");
         toggleModoDesenhoPivo();
         return;
     }
@@ -675,10 +675,10 @@ function handleResetClick(showMessage = true) {
     window.ciclosGlobais = [];
     window.distanciasPivosVisiveis = false;
     window.lastPivosDataDrawn = [];
+    window.lastBombasDataDrawn = [];
     window.currentProcessedKmzData = null;
     
-    // ✅ NOVO: Após resetar, inicia uma nova sessão em branco imediatamente.
-    if (showMessage) { // Só inicia nova sessão se não for um reset vindo do upload de KMZ
+    if (showMessage) {
       startNewSession();
     }
 
@@ -786,9 +786,16 @@ async function handleDiagnosticoClick() {
     mostrarMensagem(t('messages.success.los_diagnostic_complete'), "sucesso");
 }
 
+// ✅ FUNÇÃO FINAL E CORRIGIDA
 async function handleExportClick() {
-    if (!window.antenaGlobal?.overlay || !window.antenaGlobal.bounds || !window.antenaGlobal.imagem_filename || !window.jobId) {
-        mostrarMensagem(t('messages.errors.run_study_first'), "erro");
+    // ✅ LÓGICA DE VALIDAÇÃO ATUALIZADA
+    if (!window.jobId) {
+        mostrarMensagem(t('messages.errors.session_not_started'), "erro");
+        return;
+    }
+    // Permite exportar se tiver uma antena principal OU pelo menos uma repetidora.
+    if (!window.antenaGlobal && repetidoras.length === 0) {
+        mostrarMensagem(t('messages.errors.nothing_to_export'), "erro");
         return;
     }
 
@@ -803,37 +810,44 @@ async function handleExportClick() {
                 repetidorasSelecionadasParaExport.push({
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
-                    sobre_pivo: rep.sobre_pivo
+                    sobre_pivo: rep.sobre_pivo,
+                    nome: rep.nome
                 });
             }
         });
         
-        const antenaDataParaExport = {
-            nome: window.antenaGlobal.nome,
-            lat: window.antenaGlobal.lat,
-            lon: window.antenaGlobal.lon,
-            altura: window.antenaGlobal.altura,
-            altura_receiver: window.antenaGlobal.altura_receiver
-        };
+        let antenaDataParaExport = null;
+        let imagemPrincipal = null;
+        let boundsFilePrincipal = null;
 
-        // 1. Monta o objeto de payload com todos os dados atuais do mapa
+        // ✅ Preenche os dados da antena principal somente se ela existir
+        if (window.antenaGlobal) {
+            antenaDataParaExport = {
+                nome: window.antenaGlobal.nome,
+                lat: window.antenaGlobal.lat,
+                lon: window.antenaGlobal.lon,
+                altura: window.antenaGlobal.altura,
+                altura_receiver: window.antenaGlobal.altura_receiver
+            };
+            imagemPrincipal = window.antenaGlobal.imagem_filename;
+            boundsFilePrincipal = window.antenaGlobal.imagem_filename.replace(/\.png$/, '.json');
+        }
+
         const payload = {
             job_id: window.jobId,
-            imagem: window.antenaGlobal.imagem_filename,
-            bounds_file: window.antenaGlobal.imagem_filename.replace(/\.png$/, '.json'),
+            template_id: templateSelecionado || document.getElementById('template-modelo').value,
             antena_principal_data: antenaDataParaExport,
+            imagem: imagemPrincipal,
+            bounds_file: boundsFilePrincipal,
             pivos_data: window.lastPivosDataDrawn,
             ciclos_data: window.ciclosGlobais,
-            // ✅ CORREÇÃO: Adiciona os dados das bombas ao payload de exportação.
             bombas_data: window.lastBombasDataDrawn,
             repetidoras_data: repetidorasSelecionadasParaExport
         };
 
-        // 2. Chama a nova função 'exportKmz' que faz o POST
         await exportKmz(payload);
 
     } catch (error) {
-        // A função da API já mostra a mensagem de erro detalhada
         console.error("Erro no processo de exportação KMZ:", error);
     } finally {
         mostrarLoader(false);
@@ -841,80 +855,40 @@ async function handleExportClick() {
 }
 
 async function reavaliarPivosViaAPI() {
-    console.log("🔄 Reavaliando cobertura de pivôs e bombas...");
-    if (!window.jobId || !window.currentProcessedKmzData) {
-        console.error("❌ Job ID ou dados do KMZ não estão disponíveis para reavaliação.");
-        return;
-    }
-
-    // ✅ Usa os dados mais recentes que estão sendo desenhados
-    const pivosParaReavaliar = (window.lastPivosDataDrawn || []).map(p => ({
-        nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo'
-    }));
-
-    const bombasParaReavaliar = (window.lastBombasDataDrawn || []).map(b => ({
-        nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba'
-    }));
-
+    if (!window.jobId || !window.currentProcessedKmzData) return;
+    const pivosParaReavaliar = (window.lastPivosDataDrawn || []).map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' }));
+    const bombasParaReavaliar = (window.lastBombasDataDrawn || []).map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' }));
     const overlays = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
-
     if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename) {
         const b = window.antenaGlobal.overlay.getBounds();
-        overlays.push({
-            id: 'antena_principal',
-            imagem: window.antenaGlobal.imagem_filename,
-            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-        });
+        overlays.push({ id: 'antena_principal', imagem: window.antenaGlobal.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
     }
-
     repetidoras.forEach(rep => {
         const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
         if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked) && rep.imagem_filename) {
             const b = rep.overlay.getBounds();
-            overlays.push({
-                id: `repetidora_${rep.id}`,
-                imagem: rep.imagem_filename,
-                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-            });
+            overlays.push({ id: `repetidora_${rep.id}`, imagem: rep.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
         }
     });
-    
-    console.log(`📡 Encontrados ${overlays.length} overlays de sinal ativos para a reavaliação.`);
-
     try {
-        const payload = {
-            job_id: window.jobId,
-            pivos: pivosParaReavaliar,
-            bombas: bombasParaReavaliar,
-            overlays
-        };
-        
+        const payload = { job_id: window.jobId, pivos: pivosParaReavaliar, bombas: bombasParaReavaliar, overlays };
         const data = await reevaluatePivots(payload);
-
         if (data.pivos) {
             window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
             drawPivos(data.pivos, false);
-            console.log("✅ Pivôs reavaliados e redesenhados.");
         }
-
         if (data.bombas) {
             window.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
             drawBombas(data.bombas);
-            console.log("✅ Bombas reavaliadas e redesenhadas.");
         }
-        
         atualizarPainelDados();
-
     } catch (error) {
         console.error("❌ Erro ao reavaliar cobertura via API:", error);
         mostrarMensagem(t('messages.errors.reevaluate_fail', { error: error.message }), "erro");
     }
 }
 
-function formatCoordForFilename(coord) {
-    return coord.toFixed(6).replace('.', '_').replace('-', 'm');
-}
 
 function removePositioningMarker() {
     if (window.marcadorPosicionamento && map.hasLayer(window.marcadorPosicionamento)) {
@@ -924,94 +898,52 @@ function removePositioningMarker() {
 }
 window.removePositioningMarker = removePositioningMarker;
 
-// --- Funções de Edição de Pivôs ---
-
 function enablePivoEditingMode() {
     window.modoEdicaoPivos = true;
     console.log("✏️ Ativando modo de edição com ícone de pino SVG.");
     window.backupPosicoesPivos = {};
-
-    const tamanho = 18;
-    const altura = 26;
-
+    const tamanho = 18; const altura = 26;
     marcadoresPivos.forEach(m => map.removeLayer(m));
     marcadoresPivos = [];
-    marcadoresLegenda.filter(l => l.options.labelType === 'pivot').forEach(l => {
-        if (map.hasLayer(l)) map.removeLayer(l);
-    });
+    marcadoresLegenda.filter(l => l.options.labelType === 'pivot').forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
     marcadoresLegenda = marcadoresLegenda.filter(l => l.options.labelType !== 'pivot');
-
-    Object.values(pivotsMap).forEach(marker => {
-        if (marker && map.hasLayer(marker)) {
-            map.removeLayer(marker);
-        }
-    });
+    Object.values(pivotsMap).forEach(marker => { if (marker && map.hasLayer(marker)) map.removeLayer(marker); });
     pivotsMap = {};
-
     window.lastPivosDataDrawn.forEach(pivoInfo => {
         const nome = pivoInfo.nome;
         const currentLatLng = L.latLng(pivoInfo.lat, pivoInfo.lon);
         window.backupPosicoesPivos[nome] = currentLatLng;
-
         const editMarkerIcon = L.divIcon({
             className: 'pivo-edit-handle-custom-pin',
             html: `<svg viewBox="0 0 28 40" width="${tamanho}" height="${altura}" xmlns="http://www.w3.org/2000/svg"><path d="M14 0 C7.486 0 2 5.486 2 12.014 C2 20.014 14 40 14 40 C14 40 26 20.014 26 12.014 C26 5.486 20.514 0 14 0 Z M14 18 C10.686 18 8 15.314 8 12 C8 8.686 10.686 6 14 6 C17.314 6 20 8.686 20 12 C20 15.314 17.314 18 14 18 Z" fill="#FF3333" stroke="#660000" stroke-width="1"/></svg>`,
             iconSize: [tamanho, altura],
             iconAnchor: [tamanho / 2, altura]
         });
-
-        const editMarker = L.marker(currentLatLng, {
-            draggable: true,
-            icon: editMarkerIcon
-        }).addTo(map);
-
+        const editMarker = L.marker(currentLatLng, { draggable: true, icon: editMarkerIcon }).addTo(map);
         pivotsMap[nome] = editMarker;
-
         editMarker.on("dragend", (e) => {
             const novaPos = e.target.getLatLng();
             posicoesEditadas[nome] = { lat: novaPos.lat, lng: novaPos.lng };
-
             const pivoEmLastData = window.lastPivosDataDrawn.find(p => p.nome === nome);
             if (pivoEmLastData) {
                 pivoEmLastData.lat = novaPos.lat;
                 pivoEmLastData.lon = novaPos.lng;
             }
-            console.log(`📍 Pivô ${nome} movido para:`, novaPos);
         });
-
-        editMarker.on("contextmenu", (e) => { // Botão direito para remover
+        editMarker.on("contextmenu", (e) => {
             L.DomEvent.stopPropagation(e);
             L.DomEvent.preventDefault(e);
-            
             if (confirm(`❌ Tem certeza que deseja remover o pivô ${nome}? O círculo associado também será removido.`)) {
                 map.removeLayer(editMarker);
-                
-                // --- Lógica existente para remover o PIVÔ ---
                 window.lastPivosDataDrawn = window.lastPivosDataDrawn.filter(p => p.nome !== nome);
-                if (window.currentProcessedKmzData?.pivos) {
-                     window.currentProcessedKmzData.pivos = window.currentProcessedKmzData.pivos.filter(p => p.nome !== nome);
-                }
-                
-                // ✅ --- INÍCIO DA NOVA LÓGICA PARA REMOVER O CÍRCULO ---
-
-                // 1. Define o nome do círculo a ser procurado, com base no nome do pivô.
+                if (window.currentProcessedKmzData?.pivos) window.currentProcessedKmzData.pivos = window.currentProcessedKmzData.pivos.filter(p => p.nome !== nome);
                 const nomeCicloParaRemover = `Ciclo ${nome}`;
-
-                // 2. Filtra as listas de círculos, removendo o que corresponde ao nome.
                 window.ciclosGlobais = window.ciclosGlobais.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
-                if (window.currentProcessedKmzData?.ciclos) {
-                    window.currentProcessedKmzData.ciclos = window.currentProcessedKmzData.ciclos.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
-                }
-
-                // 3. Redesenha todos os círculos restantes. A função drawCirculos já limpa a camada antiga.
-                if (typeof drawCirculos === 'function') {
-                    drawCirculos(window.ciclosGlobais);
-                }
-
+                if (window.currentProcessedKmzData?.ciclos) window.currentProcessedKmzData.ciclos = window.currentProcessedKmzData.ciclos.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
+                if (typeof drawCirculos === 'function') drawCirculos(window.ciclosGlobais);
                 delete pivotsMap[nome];
                 delete posicoesEditadas[nome];
                 delete window.backupPosicoesPivos[nome];
-                
                 mostrarMensagem(`🗑️ Pivô ${nome} e seu círculo foram removidos.`, "sucesso");
                 atualizarPainelDados();
             }
@@ -1022,24 +954,15 @@ function enablePivoEditingMode() {
 
 function disablePivoEditingMode() {
     window.modoEdicaoPivos = false;
-    console.log("Desativando modo de edição e 'salvando' posições em lastPivosDataDrawn.");
-
-    Object.values(pivotsMap).forEach(editMarker => {
-        if (editMarker && map.hasLayer(editMarker)) {
-            map.removeLayer(editMarker);
-        }
-    });
+    Object.values(pivotsMap).forEach(editMarker => { if (editMarker && map.hasLayer(editMarker)) map.removeLayer(editMarker); });
     pivotsMap = {};
-
     drawPivos(window.lastPivosDataDrawn, false);
-
     mostrarMensagem("💾 Posições atualizadas. Rode a simulação novamente para refletir mudanças na cobertura.", "sucesso");
     window.backupPosicoesPivos = {};
     posicoesEditadas = {};
 }
 
 function undoPivoEdits() {
-    console.log("Desfazendo edições.");
     Object.entries(window.backupPosicoesPivos).forEach(([nome, posicaoOriginalLatLng]) => {
         const pivoEmLastData = window.lastPivosDataDrawn.find(p => p.nome === nome);
         if (pivoEmLastData) {
@@ -1047,45 +970,32 @@ function undoPivoEdits() {
             pivoEmLastData.lon = posicaoOriginalLatLng.lng;
         }
         const editMarker = pivotsMap[nome];
-        if (editMarker && map.hasLayer(editMarker)) {
-            editMarker.setLatLng(posicaoOriginalLatLng);
-        }
+        if (editMarker && map.hasLayer(editMarker)) editMarker.setLatLng(posicaoOriginalLatLng);
     });
-
     posicoesEditadas = {};
-
-    if (typeof togglePivoEditing === 'function' && window.modoEdicaoPivos) {
-        togglePivoEditing();
-    }
+    if (typeof togglePivoEditing === 'function' && window.modoEdicaoPivos) togglePivoEditing();
     mostrarMensagem("↩️ Edições desfeitas. Modo de edição encerrado.", "sucesso");
 }
-
 
 function toggleLoSPivotAPivotMode() {
     window.modoLoSPivotAPivot = !window.modoLoSPivotAPivot;
     const btn = document.getElementById('btn-los-pivot-a-pivot');
     btn.classList.toggle('glass-button-active', window.modoLoSPivotAPivot);
-
     if (window.modoLoSPivotAPivot) {
         mostrarMensagem("MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal/verde).", "sucesso");
         if (window.marcadorPosicionamento) removePositioningMarker();
         document.getElementById("painel-repetidora").classList.add("hidden");
         window.losSourcePivot = null;
         window.losTargetPivot = null;
-
-        if (window.modoEdicaoPivos && typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos").classList.contains('glass-button-active')) {
-            togglePivoEditing();
-        }
-        if (window.modoBuscaLocalRepetidora && typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) {
-            handleBuscarLocaisRepetidoraActivation();
-        }
+        if (window.modoEdicaoPivos && typeof togglePivoEditing === 'function' && document.getElementById("editar-pivos").classList.contains('glass-button-active')) togglePivoEditing();
+        if (window.modoBuscaLocalRepetidora && typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) handleBuscarLocaisRepetidoraActivation();
         map.getContainer().style.cursor = 'help';
     } else {
         mostrarMensagem("Modo 'Diagnóstico Pivô a Pivô' desativado.", "sucesso");
         window.losSourcePivot = null;
         window.losTargetPivot = null;
         map.getContainer().style.cursor = '';
-       if (visadaLayerGroup) {
+        if (visadaLayerGroup) {
             visadaLayerGroup.clearLayers();
             linhasDiagnostico = [];
             marcadoresBloqueio = [];
@@ -1095,37 +1005,25 @@ function toggleLoSPivotAPivotMode() {
 
 async function handleLoSPivotClick(pivoData, pivoMarker) {
     if (!window.modoLoSPivotAPivot) return;
-
     const isGoodSignalPivot = pivoMarker.options.fillColor === 'green';
     const pivotLatlng = pivoMarker.getLatLng();
     const defaultPivotHeight = (window.antenaGlobal && typeof window.antenaGlobal.altura_receiver === 'number') ? window.antenaGlobal.altura_receiver : 3;
-
     if (!window.losSourcePivot) {
         if (!isGoodSignalPivot) {
             mostrarMensagem("ORIGEM: Selecione um pivô COM SINAL (verde).", "erro");
             return;
         }
-        window.losSourcePivot = {
-            nome: pivoData.nome,
-            latlng: pivotLatlng,
-            altura: defaultPivotHeight
-        };
+        window.losSourcePivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
         mostrarMensagem(`ORIGEM: ${pivoData.nome} selecionado. Agora selecione o pivô de DESTINO (sem sinal/vermelho).`, "sucesso");
-
     } else {
         if (pivoData.nome === window.losSourcePivot.nome) {
             mostrarMensagem(`ORIGEM: ${pivoData.nome} já é a origem. Selecione o pivô de DESTINO.`, "info");
             return;
         }
-
         if (isGoodSignalPivot) {
             const confirmaMudanca = confirm(`Você já selecionou ${window.losSourcePivot.nome} como origem. Deseja alterar a origem para ${pivoData.nome}? As linhas de diagnóstico anteriores serão removidas.`);
             if (confirmaMudanca) {
-                window.losSourcePivot = {
-                    nome: pivoData.nome,
-                    latlng: pivotLatlng,
-                    altura: defaultPivotHeight
-                };
+                window.losSourcePivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
                 window.losTargetPivot = null;
                 linhasDiagnostico = [];
                 marcadoresBloqueio = [];
@@ -1133,92 +1031,45 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
             }
             return;
         }
-
-        window.losTargetPivot = {
-            nome: pivoData.nome,
-            latlng: pivotLatlng,
-            altura: defaultPivotHeight
-        };
-
+        window.losTargetPivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
         mostrarLoader(true);
         let ocorreuErroNaAnalise = false;
         let distanciaFormatada = "N/A";
-
         try {
             linhasDiagnostico = [];
             marcadoresBloqueio = [];
-
-            if (!window.losSourcePivot.latlng || !window.losTargetPivot.latlng) {
-                throw new Error("LatLng de origem ou destino indefinido para cálculo de distância.");
-            }
-            if (!(window.losSourcePivot.latlng instanceof L.LatLng) || !(window.losTargetPivot.latlng instanceof L.LatLng) ) {
-                 throw new Error("Objeto LatLng inválido para cálculo de distância.");
-            }
-
+            if (!window.losSourcePivot.latlng || !window.losTargetPivot.latlng) throw new Error("LatLng de origem ou destino indefinido para cálculo de distância.");
+            if (!(window.losSourcePivot.latlng instanceof L.LatLng) || !(window.losTargetPivot.latlng instanceof L.LatLng) ) throw new Error("Objeto LatLng inválido para cálculo de distância.");
             const distanciaEntrePivos = window.losSourcePivot.latlng.distanceTo(window.losTargetPivot.latlng);
-
             if (isNaN(distanciaEntrePivos)) {
                 distanciaFormatada = "Erro no cálculo";
             } else {
-                distanciaFormatada = distanciaEntrePivos > 999
-                    ? (distanciaEntrePivos / 1000).toFixed(1) + ' km'
-                    : Math.round(distanciaEntrePivos) + ' m';
+                distanciaFormatada = distanciaEntrePivos > 999 ? (distanciaEntrePivos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntrePivos) + ' m';
             }
-
             const payload = {
-                pontos: [
-                    [window.losSourcePivot.latlng.lat, window.losSourcePivot.latlng.lng],
-                    [window.losTargetPivot.latlng.lat, window.losTargetPivot.latlng.lng]
-                ],
-                altura_antena: window.losSourcePivot.altura,
-                altura_receiver: window.losTargetPivot.altura
+                pontos: [ [window.losSourcePivot.latlng.lat, window.losSourcePivot.latlng.lng], [window.losTargetPivot.latlng.lat, window.losTargetPivot.latlng.lng] ],
+                altura_antena: window.losSourcePivot.altura, altura_receiver: window.losTargetPivot.altura
             };
-
             const resultadoApi = await getElevationProfile(payload);
-
             const estaBloqueado = resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number' && resultadoApi.bloqueio.diff > 0.1;
-
-            drawDiagnostico(
-                payload.pontos[0],
-                payload.pontos[1],
-                resultadoApi.bloqueio,
-                resultadoApi.ponto_mais_alto,
-                `${window.losSourcePivot.nome} → ${window.losTargetPivot.nome}`,
-                distanciaFormatada
-            );
-
+            drawDiagnostico(payload.pontos[0], payload.pontos[1], resultadoApi.bloqueio, resultadoApi.ponto_mais_alto, `${window.losSourcePivot.nome} → ${window.losTargetPivot.nome}`, distanciaFormatada);
             let mensagemVisada = `Visada ${window.losSourcePivot.nome} → ${window.losTargetPivot.nome} (Dist: ${distanciaFormatada})`;
-            if (estaBloqueado) {
-                mensagemVisada += ` ⛔ Bloqueada.`;
-            } else if (resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number') {
-                mensagemVisada += ` ✅ Livre no ponto crítico.`;
-            } else {
-                 mensagemVisada += ` ✅ Livre.`;
-            }
+            if (estaBloqueado) mensagemVisada += ` ⛔ Bloqueada.`;
+            else if (resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number') mensagemVisada += ` ✅ Livre no ponto crítico.`;
+            else mensagemVisada += ` ✅ Livre.`;
             mostrarMensagem(mensagemVisada, estaBloqueado ? "erro" : "sucesso");
-
         } catch (error) {
             ocorreuErroNaAnalise = true;
             console.error(`Erro no diagnóstico LoS Pivô a Pivô:`, error);
             let msgErroDiagnostico = `⚠️ Erro ao diagnosticar visada`;
-            if (distanciaFormatada !== "N/A" && distanciaFormatada !== "Erro no cálculo") {
-                msgErroDiagnostico += ` entre ${window.losSourcePivot?.nome || 'Pivô Origem'} → ${window.losTargetPivot?.nome || 'Pivô Destino'} (Dist: ${distanciaFormatada})`;
-            }
+            if (distanciaFormatada !== "N/A" && distanciaFormatada !== "Erro no cálculo") msgErroDiagnostico += ` entre ${window.losSourcePivot?.nome || 'Pivô Origem'} → ${window.losTargetPivot?.nome || 'Pivô Destino'} (Dist: ${distanciaFormatada})`;
             msgErroDiagnostico += `: ${error.message || 'Erro desconhecido'}`;
             mostrarMensagem(msgErroDiagnostico, "erro");
         } finally {
             mostrarLoader(false);
-
             window.losSourcePivot = null;
             window.losTargetPivot = null;
-
-            if (window.modoLoSPivotAPivot) {
-                setTimeout(() => {
-                    if (window.modoLoSPivotAPivot) {
-                        mostrarMensagem("Selecione um novo pivô de ORIGEM (com sinal/verde) ou desative o modo.", "info");
-                    }
-                }, ocorreuErroNaAnalise ? 700 : 1800);
-            }
+            if (window.modoLoSPivotAPivot) setTimeout(() => { if (window.modoLoSPivotAPivot) mostrarMensagem("Selecione um novo pivô de ORIGEM (com sinal/verde) ou desative o modo.", "info"); }, ocorreuErroNaAnalise ? 700 : 1800);
         }
     }
 }
@@ -1230,7 +1081,6 @@ function handleToggleDistanciasPivos() {
         btn.classList.toggle('glass-button-active', window.distanciasPivosVisiveis);
         btn.title = window.distanciasPivosVisiveis ? "Esconder Distâncias dos Pivôs" : "Mostrar Distâncias dos Pivôs";
     }
-
     if (typeof window.togglePivoDistances === 'function') {
         window.togglePivoDistances(window.distanciasPivosVisiveis);
     } else {
@@ -1245,21 +1095,12 @@ function handleToggleDistanciasPivos() {
 }
 
 function handleCancelDraw(e) {
-    // Só executa se estivermos no modo de desenho e já tivermos um ponto central definido
     if (window.modoDesenhoPivo && centroPivoTemporario) {
-        // Impede o menu de contexto padrão do navegador de aparecer
         L.DomEvent.preventDefault(e);
         L.DomEvent.stopPropagation(e);
-
         console.log("✏️ Ação de desenho cancelada pelo usuário.");
-
-        // Limpa o estado da ação em progresso
         centroPivoTemporario = null;
-        if (typeof removeTempCircle === 'function') {
-            removeTempCircle();
-        }
-
-        // Informa o usuário que ele pode começar de novo, mantendo o modo ativo
+        if (typeof removeTempCircle === 'function') removeTempCircle();
         mostrarMensagem(t('messages.info.draw_pivot_cancelled'), "info");
     }
 }
