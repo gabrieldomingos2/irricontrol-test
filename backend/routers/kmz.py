@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
-# ✅ Adicionado: Importar BaseModel do Pydantic e tipos adicionais
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import zipfile
@@ -24,10 +23,42 @@ router = APIRouter(
     tags=["KMZ Operations"],
 )
 
+# ✅ NOVO ENDPOINT: Este é o "botão de iniciar" que destrava o aplicativo.
+# O frontend deve chamar este endpoint assim que a página carregar.
+@router.post("/iniciar_job_vazio")
+async def iniciar_job_vazio_endpoint():
+    """
+    Cria um novo job (sessão de trabalho) sem a necessidade de um upload de KMZ.
+    Isto permite que a aplicação inicie em um estado "em branco", pronta para uso.
+    Retorna o job_id para o frontend, que o usará em todas as chamadas futuras.
+    """
+    job_id = str(uuid.uuid4())
+    logger.info(f"🆕 Novo job VAZIO iniciado com ID: {job_id}")
+    
+    job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
+    job_images_dir = settings.IMAGENS_DIR_PATH / job_id
+    job_input_dir.mkdir(parents=True, exist_ok=True)
+    job_images_dir.mkdir(parents=True, exist_ok=True)
+
+    # Cria um arquivo 'parsed_data.json' vazio para garantir a compatibilidade com outras partes do sistema.
+    parsed_data_path = job_input_dir / "parsed_data.json"
+    parsed_content_vazio = {
+        "antenas": [], "pivos": [], "ciclos": [], "bombas": []
+    }
+    with open(parsed_data_path, "w", encoding="utf-8") as f:
+        json.dump(parsed_content_vazio, f, ensure_ascii=False, indent=4)
+    
+    logger.info(f"  -> Estrutura de diretórios e 'parsed_data.json' vazio criados para o job {job_id}.")
+    
+    # Retorna o job_id para o frontend, desbloqueando a aplicação.
+    return {"job_id": job_id}
+
+
 @router.post("/processar")
 async def processar_kmz_endpoint(file: UploadFile = File(...)):
+    """Este endpoint (a "fechadura com chave KMZ") continua a funcionar como antes."""
     job_id = str(uuid.uuid4())
-    logger.info(f"🆕 Novo job de processamento iniciado com ID: {job_id}")
+    logger.info(f"🆕 Novo job de processamento com KMZ iniciado com ID: {job_id}")
     job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / job_id
     job_input_dir.mkdir(parents=True, exist_ok=True)
@@ -45,10 +76,7 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         antenas, pivos, ciclos, bombas = kmz_parser.parse_kmz(str(input_kmz_path), str(job_input_dir))
         parsed_data_path = job_input_dir / "parsed_data.json"
         parsed_content = {
-            "antenas": antenas,
-            "pivos": pivos,
-            "ciclos": ciclos,
-            "bombas": bombas
+            "antenas": antenas, "pivos": pivos, "ciclos": ciclos, "bombas": bombas
         }
         with open(parsed_data_path, "w", encoding="utf-8") as f:
             json.dump(parsed_content, f, ensure_ascii=False, indent=4)
@@ -63,7 +91,9 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         logger.error(f"❌ Erro Interno em /kmz/processar (job: {job_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro interno ao processar KMZ: {type(e).__name__} - {str(e)}")
 
-# ✅ NOVO: Modelo Pydantic para o corpo da requisição POST de exportação
+
+# ✅ ALTERADO: Modelo de dados para a exportação.
+# É importante que ele receba todos os dados (incluindo bombas) do frontend.
 class ExportPayload(BaseModel):
     job_id: str
     imagem: str
@@ -71,9 +101,11 @@ class ExportPayload(BaseModel):
     antena_principal_data: Dict[str, Any]
     pivos_data: List[Dict[str, Any]]
     ciclos_data: List[Dict[str, Any]]
+    bombas_data: List[Dict[str, Any]] # Adicionado para garantir que bombas desenhadas sejam exportadas
     repetidoras_data: List[Dict[str, Any]]
 
-# ✅ ALTERADO: O endpoint agora é um POST e recebe o payload no corpo
+
+# ✅ ALTERADO: O endpoint de exportação agora é mais robusto
 @router.post("/exportar")
 async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: BackgroundTasks):
     logger.info(f"📦 Iniciando exportação KMZ via POST para o job: {payload.job_id}")
@@ -90,15 +122,16 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         raise HTTPException(status_code=404, detail=f"Bounds '{payload.bounds_file}' não encontrados no job '{payload.job_id}'.")
 
     try:
-        # Carrega os dados diretamente do payload Pydantic
+        # Carrega os dados diretamente do payload Pydantic, que reflete o estado atual do mapa.
         lista_repetidoras_selecionadas = payload.repetidoras_data
         antena_data = payload.antena_principal_data
         pivos_data_list = payload.pivos_data
         ciclos_data_list = payload.ciclos_data
+        bombas_data_list = payload.bombas_data # Usa a lista de bombas do payload
         
         metadata_path = job_input_dir / "job_metadata.json"
         if not metadata_path.exists():
-            raise HTTPException(status_code=404, detail=f"Metadados do job '{payload.job_id}' não encontrados.")
+            raise HTTPException(status_code=404, detail=f"Metadados do job '{payload.job_id}' não encontrados. Execute a simulação da antena principal primeiro.")
 
         with open(metadata_path, "r") as f:
             metadata = json.load(f)
@@ -113,13 +146,6 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
 
         logger.info(f"  -> Template '{selected_template.id}' lido dos metadados do job.")
         
-        parsed_data_path = job_input_dir / "parsed_data.json"
-        bombas_data = []
-        if parsed_data_path.exists():
-            with open(parsed_data_path, "r", encoding="utf-8") as f:
-                parsed_data = json.load(f)
-                bombas_data = parsed_data.get("bombas", [])
-
         with open(caminho_bounds_principal_servidor, "r") as f:
             bounds_principal_data = json.load(f).get("bounds")
         
@@ -134,7 +160,7 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
             antena_data=antena_data,
             pivos_data=pivos_data_list,
             ciclos_data=ciclos_data_list,
-            bombas_data=bombas_data,
+            bombas_data=bombas_data_list, # Passa a lista de bombas atualizada
             imagem_principal_nome_relativo=payload.imagem, 
             bounds_principal_data=bounds_principal_data,
             generated_images_dir=job_images_dir,
@@ -178,6 +204,7 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
     except Exception as e:
         logger.error(f"❌ Erro Interno em /kmz/exportar (job: {payload.job_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao exportar KMZ: {type(e).__name__} - {str(e)}")
+
 
 @router.get("/icone-torre")
 async def get_icone_torre():
