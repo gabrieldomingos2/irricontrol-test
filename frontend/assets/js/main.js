@@ -52,12 +52,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadAndPopulateTemplates();
     reposicionarPaineisLaterais();
     lucide.createIcons();
+    
+    // ✅ NOVO: Inicia uma sessão de trabalho vazia ao carregar a página
+    await startNewSession();
+
     console.log("Aplicação Pronta.");
 
-    if (typeof toggleLegendas === 'function') { // Garante que foi carregada
-        toggleLegendas(legendasAtivas); // Chama para definir o estado inicial do ícone
+    if (typeof toggleLegendas === 'function') {
+        toggleLegendas(legendasAtivas);
     }
 });
+
+/**
+ * ✅ NOVO: Inicia uma nova sessão de trabalho (job) no backend.
+ * Esta função destrava a aplicação para uso imediato.
+ */
+async function startNewSession() {
+    mostrarLoader(true);
+    try {
+        const data = await startEmptyJob(); // Chama a nova função da API
+        if (!data.job_id) {
+            throw new Error("A resposta do servidor não incluiu um ID de job.");
+        }
+        window.jobId = data.job_id;
+        console.log(`SESSION_INFO: Novo Job ID definido: ${window.jobId}`);
+        mostrarMensagem(t('messages.success.new_session_started'), "sucesso");
+        
+        // Simula dados vazios para que o resto do app não quebre
+        window.currentProcessedKmzData = { antenas: [], pivos: [], ciclos: [], bombas: [] };
+        
+    } catch (error) {
+        console.error("❌ Falha crítica ao iniciar nova sessão:", error);
+        mostrarMensagem(t('messages.errors.session_start_fail'), "erro");
+        window.jobId = null;
+    } finally {
+        mostrarLoader(false);
+    }
+}
 
 // --- Configuração dos Listeners Principais ---
 
@@ -104,18 +135,17 @@ async function handleFormSubmit(e) {
         if (!data.job_id) {
             throw new Error("A resposta do servidor não incluiu um ID de job.");
         }
-        window.jobId = data.job_id;
-        console.log(`SESSION_INFO: Job ID definido como: ${window.jobId}`);
-
-        window.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
+        
+        // Limpa a sessão anterior e inicia com os dados do KMZ
         handleResetClick(false);
+        
+        // Define o novo Job ID e os dados do KMZ
         window.jobId = data.job_id;
+        console.log(`SESSION_INFO: Job ID de KMZ definido como: ${window.jobId}`);
         window.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
         
         window.antenaGlobal = null; 
-        
         const antenasCandidatas = data.antenas || [];
-
         drawAntenaCandidates(antenasCandidatas);
 
         if (antenasCandidatas.length > 0) {
@@ -126,7 +156,10 @@ async function handleFormSubmit(e) {
 
         document.getElementById("simular-btn").classList.add("hidden");
 
-        drawBombas(data.bombas || []);
+        const bombasParaDesenhar = data.bombas || [];
+        window.lastBombasDataDrawn = JSON.parse(JSON.stringify(bombasParaDesenhar));
+        drawBombas(bombasParaDesenhar);
+        
         window.ciclosGlobais = data.ciclos || [];
         drawCirculos(window.ciclosGlobais);
 
@@ -152,7 +185,7 @@ async function handleFormSubmit(e) {
     } catch (error) {
         console.error("❌ Erro no submit do formulário:", error);
         mostrarMensagem(t('messages.errors.kmz_load_fail', { error: error.message }), "erro");
-        window.jobId = null;
+        await startNewSession(); // Tenta iniciar uma sessão vazia em caso de falha
     } finally {
         mostrarLoader(false);
     }
@@ -169,7 +202,7 @@ async function startMainSimulation(antenaData) {
 
     try {
         templateSelecionado = document.getElementById('template-modelo').value;
-        const pivos_atuais = (window.currentProcessedKmzData.pivos || []).map(p => ({
+        const pivos_atuais = (window.lastPivosDataDrawn || []).map(p => ({
             nome: p.nome, lat: p.lat, lon: p.lon
         }));
 
@@ -643,6 +676,11 @@ function handleResetClick(showMessage = true) {
     window.distanciasPivosVisiveis = false;
     window.lastPivosDataDrawn = [];
     window.currentProcessedKmzData = null;
+    
+    // ✅ NOVO: Após resetar, inicia uma nova sessão em branco imediatamente.
+    if (showMessage) { // Só inicia nova sessão se não for um reset vindo do upload de KMZ
+      startNewSession();
+    }
 
     if (window.modoDesenhoPivo) {
         toggleModoDesenhoPivo();
@@ -778,7 +816,7 @@ async function handleExportClick() {
             altura_receiver: window.antenaGlobal.altura_receiver
         };
 
-        // 1. Monta o objeto de payload com todos os dados
+        // 1. Monta o objeto de payload com todos os dados atuais do mapa
         const payload = {
             job_id: window.jobId,
             imagem: window.antenaGlobal.imagem_filename,
@@ -786,6 +824,8 @@ async function handleExportClick() {
             antena_principal_data: antenaDataParaExport,
             pivos_data: window.lastPivosDataDrawn,
             ciclos_data: window.ciclosGlobais,
+            // ✅ CORREÇÃO: Adiciona os dados das bombas ao payload de exportação.
+            bombas_data: window.lastBombasDataDrawn,
             repetidoras_data: repetidorasSelecionadasParaExport
         };
 
@@ -807,11 +847,12 @@ async function reavaliarPivosViaAPI() {
         return;
     }
 
-    const pivosParaReavaliar = (window.currentProcessedKmzData.pivos || []).map(p => ({
+    // ✅ Usa os dados mais recentes que estão sendo desenhados
+    const pivosParaReavaliar = (window.lastPivosDataDrawn || []).map(p => ({
         nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo'
     }));
 
-    const bombasParaReavaliar = (window.currentProcessedKmzData.bombas || []).map(b => ({
+    const bombasParaReavaliar = (window.lastBombasDataDrawn || []).map(b => ({
         nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba'
     }));
 

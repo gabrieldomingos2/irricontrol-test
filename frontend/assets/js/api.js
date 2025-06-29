@@ -2,6 +2,30 @@
 const BACKEND_URL = "https://irricontrol-test.onrender.com";
 const API_PREFIX = "/api/v1";
 
+
+/**
+ * ✅ NOVO: Inicia uma sessão de trabalho vazia no backend.
+ * Esta é a função que vai "destravar" o aplicativo no início.
+ * @returns {Promise<object>} - A resposta da API contendo o 'job_id'.
+ */
+async function startEmptyJob() {
+  try {
+    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/kmz/iniciar_job_vazio`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Falha ao iniciar sessão' }));
+        throw new Error(`Erro ${response.status}: ${errorData.detail || 'Falha ao iniciar sessão'}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Erro ao iniciar job vazio:", error);
+    mostrarMensagem(`Não foi possível iniciar uma nova sessão: ${error.message}`, "erro");
+    throw error;
+  }
+}
+
+
 /**
  * Envia o arquivo KMZ para processamento no backend.
  * @param {FormData} formData - O formulário contendo o arquivo.
