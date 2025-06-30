@@ -336,7 +336,7 @@ async function handleConfirmRepetidoraClick() {
             }
             
             const id = idsDisponiveis.length > 0 ? idsDisponiveis.shift() : ++contadorRepetidoras;
-            const nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
+            const nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
 
             const novaRepetidoraMarker = L.marker(window.coordenadaClicada, { icon: antenaIcon }).addTo(map);
             const labelRepetidora = L.marker(window.coordenadaClicada, {
