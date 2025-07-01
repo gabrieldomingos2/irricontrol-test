@@ -100,6 +100,7 @@ function setupMainActionListeners() {
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
     document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
+    document.getElementById('coord-search-btn').addEventListener('click', handleCoordinateSearch);
     
     // Listeners do mapa
     map.on("click", handleMapClick); 
@@ -1102,5 +1103,109 @@ function handleCancelDraw(e) {
         centroPivoTemporario = null;
         if (typeof removeTempCircle === 'function') removeTempCircle();
         mostrarMensagem(t('messages.info.draw_pivot_cancelled'), "info");
+    }
+}
+
+
+// ========================================================
+// ✅ NOVO: FUNCIONALIDADE DE BUSCA POR COORDENADAS
+// ========================================================
+
+/**
+ * Converte uma string de coordenada em vários formatos para um objeto de latitude/longitude.
+ * Suporta:
+ * - Graus, Minutos, Segundos (ex: 19°26'29.5"S 44°29'26.8"W)
+ * - Decimal com vírgula ou espaço (ex: -19.441535, -44.490771)
+ * @param {string} coordString - A string da coordenada.
+ * @returns {{lat: number, lon: number} | null} - Objeto com lat/lon ou null se inválido.
+ */
+function parseCoordinates(coordString) {
+    coordString = coordString.trim();
+
+    // Função auxiliar para converter DMS (Graus, Minutos, Segundos) para DD (Graus Decimais)
+    const dmsToDd = (degrees, minutes, seconds, direction) => {
+        let dd = parseFloat(degrees) + parseFloat(minutes) / 60 + parseFloat(seconds) / 3600;
+        if (direction === 'S' || direction === 'W') {
+            dd = dd * -1;
+        }
+        return dd;
+    };
+
+    // Tenta corresponder ao formato DMS (ex: 19° 26' 29.5"S 44° 29' 26.8"W)
+    // Esta regex é flexível com ou sem espaços e símbolos.
+    const dmsRegex = /^(\d{1,3})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["\s]*([NS])\s*,?\s*(\d{1,3})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["\s]*([WE])$/i;
+    const dmsMatch = coordString.match(dmsRegex);
+
+    if (dmsMatch) {
+        try {
+            const lat = dmsToDd(dmsMatch[1], dmsMatch[2], dmsMatch[3], dmsMatch[4].toUpperCase());
+            const lon = dmsToDd(dmsMatch[5], dmsMatch[6], dmsMatch[7], dmsMatch[8].toUpperCase());
+            if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+        } catch (e) {
+            console.error("Erro ao converter DMS:", e);
+            return null;
+        }
+    }
+
+    // Tenta corresponder ao formato Decimal (ex: -19.441535, -44.490771 ou -19.441535 -44.490771)
+    const cleanedString = coordString.replace(/,/g, ' ').replace(/\s+/, ' ').trim();
+    const parts = cleanedString.split(' ');
+
+    if (parts.length === 2) {
+        const lat = parseFloat(parts[0]);
+        const lon = parseFloat(parts[1]);
+
+        // Validação básica de latitude e longitude
+        if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            return { lat, lon };
+        }
+    }
+
+    return null; // Retorna null se nenhum formato for reconhecido
+}
+
+/**
+ * Manipula o clique no botão de busca de coordenadas.
+ */
+function handleCoordinateSearch() {
+    const inputField = document.getElementById('lat-long-input-field');
+    const coordString = inputField.value;
+
+    if (!coordString) {
+        mostrarMensagem("Por favor, insira uma coordenada para buscar.", "erro");
+        return;
+    }
+
+    const coords = parseCoordinates(coordString);
+
+    if (coords) {
+        const latlng = L.latLng(coords.lat, coords.lon);
+
+        // Remove o marcador de posicionamento anterior, se houver
+        if (window.marcadorPosicionamento) {
+            map.removeLayer(window.marcadorPosicionamento);
+        }
+
+        // Adiciona um novo marcador no local (usando o ícone da antena principal)
+        // O ícone 'antenaIcon' já está definido em drawing.js
+        window.marcadorPosicionamento = L.marker(latlng, {
+            icon: antenaIcon,
+            interactive: true // Permite que o painel de repetidora seja aberto
+        }).addTo(map);
+
+        // Centraliza o mapa na nova coordenada com um bom nível de zoom
+        map.setView(latlng, 15);
+        mostrarMensagem("Localização encontrada e marcada no mapa.", "sucesso");
+
+        // Simula um clique no mapa para abrir o painel de configuração de repetidora
+        window.coordenadaClicada = latlng;
+        document.getElementById("painel-repetidora").classList.remove("hidden");
+        
+        // Limpa o campo de texto após a busca
+        inputField.value = '';
+
+    } else {
+        // Mensagem de erro mais detalhada
+        mostrarMensagem("Formato de coordenada inválido. Use DMS (19°26'29.5\"S 44°29'26.8\"W) ou Decimal (-19.44 -44.49).", "erro");
     }
 }
