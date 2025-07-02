@@ -1,91 +1,136 @@
 {
-  "ui": {
-    "titles": {
-      "main": "Simulador de Sinal - Irricontrol",
-      "data_panel": "Dados da Simulação",
-      "repeater_panel": "Repetidoras",
-      "repeater_panel_setup": "📡 Configurar Repetidora",
-      "line_of_sight": "Linha de Visada",
-      "los_pivots": "Diagnóstico de Visada entre Pivôs",
-      "find_repeater_locations": "Buscar Locais para Repetidora",
-      "legend": "Legenda",
-      "show_pivot_distances": "Mostrar Distâncias dos Pivôs",
-      "edit_pivots": "Editar Pivôs",
-      "undo_edit": "Desfazer Edição",
-      "draw_pivot": "Adicionar Pivô com Círculo"
+    "ui": {
+        "titles": {
+            "main": "Simulador de Sinal - Irricontrol",
+            "data_panel": "Painel de Dados",
+            "repeater_panel": "Painel de Repetidoras",
+            "line_of_sight": "Linha de Visada (Obstáculos)",
+            "los_pivots": "Diagnóstico de Visada Pivô-a-Pivô",
+            "find_repeater_locations": "Encontrar Locais para Repetidora",
+            "legend": "Legendas",
+            "show_pivot_distances": "Mostrar Distâncias dos Pivôs",
+            "hide_pivot_distances": "Esconder Distâncias dos Pivôs",
+            "edit_pivots": "Editar Posição dos Pivôs",
+            "save_edit": "Salvar Edição de Pivôs",
+            "undo_edit": "Desfazer Edição",
+            "draw_pivot": "Desenhar Pivô Manualmente",
+            "draw_sector_pivot": "Desenhar Pivô Setorial",
+            "repeater_panel_setup": "📡 Configurar Repetidora",
+            "search_coordinates": "Buscar Coordenadas"
+        },
+        "labels": {
+            "tools": "Ferramentas",
+            "template": "🌐 Template:",
+            "choose_kmz": "Escolher Arquivo KMZ",
+            "processing": "Processando...",
+            "antenna_height": "Altura da Antena (m)",
+            "receiver_height": "Altura do Receiver (m)",
+            "total_pivots": "Pivôs:",
+            "out_of_coverage": "Fora da cobertura:",
+            "main_antenna": "Antena principal:",
+            "main_antenna_default": "Torre Principal",
+            "receiver": "Receiver:",
+            "total_repeaters": "Total Repetidoras:",
+            "pump_houses": "Casas de bomba:",
+            "repeater": "Repetidora",
+            "pivo_distance_label": "Dist. Pivô:",
+            "powered_by": "Powered by Irricontrol"
+        },
+        "placeholders": {
+            "lat_lon_search": "Latitude, Longitude"
+        },
+        "buttons": {
+            "load_kmz": "Carregar KMZ",
+            "run_study": "Rodar Estudo de Sinal",
+            "run_los_diagnostic": "Diagnóstico de Visada",
+            "export_kmz": "Exportar KMZ",
+            "reset": "Resetar",
+            "simulate": "Simular"
+        }
     },
-    "labels": {
-      "template": "🌐 Template:",
-      "choose_kmz": "Escolher Arquivo KMZ",
-      "tools": "Ferramentas",
-      "antenna_height": "Altura da Antena (m)",
-      "receiver_height": "Altura do Receiver (m)",
-      "total_pivots": "Pivôs:",
-      "out_of_coverage": "Fora da cobertura:",
-      "main_antenna": "Antena principal:",
-      "receiver": "Receiver:",
-      "total_repeaters": "Total Repetidoras:",
-      "repeater": "Repetidora",
-      "pump_houses": "Casas de bomba:",
-      "pivo_distance_label": "Dist:",
-      "processing": "Processando..."
+    "tooltips": {
+        "out_of_signal": "Fora de Sinal",
+        "in_signal": "Com Sinal",
+        "show_hide_coverage": "Mostrar/Esconder Cobertura",
+        "blockage_point": "Ponto de bloqueio: {elevation}m",
+        "blockage_present": "Bloqueio presente: {diff}m",
+        "los_clear_at_critical_point": "Visada livre no ponto crítico (margem {diff}m)",
+        "highest_point": "Ponto mais alto: {elevation}m",
+        "los_ok": "Visada OK",
+        "los_no": "Obstruído",
+        "hide_legends": "Esconder Legendas",
+        "show_legends": "Mostrar Legendas"
     },
-    "buttons": {
-      "load_kmz": "Carregar KMZ",
-      "run_study": "Rodar Estudo de Sinal",
-      "run_los_diagnostic": "Diagnóstico de Visada",
-      "export_kmz": "Exportar KMZ",
-      "reset": "Resetar",
-      "simulate": "Simular",
-      "save_edit": "Salvar Edição"
+    "messages": {
+        "success": {
+            "new_session_started": "Nova sessão iniciada. Pronto para carregar um KMZ ou desenhar no mapa.",
+            "kmz_loaded_select_tower": "KMZ carregado. Selecione uma torre no mapa para iniciar.",
+            "simulation_complete": "Simulação concluída com sucesso.",
+            "repeater_added": "Repetidora '{name}' adicionada.",
+            "found_candidate_sites": "Encontrados {count} locais candidatos para a repetidora.",
+            "pivot_created": "Novo pivô '{name}' criado com sucesso.",
+            "app_reset": "Aplicação resetada. Nova sessão iniciada.",
+            "los_diagnostic_complete": "Diagnóstico de visada concluído.",
+            "kmz_export_preparing": "Preparando exportação KMZ...",
+            "pivot_distances_toggled": "Distâncias dos pivôs {status}.",
+            "pivot_removed": "Pivô \"{name}\" removido com sucesso.",
+            "tower_selected_for_simulation": "Torre '{name}' selecionada. Clique em 'Simular' no painel.",
+            "repeater_suggestion_removed": "Sugestão de repetidora removida.",
+            "location_found": "Localização encontrada e marcada no mapa."
+        },
+        "errors": {
+            "session_start_fail": "Falha crítica ao iniciar nova sessão. Tente recarregar a página.",
+            "select_kmz": "Por favor, selecione um arquivo KMZ primeiro.",
+            "kmz_load_fail": "Falha ao carregar o arquivo KMZ: {error}",
+            "invalid_data_or_session": "Dados inválidos ou sessão não iniciada. Tente resetar.",
+            "simulation_fail": "Falha na simulação: {error}",
+            "run_study_first": "Você precisa rodar um estudo primeiro.",
+            "select_uncovered_pivot": "Por favor, selecione um pivô sem cobertura (vermelho).",
+            "no_coverage_to_search": "Nenhuma área de cobertura ativa para pesquisar. Ative a antena principal ou uma repetidora.",
+            "find_repeater_fail": "Falha ao buscar locais para repetidora: {error}",
+            "session_not_started_for_draw": "Sessão não iniciada. Resete a aplicação antes de desenhar.",
+            "session_not_started": "Sessão não iniciada. Carregue um KMZ ou resete a aplicação.",
+            "nothing_to_export": "Nada para exportar. Rode uma simulação com uma antena ou repetidora.",
+            "reevaluate_fail": "Falha ao reavaliar cobertura: {error}",
+            "los_diagnostic_fail": "Falha no diagnóstico de visada para o pivô {name}.",
+            "los_source_must_be_green": "ORIGEM: Selecione um pivô COM SINAL (verde).",
+            "coordinate_input_empty": "Por favor, insira uma coordenada para buscar.",
+            "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ex: 19°26'S 44°29'W) ou Decimal (ex: -19.44 -44.49)."
+        },
+        "info": {
+            "no_towers_found": "Nenhuma torre encontrada no KMZ. Você pode adicionar uma antena manualmente clicando no mapa.",
+            "los_mode_on": "Modo 'Encontrar Locais para Repetidora' ativado. Selecione um pivô sem cobertura (vermelho).",
+            "los_mode_off_find_repeater": "Modo 'Encontrar Locais para Repetidora' desativado.",
+            "target_pivot_selected": "Pivô alvo selecionado: {name}. Buscando locais...",
+            "no_promising_sites_found": "Nenhum local promissor encontrado com os critérios atuais.",
+            "draw_pivot_step1": "Modo de Desenho: Clique no mapa para definir o centro do pivô.",
+            "draw_pivot_step2": "Centro definido. Clique novamente para definir o raio do pivô.",
+            "draw_pivot_off": "Modo de Desenho de Pivô desativado.",
+            "draw_pivot_still_active": "Modo de Desenho ainda ativo. Clique para desenhar um novo pivô.",
+            "draw_pivot_cancelled": "Desenho do pivô cancelado.",
+            "no_uncovered_pivots": "Não há pivôs sem cobertura para analisar.",
+            "analyzing_pivots": "Analisando visada para {count} pivôs sem cobertura...",
+            "edit_mode_activated": "Modo de edição ativado. Arraste os pinos para mover. Clique com o botão direito para remover.",
+            "positions_updated_resimulate": "Posições atualizadas. Rode a simulação novamente para ver o impacto na cobertura.",
+            "edits_undone": "Edições desfeitas. Modo de edição encerrado.",
+            "los_mode_step1_source": "MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal).",
+            "los_mode_deactivated": "Modo 'Diagnóstico Pivô a Pivô' desativado.",
+            "los_source_selected": "ORIGEM: {name} selecionado. Agora selecione o pivô de DESTINO (sem sinal).",
+            "los_source_already_selected": "ORIGEM: {name} já é a origem. Selecione o pivô de DESTINO.",
+            "los_source_changed": "ORIGEM ALTERADA para: {name}. Selecione o pivô de DESTINO.",
+            "los_result_blocked": "Visada {source} → {target} (Dist: {distance}) ⛔ Bloqueada.",
+            "los_result_clear_critical": "Visada {source} → {target} (Dist: {distance}) ✅ Livre no ponto crítico.",
+            "los_result_clear": "Visada {source} → {target} (Dist: {distance}) ✅ Livre.",
+            "los_result_error": "⚠️ Erro ao diagnosticar visada {source} → {target} (Dist: {distance}): {error}",
+            "los_new_source_prompt": "Selecione um novo pivô de ORIGEM (com sinal) ou desative o modo."
+        },
+        "confirm": {
+            "remove_pivot": "Tem certeza que deseja remover o pivô \"{name}\"? O círculo associado também será removido.",
+            "change_los_source": "Você já selecionou {sourceName} como origem. Deseja alterar a origem para {newName}? As linhas de diagnóstico anteriores serão removidas."
+        },
+        "labels": {
+            "shown": "exibidas",
+            "hidden": "ocultas"
+        }
     }
-  },
-  "messages": {
-    "success": {
-      "kmz_loaded_select_tower": "✅ KMZ carregado. Escolha uma torre para iniciar o estudo.",
-      "simulation_complete": "📡 Estudo de sinal concluído.",
-      "los_diagnostic_complete": "🔍 Diagnóstico de visada concluído.",
-      "repeater_added": "📡 Repetidora {id} adicionada e simulada.",
-      "tower_simulated_as_repeater": "📡 Torre '{name}' simulada como repetidora.",
-      "app_reset": "🔄 Aplicação resetada.",
-      "pivots_re-evaluated": "Pivôs reavaliados.",
-      "found_candidate_sites": "Encontrados {count} locais candidatos. Clique em um para simular.",
-      "edits_undone": "↩️ Edições desfeitas. Modo de edição encerrado.",
-      "positions_updated": "💾 Posições atualizadas. Rode a simulação novamente para refletir mudanças na cobertura.",
-      "edit_mode_on": "✏️ Modo de edição ativado. Arraste os pinos vermelhos. Clique com botão direito para remover.",
-      "los_mode_on": "MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal/verde).",
-      "los_mode_off": "Modo 'Diagnóstico Pivô a Pivô' desativado.",
-      "pivot_created": "Pivô \"{name}\" criado com sucesso!",
-      "draw_pivot_still_active": "Modo de desenho ainda ativo. Clique para criar um novo centro."
-    },
-    "errors": {
-      "select_kmz": "Por favor, selecione um arquivo KMZ.",
-      "kmz_load_fail": "Falha ao carregar KMZ: {error}",
-      "simulation_fail": "Falha na simulação: {error}",
-      "run_study_first": "⚠️ Rode o estudo de sinal primeiro!",
-      "invalid_data_or_session": "⚠️ Dados da antena ou ID da sessão inválidos!",
-      "no_coverage_to_search": "Nenhuma área de sinal (antena/repetidoras) ativa para basear a busca. Ative alguma cobertura."
-    },
-    "info": {
-      "no_towers_found": "Nenhuma torre encontrada no KMZ. Você pode adicionar repetidoras manualmente.",
-      "no_uncovered_pivots": "✅ Nenhum pivô fora de cobertura para diagnosticar.",
-      "analyzing_pivots": "🔍 Analisando {count} pivôs...",
-      "los_origin_selected": "ORIGEM: {name} selecionado. Agora selecione o pivô de DESTINO (sem sinal/vermelho).",
-      "los_origin_is_target": "ORIGEM: {name} já é a origem. Selecione o pivô de DESTINO.",
-      "draw_pivot_step1": "Modo de Desenho: Clique no mapa para definir o CENTRO do pivô.",
-      "draw_pivot_step2": "Centro definido. Agora clique para definir a BORDA do círculo.",
-      "draw_pivot_off": "Modo de Desenho desativado.",
-      "draw_pivot_cancelled": "Desenho de pivô cancelado. Clique novamente para definir um novo centro."
-    }
-  },
-  "tooltips": {
-    "in_signal": "✅ Com sinal",
-    "out_of_signal": "❌ Fora de sinal",
-    "blockage_point": "Ponto Crítico: Elev. {elevation}m",
-    "blockage_present": "⛔ Bloqueio: {diff}m acima",
-    "los_clear_at_critical_point": "✅ Livre no Ponto Crítico ({diff}m)",
-    "highest_point": "Ponto Mais Alto: Elev. {elevation}m",
-    "los_ok": "✅ Visada Livre",
-    "los_no": "⛔ Visada Obstruída"
-  }
 }

@@ -8,6 +8,9 @@ from math import log10
 from typing import Any, Optional
 from shutil import copyfile
 
+from geopy.distance import geodesic
+from geopy.point import Point
+
 from backend.config import settings # type: ignore
 
 logger = logging.getLogger("irricontrol")
@@ -163,22 +166,59 @@ def _add_secondary_folders(
     doc: simplekml.Document, pivos: list, ciclos: list, bombas: list,
     default_point_style: simplekml.Style
 ):
+    # Desenha os marcadores centrais dos pivôs (sem alteração)
     if pivos:
-        folder_pivos = doc.newfolder(name="Pivôs")
+        folder_pivos = doc.newfolder(name="Pivôs (Marcadores)")
         for i, p_data in enumerate(pivos):
             pnt_pivo = folder_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])])
             pnt_pivo.style = default_point_style
-        logger.info(" -> Pasta 'Pivôs' criada.")
-    if ciclos:
-        folder_ciclos = doc.newfolder(name="Ciclos")
-        for i, ciclo_data in enumerate(ciclos):
-            ciclo_nome = ciclo_data.get("nome_original_circulo", f"Ciclo {i+1}")
-            pol = folder_ciclos.newpolygon(name=ciclo_nome)
-            pol.outerboundaryis = [(lon, lat) for lat, lon in ciclo_data["coordenadas"]]
-            pol.style.polystyle.fill = 0
-            pol.style.linestyle.color = simplekml.Color.red
-            pol.style.linestyle.width = 4
-        logger.info(" -> Pasta 'Ciclos' criada.")
+        logger.info(" -> Pasta 'Pivôs (Marcadores)' criada.")
+
+    # ✅ LÓGICA ATUALIZADA PARA DESENHAR AS ÁREAS DOS PIVÔS
+    # Esta nova pasta conterá tanto os círculos quanto os setores.
+    if pivos:
+        folder_areas = doc.newfolder(name="Áreas de Pivôs")
+        
+        for pivo_data in pivos:
+            pivo_nome = pivo_data.get("nome", "Área de Pivô")
+            coords_area = []
+
+            # Verifica se é um pivô setorial
+            if pivo_data.get('tipo') == 'setorial':
+                logger.info(f"  -> Desenhando área para pivô SETORIAL: {pivo_nome}")
+                try:
+                    coords_area = _generate_sector_coords(
+                        lat=pivo_data['lat'],
+                        lon=pivo_data['lon'],
+                        radius_m=pivo_data['raio'],
+                        bearing_deg=pivo_data['angulo_central'],
+                        arc_width_deg=pivo_data['abertura_arco']
+                    )
+                except KeyError as e:
+                    logger.warning(f"    -> ⚠️ Dados ausentes para desenhar setor '{pivo_nome}': {e}")
+                    continue # Pula para o próximo pivô
+            
+            # Se não for setorial, trata como circular (lógica antiga)
+            else:
+                logger.info(f"  -> Desenhando área para pivô CIRCULAR: {pivo_nome}")
+                nome_ciclo_correspondente = f"Ciclo {pivo_nome}"
+                ciclo_data = next((c for c in ciclos if c.get("nome_original_circulo") == nome_ciclo_correspondente), None)
+                
+                if ciclo_data and ciclo_data.get("coordenadas"):
+                    coords_area = [(lon, lat, 0) for lat, lon in ciclo_data["coordenadas"]]
+                else:
+                    logger.warning(f"    -> ⚠️ Coordenadas do círculo para '{pivo_nome}' não encontradas em 'ciclos_data'. A área não será desenhada.")
+                    continue
+
+            # Cria o polígono no KML se as coordenadas foram geradas
+            if coords_area:
+                pol = folder_areas.newpolygon(name=f"Área {pivo_nome}")
+                pol.outerboundaryis = coords_area
+                pol.style.polystyle.fill = 0 # Sem preenchimento
+                pol.style.linestyle.color = simplekml.Color.red
+                pol.style.linestyle.width = 4
+
+    # Desenha as bombas (sem alteração)
     if bombas:
         folder_bombas = doc.newfolder(name="Bombas")
         for i, bomba_data in enumerate(bombas):
@@ -284,3 +324,28 @@ def build_kml_document_and_get_image_list(
 
     logger.info("Construção da estrutura KML concluída.")
     return image_files_for_kmz
+
+def _generate_sector_coords(lat: float, lon: float, radius_m: float, bearing_deg: float, arc_width_deg: float, steps: int = 40) -> list[tuple[float, float, int]]:
+    """
+    Calcula as coordenadas para um polígono de setor (fatia de pizza).
+    """
+    coordinates = []
+    center_point = (lon, lat, 0) # Formato KML: (lon, lat, alt)
+    
+    # O polígono começa e termina no centro
+    coordinates.append(center_point)
+    
+    start_angle = bearing_deg - (arc_width_deg / 2)
+    end_angle = bearing_deg + (arc_width_deg / 2)
+    
+    # Calcula os pontos ao longo do arco
+    for i in range(steps + 1):
+        current_angle = start_angle + (i * (end_angle - start_angle) / steps)
+        # Calcula o ponto de destino usando o raio e o ângulo
+        destination = geodesic(meters=radius_m).destination(Point(lat, lon), current_angle)
+        coordinates.append((destination.longitude, destination.latitude, 0))
+
+    # Fecha o polígono voltando ao centro
+    coordinates.append(center_point)
+    
+    return coordinates

@@ -38,6 +38,7 @@ const posicionamentoIcon = L.icon({
 
 window.candidateRepeaterSitesLayerGroup = null; // Será inicializado no initMap (map.js)
 let antenaCandidatesLayerGroup = L.layerGroup();
+let tempSectorShape = null;
 
 
 // --- NOVA FUNÇÃO AUXILIAR PARA MEDIÇÃO DINÂMICA ---
@@ -113,7 +114,7 @@ function drawAntenaCandidates(antenasList) {
             if (painelRepetidora && inputAltura) {
                 inputAltura.value = data.altura;
                 painelRepetidora.classList.remove("hidden");
-                mostrarMensagem(`Torre '${data.nome}' selecionada. Clique em 'Simular' no painel.`, "sucesso");
+                mostrarMensagem(t('messages.success.tower_selected_for_simulation', { name: data.nome }), "sucesso");
             }
         });
     });
@@ -122,7 +123,6 @@ function drawAntenaCandidates(antenasList) {
 function drawPivos(pivosData, useEdited = false) {
     if (!map || !pivosData) return;
 
-    // Limpeza de camadas (código existente, sem alteração)
     marcadoresPivos.forEach(m => map.removeLayer(m));
     marcadoresPivos = [];
     pivotsMap = {};
@@ -145,25 +145,20 @@ function drawPivos(pivosData, useEdited = false) {
             if (closest) {
                 const nomeFonte = closest.name;
                 const distanciaFormatada = closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + ' km' : Math.round(closest.distance) + ' m';
-                
-                // ✅ AJUSTE: Usando a classe "source-name-pivo" para o nome da fonte
                 finalHtml = `${nomePivo}<br><span class="source-name-pivo">${nomeFonte}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
                 hasDistancia = true;
-
                 const sourceNameWidth = (nomeFonte.length * 6.5) + 15;
                 labelWidth = Math.max(labelWidth, sourceNameWidth);
             }
         }
 
         const labelHeight = hasDistancia ? 55 : 20;
-
         const label = L.marker(pos, {
             icon: L.divIcon({ className: 'label-pivo', html: finalHtml, iconSize: [labelWidth, labelHeight], iconAnchor: [labelWidth / 2, -15] }),
             labelType: 'pivot'
         }).addTo(map);
         marcadoresLegenda.push(label);
         
-        // ... O resto da função continua igual
         const statusTexto = pivo.fora ? `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>` : `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`;
         marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, { permanent: false, direction: 'top', offset: [0, -15], className: 'tooltip-sinal' });
 
@@ -184,9 +179,40 @@ function drawPivos(pivosData, useEdited = false) {
         });
         marcadoresPivos.push(marker);
         pivotsMap[pivo.nome] = marker;
+
+        marker.on('contextmenu', (e) => {
+            L.DomEvent.stopPropagation(e);
+            L.DomEvent.preventDefault(e);
+            
+            if (window.modoEdicaoPivos) return;
+
+            if (confirm(t('messages.confirm.remove_pivot', { name: pivo.nome }))) {
+                
+                const nomeCicloParaRemover = `Ciclo ${pivo.nome}`;
+                
+                window.lastPivosDataDrawn = window.lastPivosDataDrawn.filter(p => p.nome !== pivo.nome);
+                window.ciclosGlobais = window.ciclosGlobais.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
+ 
+                if (window.currentProcessedKmzData?.pivos) {
+                    window.currentProcessedKmzData.pivos = window.currentProcessedKmzData.pivos.filter(p => p.nome !== pivo.nome);
+                }
+                if (window.currentProcessedKmzData?.ciclos) {
+                    window.currentProcessedKmzData.ciclos = window.currentProcessedKmzData.ciclos.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
+                }
+
+                drawPivos(window.lastPivosDataDrawn, false);
+                drawCirculos(window.ciclosGlobais);
+
+                atualizarPainelDados();
+                mostrarMensagem(t('messages.success.pivot_removed', { name: pivo.nome }), 'sucesso');
+            }
+        });
+
+
     });
     toggleLegendas(legendasAtivas);
 }
+
 
 function drawBombas(bombasData) {
     if (!map || !bombasData) return;
@@ -245,10 +271,34 @@ function drawBombas(bombasData) {
 
 
 function drawCirculos(ciclosData) {
-    if (!map || !ciclosData) return;
+    if (!map) return;
     circulosPivos.forEach(c => map.removeLayer(c));
     circulosPivos = [];
-    circulosPivos = ciclosData.map(circulo =>
+
+    // ✅ LÓGICA PARA DESENHAR OS SETORES DOS PIVÔS
+    window.lastPivosDataDrawn.forEach(pivo => {
+        if (pivo.tipo === 'setorial') {
+            const center = L.latLng(pivo.lat, pivo.lon);
+            const sectorCoords = generateSectorCoords(center, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
+            const sectorPolygon = L.polygon(sectorCoords, {
+                color: '#cc0000',
+                weight: 2,
+                opacity: 0.9,
+                fillOpacity: 0.1, // Preenchimento leve para o setor
+                className: 'circulo-pivo-setorial'
+            }).addTo(map);
+            circulosPivos.push(sectorPolygon);
+        }
+    });
+
+    // Filtra para não redesenhar círculos de pivôs setoriais
+    const ciclosCirculares = ciclosData.filter(ciclo => {
+        const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
+        const pivoCorrespondente = window.lastPivosDataDrawn.find(p => p.nome === nomePivo);
+        return !pivoCorrespondente || pivoCorrespondente.tipo !== 'setorial';
+    });
+
+    const poligonosCirculares = ciclosCirculares.map(circulo =>
         L.polygon(circulo.coordenadas, {
             color: '#cc0000',
             weight: 2,
@@ -257,6 +307,7 @@ function drawCirculos(ciclosData) {
             className: 'circulo-vermelho-pulsante'
         }).addTo(map)
     );
+    circulosPivos.push(...poligonosCirculares);
 }
 
 function drawImageOverlay(url, bounds, opacity = 1.0) {
@@ -740,4 +791,99 @@ function generateCircleCoords(center, radius, points = 60) {
     // Adiciona o primeiro ponto ao final para fechar o polígono
     coords.push(coords[0]);
     return coords;
+}
+
+// ========================================================
+// ✅ NOVAS FUNÇÕES PARA DESENHO DE PIVÔ SETORIAL
+// ========================================================
+
+/**
+ * Desenha ou atualiza o setor temporário no mapa.
+ * @param {L.LatLng} center O ponto inicial do desenho.
+ * @param {L.LatLng} currentPoint A posição atual do mouse.
+ */
+function drawTempSector(center, currentPoint) {
+    const radius = center.distanceTo(currentPoint);
+    if (radius < 5) return; // Evita formas estranhas quando muito perto
+
+    const bearing = calculateBearing(center, currentPoint);
+    const coords = generateSectorCoords(center, radius, bearing, 180);
+
+    if (tempSectorShape) {
+        tempSectorShape.setLatLngs(coords);
+    } else {
+        tempSectorShape = L.polygon(coords, {
+            color: '#3B82F6', // Azul
+            weight: 2,
+            dashArray: '8, 8',
+            fillColor: '#3B82F6',
+            fillOpacity: 0.2,
+            interactive: false
+        }).addTo(map);
+    }
+}
+
+/**
+ * Remove o setor temporário do mapa.
+ */
+function removeTempSector() {
+    if (tempSectorShape) {
+        map.removeLayer(tempSectorShape);
+        tempSectorShape = null;
+    }
+}
+
+/**
+ * Calcula o ângulo (azimute) em graus de um ponto a outro.
+ * @returns {number} Ângulo em graus de 0 a 360.
+ */
+function calculateBearing(p1, p2) {
+    const lat1 = p1.lat * Math.PI / 180;
+    const lon1 = p1.lng * Math.PI / 180;
+    const lat2 = p2.lat * Math.PI / 180;
+    const lon2 = p2.lng * Math.PI / 180;
+
+    const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+    let brng = Math.atan2(y, x) * 180 / Math.PI;
+    brng = (brng + 360) % 360; // Normaliza para 0-360
+    return brng;
+}
+
+/**
+ * Gera as coordenadas para um polígono em forma de setor.
+ */
+function generateSectorCoords(center, radius, mainAngle, arcAngle = 180) {
+    const vertices = [];
+    vertices.push([center.lat, center.lng]); // Ponto central
+
+    const startAngle = mainAngle - (arcAngle / 2);
+    const endAngle = mainAngle + (arcAngle / 2);
+    const points = 40; // Número de pontos para formar o arco
+
+    for (let i = 0; i <= points; i++) {
+        const angle = startAngle + (i * arcAngle / points);
+        const point = L.latLng(center).destination(radius, angle);
+        vertices.push([point.lat, point.lng]);
+    }
+    
+    return vertices;
+}
+
+// Adiciona um método "destination" ao L.LatLng se ele não existir (útil para cálculos)
+if (!L.LatLng.prototype.destination) {
+    L.LatLng.prototype.destination = function(distance, bearing) {
+        const R = 6378137; // Raio da Terra em metros
+        const brng = bearing * Math.PI / 180; // Converte para radianos
+        const lat1 = this.lat * Math.PI / 180;
+        const lon1 = this.lng * Math.PI / 180;
+
+        const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distance / R) +
+            Math.cos(lat1) * Math.sin(distance / R) * Math.cos(brng));
+
+        const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(distance / R) * Math.cos(lat1),
+            Math.cos(distance / R) - Math.sin(lat1) * Math.sin(lat2));
+
+        return L.latLng(lat2 * 180 / Math.PI, lon2 * 180 / Math.PI);
+    };
 }

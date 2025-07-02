@@ -1,91 +1,136 @@
 {
-  "ui": {
-    "titles": {
-      "main": "Signalsimulator - Irricontrol",
-      "data_panel": "Simulationsdaten",
-      "repeater_panel": "Repeater",
-      "repeater_panel_setup": "📡 Repeater konfigurieren",
-      "line_of_sight": "Sichtverbindung",
-      "los_pivots": "Sichtverbindungsdiagnose zwischen Pivots",
-      "find_repeater_locations": "Repeater-Standorte finden",
-      "legend": "Legende",
-      "show_pivot_distances": "Pivot-Distanzen anzeigen",
-      "edit_pivots": "Pivots bearbeiten",
-      "undo_edit": "Bearbeitung rückgängig machen",
-      "draw_pivot": "Pivot mit Kreis hinzufügen"
+    "ui": {
+        "titles": {
+            "main": "Signalsimulator - Irricontrol",
+            "data_panel": "Datenpanel",
+            "repeater_panel": "Repeater-Panel",
+            "line_of_sight": "Sichtverbindung (Hindernisse)",
+            "los_pivots": "Sichtverbindungsdiagnose Pivot-zu-Pivot",
+            "find_repeater_locations": "Repeater-Standorte finden",
+            "legend": "Legenden",
+            "show_pivot_distances": "Pivot-Distanzen anzeigen",
+            "hide_pivot_distances": "Pivot-Distanzen ausblenden",
+            "edit_pivots": "Pivot-Positionen bearbeiten",
+            "save_edit": "Bearbeitung speichern",
+            "undo_edit": "Bearbeitung rückgängig machen",
+            "draw_pivot": "Pivot manuell zeichnen",
+            "draw_sector_pivot": "Sektoralen Pivot zeichnen",
+            "repeater_panel_setup": "📡 Repeater konfigurieren",
+            "search_coordinates": "Koordinaten suchen"
+        },
+        "labels": {
+            "tools": "Werkzeuge",
+            "template": "🌐 Vorlage:",
+            "choose_kmz": "KMZ-Datei wählen",
+            "processing": "Verarbeite...",
+            "antenna_height": "Antennenhöhe (m)",
+            "receiver_height": "Empfängerhöhe (m)",
+            "total_pivots": "Pivots:",
+            "out_of_coverage": "Außerhalb der Reichweite:",
+            "main_antenna": "Hauptantenne:",
+            "main_antenna_default": "Hauptturm",
+            "receiver": "Empfänger:",
+            "total_repeaters": "Repeater gesamt:",
+            "pump_houses": "Pumpenhäuser:",
+            "repeater": "Repeater",
+            "pivo_distance_label": "Pivot-Entf:",
+            "powered_by": "Powered by Irricontrol"
+        },
+        "placeholders": {
+            "lat_lon_search": "Breitengrad, Längengrad"
+        },
+        "buttons": {
+            "load_kmz": "KMZ laden",
+            "run_study": "Signalstudie durchführen",
+            "run_los_diagnostic": "Sichtverbindungsdiagnose",
+            "export_kmz": "KMZ exportieren",
+            "reset": "Zurücksetzen",
+            "simulate": "Simulieren"
+        }
     },
-    "labels": {
-      "template": "🌐 Vorlage:",
-      "choose_kmz": "KMZ-Datei wählen",
-      "tools": "Werkzeuge",
-      "antenna_height": "Antennenhöhe (m)",
-      "receiver_height": "Empfängerhöhe (m)",
-      "total_pivots": "Pivots:",
-      "out_of_coverage": "Außerhalb der Reichweite:",
-      "main_antenna": "Hauptantenne:",
-      "receiver": "Empfänger:",
-      "total_repeaters": "Repeater gesamt:",
-      "repeater": "Repeater",
-      "pump_houses": "Pumpenhäuser:",
-      "pivo_distance_label": "Entf:",
-      "processing": "Verarbeite..."
+    "tooltips": {
+        "out_of_signal": "Kein Signal",
+        "in_signal": "Mit Signal",
+        "show_hide_coverage": "Abdeckung anzeigen/ausblenden",
+        "blockage_point": "Blockadepunkt: {elevation}m",
+        "blockage_present": "Blockade vorhanden: {diff}m",
+        "los_clear_at_critical_point": "Sichtverbindung am kritischen Punkt frei (Marge {diff}m)",
+        "highest_point": "Höchster Punkt: {elevation}m",
+        "los_ok": "Sicht OK",
+        "los_no": "Blockiert",
+        "hide_legends": "Legenden ausblenden",
+        "show_legends": "Legenden anzeigen"
     },
-    "buttons": {
-      "load_kmz": "KMZ laden",
-      "run_study": "Signalstudie durchführen",
-      "run_los_diagnostic": "Sichtverbindungsdiagnose",
-      "export_kmz": "KMZ exportieren",
-      "reset": "Zurücksetzen",
-      "simulate": "Simulieren",
-      "save_edit": "Bearbeitung speichern"
+    "messages": {
+        "success": {
+            "new_session_started": "Neue Sitzung gestartet. Bereit, eine KMZ-Datei zu laden oder auf der Karte zu zeichnen.",
+            "kmz_loaded_select_tower": "KMZ geladen. Wählen Sie einen Turm auf der Karte, um zu beginnen.",
+            "simulation_complete": "Simulation erfolgreich abgeschlossen.",
+            "repeater_added": "Repeater '{name}' hinzugefügt.",
+            "found_candidate_sites": "{count} Kandidatenstandorte für den Repeater gefunden.",
+            "pivot_created": "Neuer Pivot '{name}' erfolgreich erstellt.",
+            "app_reset": "Anwendung zurückgesetzt. Neue Sitzung gestartet.",
+            "los_diagnostic_complete": "Sichtlinien-Diagnose abgeschlossen.",
+            "kmz_export_preparing": "Bereite KMZ-Export vor...",
+            "pivot_distances_toggled": "Pivot-Distanzen {status}.",
+            "pivot_removed": "Pivot \"{name}\" erfolgreich entfernt.",
+            "tower_selected_for_simulation": "Turm '{name}' ausgewählt. Klicken Sie im Panel auf 'Simulieren'.",
+            "repeater_suggestion_removed": "Repeater-Vorschlag entfernt.",
+            "location_found": "Standort gefunden und auf der Karte markiert."
+        },
+        "errors": {
+            "session_start_fail": "Kritischer Fehler beim Starten der neuen Sitzung. Bitte laden Sie die Seite neu.",
+            "select_kmz": "Bitte wählen Sie zuerst eine KMZ-Datei aus.",
+            "kmz_load_fail": "Fehler beim Laden der KMZ-Datei: {error}",
+            "invalid_data_or_session": "Ungültige Daten oder Sitzung nicht gestartet. Versuchen Sie, zurückzusetzen.",
+            "simulation_fail": "Simulation fehlgeschlagen: {error}",
+            "run_study_first": "Sie müssen zuerst eine Studie durchführen.",
+            "select_uncovered_pivot": "Bitte wählen Sie einen Pivot ohne Abdeckung (rot).",
+            "no_coverage_to_search": "Kein aktiver Abdeckungsbereich zum Suchen. Aktivieren Sie die Hauptantenne oder einen Repeater.",
+            "find_repeater_fail": "Fehler bei der Suche nach Repeater-Standorten: {error}",
+            "session_not_started_for_draw": "Sitzung nicht gestartet. Setzen Sie die Anwendung zurück, bevor Sie zeichnen.",
+            "session_not_started": "Sitzung nicht gestartet. Laden Sie eine KMZ oder setzen Sie die Anwendung zurück.",
+            "nothing_to_export": "Nichts zu exportieren. Führen Sie eine Simulation mit einer Antenne oder einem Repeater durch.",
+            "reevaluate_fail": "Fehler bei der Neubewertung der Abdeckung: {error}",
+            "los_diagnostic_fail": "Sichtlinien-Diagnose für Pivot {name} fehlgeschlagen.",
+            "los_source_must_be_green": "QUELLE: Bitte wählen Sie einen Pivot MIT SIGNAL (grün).",
+            "coordinate_input_empty": "Bitte geben Sie eine Koordinate für die Suche ein.",
+            "invalid_coordinate_format": "Ungültiges Koordinatenformat. Verwenden Sie DMS (z.B. 19°26'S 44°29'W) oder Dezimal (z.B. -19.44 -44.49)."
+        },
+        "info": {
+            "no_towers_found": "Keine Türme in der KMZ-Datei gefunden. Sie können eine Antenne manuell durch Klicken auf die Karte hinzufügen.",
+            "los_mode_on": "Modus 'Repeater-Standorte finden' aktiviert. Wählen Sie einen Pivot ohne Abdeckung (rot).",
+            "los_mode_off_find_repeater": "Modus 'Repeater-Standorte finden' deaktiviert.",
+            "target_pivot_selected": "Ziel-Pivot ausgewählt: {name}. Suche nach Standorten...",
+            "no_promising_sites_found": "Keine vielversprechenden Standorte mit den aktuellen Kriterien gefunden.",
+            "draw_pivot_step1": "Zeichenmodus: Klicken Sie auf die Karte, um das Zentrum des Pivots festzulegen.",
+            "draw_pivot_step2": "Zentrum festgelegt. Klicken Sie erneut, um den Radius des Pivots festzulegen.",
+            "draw_pivot_off": "Pivot-Zeichenmodus deaktiviert.",
+            "draw_pivot_still_active": "Zeichenmodus ist noch aktiv. Klicken Sie, um einen neuen Pivot zu zeichnen.",
+            "draw_pivot_cancelled": "Pivot-Zeichnung abgebrochen.",
+            "no_uncovered_pivots": "Keine ungedeckten Pivots zu analysieren.",
+            "analyzing_pivots": "Analysiere Sichtlinie für {count} ungedeckte Pivots...",
+            "edit_mode_activated": "Bearbeitungsmodus aktiviert. Ziehen Sie die Pins zum Verschieben. Rechtsklick zum Entfernen.",
+            "positions_updated_resimulate": "Positionen aktualisiert. Führen Sie die Simulation erneut aus, um die Auswirkungen auf die Abdeckung zu sehen.",
+            "edits_undone": "Bearbeitungen rückgängig gemacht. Bearbeitungsmodus geschlossen.",
+            "los_mode_step1_source": "PIVOT-ZU-PIVOT-DIAGNOSEMODUS: Wählen Sie den QUELL-Pivot (mit Signal).",
+            "los_mode_deactivated": "'Pivot-zu-Pivot-Diagnose'-Modus deaktiviert.",
+            "los_source_selected": "QUELLE: {name} ausgewählt. Wählen Sie nun den ZIEL-Pivot (ohne Signal).",
+            "los_source_already_selected": "QUELLE: {name} ist bereits die Quelle. Wählen Sie den ZIEL-Pivot.",
+            "los_source_changed": "QUELLE GEÄNDERT zu: {name}. Wählen Sie den ZIEL-Pivot.",
+            "los_result_blocked": "Sichtverbindung {source} → {target} (Entf: {distance}) ⛔ Blockiert.",
+            "los_result_clear_critical": "Sichtverbindung {source} → {target} (Entf: {distance}) ✅ Frei am kritischen Punkt.",
+            "los_result_clear": "Sichtverbindung {source} → {target} (Entf: {distance}) ✅ Frei.",
+            "los_result_error": "⚠️ Fehler bei der Diagnose der Sichtverbindung {source} → {target} (Entf: {distance}): {error}",
+            "los_new_source_prompt": "Wählen Sie einen neuen QUELL-Pivot (mit Signal) oder deaktivieren Sie den Modus."
+        },
+        "confirm": {
+            "remove_pivot": "Sind Sie sicher, dass Sie den Pivot \"{name}\" entfernen möchten? Der zugehörige Kreis wird ebenfalls entfernt.",
+            "change_los_source": "Sie haben bereits {sourceName} als Quelle ausgewählt. Möchten Sie die Quelle zu {newName} ändern? Vorherige Diagnoselinien werden entfernt."
+        },
+        "labels": {
+            "shown": "angezeigt",
+            "hidden": "ausgeblendet"
+        }
     }
-  },
-  "messages": {
-    "success": {
-      "kmz_loaded_select_tower": "✅ KMZ geladen. Wählen Sie einen Turm, um die Studie zu starten.",
-      "simulation_complete": "📡 Signalstudie abgeschlossen.",
-      "los_diagnostic_complete": "🔍 Sichtverbindungsdiagnose abgeschlossen.",
-      "repeater_added": "📡 Repeater {id} hinzugefügt und simuliert.",
-      "tower_simulated_as_repeater": "📡 Turm '{name}' als Repeater simuliert.",
-      "app_reset": "🔄 Anwendung zurückgesetzt.",
-      "pivots_re-evaluated": "Pivots neu bewertet.",
-      "found_candidate_sites": "{count} Kandidaten-Standorte gefunden. Klicken Sie auf einen, um zu simulieren.",
-      "edits_undone": "↩️ Bearbeitungen rückgängig gemacht. Bearbeitungsmodus geschlossen.",
-      "positions_updated": "💾 Positionen aktualisiert. Führen Sie die Simulation erneut aus, um Abdeckungsänderungen zu sehen.",
-      "edit_mode_on": "✏️ Bearbeitungsmodus aktiviert. Ziehen Sie die roten Pins. Rechtsklick zum Entfernen.",
-      "los_mode_on": "PIVOT-ZU-PIVOT-DIAGNOSEMODUS: Wählen Sie den QUELL-Pivot (mit Signal/grün).",
-      "los_mode_off": "Modus 'Pivot-zu-Pivot-Diagnose' deaktiviert.",
-      "pivot_created": "Pivot \"{name}\" erfolgreich erstellt!",
-      "draw_pivot_still_active": "Zeichenmodus noch aktiv. Klicken Sie, um ein neues Zentrum festzulegen."
-    },
-    "errors": {
-      "select_kmz": "Bitte wählen Sie eine KMZ-Datei aus.",
-      "kmz_load_fail": "Fehler beim Laden der KMZ: {error}",
-      "simulation_fail": "Simulation fehlgeschlagen: {error}",
-      "run_study_first": "⚠️ Führen Sie zuerst die Signalstudie durch!",
-      "invalid_data_or_session": "⚠️ Ungültige Antennendaten oder Sitzungs-ID!",
-      "no_coverage_to_search": "Kein aktiver Signalbereich (Antenne/Repeater) für die Suche vorhanden. Aktivieren Sie eine Abdeckung."
-    },
-    "info": {
-      "no_towers_found": "Keine Türme in der KMZ-Datei gefunden. Sie können Repeater manuell hinzufügen.",
-      "no_uncovered_pivots": "✅ Keine ungedeckten Pivots zu diagnostizieren.",
-      "analyzing_pivots": "🔍 Analysiere {count} Pivots...",
-      "los_origin_selected": "URSPRUNG: {name} ausgewählt. Wählen Sie nun den ZIEL-Pivot (ohne Signal/rot).",
-      "los_origin_is_target": "URSPRUNG: {name} ist bereits der Ursprung. Wählen Sie einen ZIEL-Pivot.",
-      "draw_pivot_step1": "Zeichenmodus: Klicken Sie auf die Karte, um das ZENTRUM des Pivots festzulegen.",
-      "draw_pivot_step2": "Zentrum festgelegt. Klicken Sie nun, um den RAND des Kreises festzulegen.",
-      "draw_pivot_off": "Zeichenmodus deaktiviert.",
-      "draw_pivot_cancelled": "Pivot-Zeichnung abgebrochen. Klicken Sie erneut, um ein neues Zentrum festzulegen."
-    }
-  },
-  "tooltips": {
-    "in_signal": "✅ Mit Signal",
-    "out_of_signal": "❌ Außerhalb des Signals",
-    "blockage_point": "Kritischer Punkt: Höhe {elevation}m",
-    "blockage_present": "⛔ Blockade: {diff}m darüber",
-    "los_clear_at_critical_point": "✅ Frei am kritischen Punkt ({diff}m)",
-    "highest_point": "Höchster Punkt: Höhe {elevation}m",
-    "los_ok": "✅ Freie Sicht",
-    "los_no": "⛔ Sicht verdeckt"
-  }
 }

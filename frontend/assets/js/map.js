@@ -112,7 +112,7 @@ function setupCandidateRemovalListener() {
                     });
                     console.log("Candidato e sua linha associada removidos:", markerIdToRemove);
                     if (typeof mostrarMensagem === 'function') { 
-                        mostrarMensagem("Sugestão de repetidora removida.", "sucesso");
+                        mostrarMensagem(t('messages.success.repeater_suggestion_removed'), "sucesso");
                     } else {
                         console.log("Sugestão de repetidora removida (mostrarMensagem não disponível em map.js).");
                     }

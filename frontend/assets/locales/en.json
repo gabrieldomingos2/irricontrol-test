@@ -1,91 +1,136 @@
 {
-  "ui": {
-    "titles": {
-      "main": "Signal Simulator - Irricontrol",
-      "data_panel": "Simulation Data",
-      "repeater_panel": "Repeaters",
-      "repeater_panel_setup": "📡 Configure Repeater",
-      "line_of_sight": "Line of Sight",
-      "los_pivots": "Pivot-to-Pivot LoS Diagnostic",
-      "find_repeater_locations": "Find Repeater Locations",
-      "legend": "Legend",
-      "show_pivot_distances": "Show Pivot Distances",
-      "edit_pivots": "Edit Pivots",
-      "undo_edit": "Undo Edit",
-      "draw_pivot": "Add Pivot with Circle"
+    "ui": {
+        "titles": {
+            "main": "Signal Simulator - Irricontrol",
+            "data_panel": "Data Panel",
+            "repeater_panel": "Repeaters Panel",
+            "line_of_sight": "Line of Sight (Obstacles)",
+            "los_pivots": "Pivot-to-Pivot LoS Diagnostic",
+            "find_repeater_locations": "Find Repeater Locations",
+            "legend": "Legends",
+            "show_pivot_distances": "Show Pivot Distances",
+            "hide_pivot_distances": "Hide Pivot Distances",
+            "edit_pivots": "Edit Pivot Positions",
+            "save_edit": "Save Pivot Edits",
+            "undo_edit": "Undo Edits",
+            "draw_pivot": "Draw Pivot Manually",
+            "draw_sector_pivot": "Draw Sectorial Pivot",
+            "repeater_panel_setup": "📡 Repeater Setup",
+            "search_coordinates": "Search Coordinates"
+        },
+        "labels": {
+            "tools": "Tools",
+            "template": "🌐 Template:",
+            "choose_kmz": "Choose KMZ File",
+            "processing": "Processing...",
+            "antenna_height": "Antenna Height (m)",
+            "receiver_height": "Receiver Height (m)",
+            "total_pivots": "Pivots:",
+            "out_of_coverage": "Out of coverage:",
+            "main_antenna": "Main antenna:",
+            "main_antenna_default": "Main Tower",
+            "receiver": "Receiver:",
+            "total_repeaters": "Total Repeaters:",
+            "pump_houses": "Pump houses:",
+            "repeater": "Repeater",
+            "pivo_distance_label": "Pivot Dist:",
+            "powered_by": "Powered by Irricontrol"
+        },
+        "placeholders": {
+            "lat_lon_search": "Latitude, Longitude"
+        },
+        "buttons": {
+            "load_kmz": "Load KMZ",
+            "run_study": "Run Signal Study",
+            "run_los_diagnostic": "Run LoS Diagnostic",
+            "export_kmz": "Export KMZ",
+            "reset": "Reset",
+            "simulate": "Simulate"
+        }
     },
-    "labels": {
-      "template": "🌐 Template:",
-      "choose_kmz": "Choose KMZ File",
-      "tools": "Tools",
-      "antenna_height": "Antenna Height (m)",
-      "receiver_height": "Receiver Height (m)",
-      "total_pivots": "Pivots:",
-      "out_of_coverage": "Out of coverage:",
-      "main_antenna": "Main antenna:",
-      "receiver": "Receiver:",
-      "total_repeaters": "Total Repeaters:",
-      "repeater": "Repeater",
-      "pump_houses": "Pump houses:",
-      "pivo_distance_label": "Dist:",
-      "processing": "Processing..."
+    "tooltips": {
+        "out_of_signal": "Out of Signal",
+        "in_signal": "In Signal",
+        "show_hide_coverage": "Show/Hide Coverage",
+        "blockage_point": "Blockage point: {elevation}m",
+        "blockage_present": "Blockage present: {diff}m",
+        "los_clear_at_critical_point": "LoS clear at critical point (margin {diff}m)",
+        "highest_point": "Highest point: {elevation}m",
+        "los_ok": "LoS OK",
+        "los_no": "Obstructed",
+        "hide_legends": "Hide Legends",
+        "show_legends": "Show Legends"
     },
-    "buttons": {
-      "load_kmz": "Load KMZ",
-      "run_study": "Run Signal Study",
-      "run_los_diagnostic": "Line of Sight Diagnostic",
-      "export_kmz": "Export KMZ",
-      "reset": "Reset",
-      "simulate": "Simulate",
-      "save_edit": "Save Edit"
+    "messages": {
+        "success": {
+            "new_session_started": "New session started. Ready to load a KMZ or draw on the map.",
+            "kmz_loaded_select_tower": "KMZ loaded. Select a tower on the map to start.",
+            "simulation_complete": "Simulation completed successfully.",
+            "repeater_added": "Repeater '{name}' added.",
+            "found_candidate_sites": "Found {count} candidate sites for the repeater.",
+            "pivot_created": "New pivot '{name}' created successfully.",
+            "app_reset": "Application reset. New session started.",
+            "los_diagnostic_complete": "Line of sight diagnostic complete.",
+            "kmz_export_preparing": "Preparing KMZ export...",
+            "pivot_distances_toggled": "Pivot distances {status}.",
+            "pivot_removed": "Pivot \"{name}\" removed successfully.",
+            "tower_selected_for_simulation": "Tower '{name}' selected. Click 'Simulate' in the panel.",
+            "repeater_suggestion_removed": "Repeater suggestion removed.",
+            "location_found": "Location found and marked on the map."
+        },
+        "errors": {
+            "session_start_fail": "Critical failure starting new session. Please try reloading the page.",
+            "select_kmz": "Please, select a KMZ file first.",
+            "kmz_load_fail": "Failed to load KMZ file: {error}",
+            "invalid_data_or_session": "Invalid data or session not started. Try resetting.",
+            "simulation_fail": "Simulation failed: {error}",
+            "run_study_first": "You need to run a study first.",
+            "select_uncovered_pivot": "Please, select a pivot without coverage (red).",
+            "no_coverage_to_search": "No active coverage area to search. Enable the main antenna or a repeater.",
+            "find_repeater_fail": "Failed to find repeater locations: {error}",
+            "session_not_started_for_draw": "Session not started. Reset the application before drawing.",
+            "session_not_started": "Session not started. Load a KMZ or reset the application.",
+            "nothing_to_export": "Nothing to export. Run a simulation with an antenna or repeater.",
+            "reevaluate_fail": "Failed to re-evaluate coverage: {error}",
+            "los_diagnostic_fail": "Line of sight diagnostic failed for pivot {name}.",
+            "los_source_must_be_green": "SOURCE: Please select a pivot WITH SIGNAL (green).",
+            "coordinate_input_empty": "Please enter a coordinate to search.",
+            "invalid_coordinate_format": "Invalid coordinate format. Use DMS (e.g., 19°26'S 44°29'W) or Decimal (e.g., -19.44 -44.49)."
+        },
+        "info": {
+            "no_towers_found": "No towers found in the KMZ. You can add an antenna manually by clicking on the map.",
+            "los_mode_on": "'Find Repeater Locations' mode activated. Select a pivot without coverage (red).",
+            "los_mode_off_find_repeater": "'Find Repeater Locations' mode deactivated.",
+            "target_pivot_selected": "Target pivot selected: {name}. Searching for locations...",
+            "no_promising_sites_found": "No promising locations found with the current criteria.",
+            "draw_pivot_step1": "Draw Mode: Click on the map to set the pivot's center.",
+            "draw_pivot_step2": "Center set. Click again to set the pivot's radius.",
+            "draw_pivot_off": "Pivot Draw Mode deactivated.",
+            "draw_pivot_still_active": "Draw Mode is still active. Click to draw a new pivot.",
+            "draw_pivot_cancelled": "Pivot drawing cancelled.",
+            "no_uncovered_pivots": "No uncovered pivots to analyze.",
+            "analyzing_pivots": "Analyzing line of sight for {count} uncovered pivots...",
+            "edit_mode_activated": "Edit mode activated. Drag the pins to move. Right-click to remove.",
+            "positions_updated_resimulate": "Positions updated. Run the simulation again to see the impact on coverage.",
+            "edits_undone": "Edits undone. Edit mode closed.",
+            "los_mode_step1_source": "PIVOT-TO-PIVOT DIAGNOSTIC MODE: Select the SOURCE pivot (with signal).",
+            "los_mode_deactivated": "'Pivot-to-Pivot Diagnostic' mode deactivated.",
+            "los_source_selected": "SOURCE: {name} selected. Now select the TARGET pivot (without signal).",
+            "los_source_already_selected": "SOURCE: {name} is already the source. Select the TARGET pivot.",
+            "los_source_changed": "SOURCE CHANGED to: {name}. Select the TARGET pivot.",
+            "los_result_blocked": "Line of Sight {source} → {target} (Dist: {distance}) ⛔ Blocked.",
+            "los_result_clear_critical": "Line of Sight {source} → {target} (Dist: {distance}) ✅ Clear at critical point.",
+            "los_result_clear": "Line of Sight {source} → {target} (Dist: {distance}) ✅ Clear.",
+            "los_result_error": "⚠️ Error diagnosing LoS {source} → {target} (Dist: {distance}): {error}",
+            "los_new_source_prompt": "Select a new SOURCE pivot (with signal) or deactivate the mode."
+        },
+        "confirm": {
+            "remove_pivot": "Are you sure you want to remove the pivot \"{name}\"? The associated circle will also be removed.",
+            "change_los_source": "You have already selected {sourceName} as the source. Do you want to change the source to {newName}? Previous diagnostic lines will be removed."
+        },
+        "labels": {
+            "shown": "shown",
+            "hidden": "hidden"
+        }
     }
-  },
-  "messages": {
-    "success": {
-      "kmz_loaded_select_tower": "✅ KMZ loaded. Choose a tower to start the study.",
-      "simulation_complete": "📡 Signal study complete.",
-      "los_diagnostic_complete": "🔍 Line of sight diagnosis complete.",
-      "repeater_added": "📡 Repeater {id} added and simulated.",
-      "tower_simulated_as_repeater": "📡 Tower '{name}' simulated as a repeater.",
-      "app_reset": "🔄 Application reset.",
-      "pivots_re-evaluated": "Pivots re-evaluated.",
-      "found_candidate_sites": "Found {count} candidate locations. Click one to simulate.",
-      "edits_undone": "↩️ Edits undone. Editing mode closed.",
-      "positions_updated": "💾 Positions updated. Run the simulation again to reflect coverage changes.",
-      "edit_mode_on": "✏️ Editing mode enabled. Drag the red pins. Right-click to remove.",
-      "los_mode_on": "PIVOT-TO-PIVOT DIAGNOSTIC MODE: Select the SOURCE pivot (with signal/green).",
-      "los_mode_off": "'Pivot-to-Pivot Diagnostic' mode disabled.",
-      "pivot_created": "Pivot \"{name}\" created successfully!",
-      "draw_pivot_still_active": "Drawing mode is still active. Click to create a new center."
-    },
-    "errors": {
-      "select_kmz": "Please select a KMZ file.",
-      "kmz_load_fail": "Failed to load KMZ: {error}",
-      "simulation_fail": "Simulation failed: {error}",
-      "run_study_first": "⚠️ Run the signal study first!",
-      "invalid_data_or_session": "⚠️ Invalid antenna data or session ID!",
-      "no_coverage_to_search": "No active signal area (antenna/repeaters) to base the search on. Enable some coverage."
-    },
-    "info": {
-      "no_towers_found": "No towers found in the KMZ. You can add repeaters manually.",
-      "no_uncovered_pivots": "✅ No pivots out of coverage to diagnose.",
-      "analyzing_pivots": "🔍 Analyzing {count} pivots...",
-      "los_origin_selected": "ORIGIN: {name} selected. Now select the DESTINATION pivot (no signal/red).",
-      "los_origin_is_target": "ORIGIN: {name} is already the origin. Select a DESTINATION pivot.",
-      "draw_pivot_step1": "Drawing Mode: Click on the map to set the pivot's CENTER.",
-      "draw_pivot_step2": "Center defined. Now click to set the EDGE of the circle.",
-      "draw_pivot_off": "Drawing Mode disabled.",
-      "draw_pivot_cancelled": "Pivot drawing cancelled. Click again to set a new center."
-    }
-  },
-  "tooltips": {
-    "in_signal": "✅ In signal",
-    "out_of_signal": "❌ Out of signal",
-    "blockage_point": "Critical Point: Elev. {elevation}m",
-    "blockage_present": "⛔ Blockage: {diff}m above",
-    "los_clear_at_critical_point": "✅ Clear at Critical Point ({diff}m)",
-    "highest_point": "Highest Point: Elev. {elevation}m",
-    "los_ok": "✅ Clear LoS",
-    "los_no": "⛔ Obstructed LoS"
-  }
 }

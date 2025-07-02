@@ -13,6 +13,7 @@ window.pivoAlvoParaLocalRepetidora = null;
 window.ciclosGlobais = [];
 window.lastBombasDataDrawn = [];
 window.modoDesenhoPivo = false;
+window.modoDesenhoPivoSetorial = false;
 window.antenaGlobal = null; 
 window.distanciasPivosVisiveis = false;
 window.lastPivosDataDrawn = [];
@@ -35,6 +36,7 @@ let templateSelecionado = "";
 let linhasDiagnostico = [];
 let marcadoresBloqueio = [];
 let centroPivoTemporario = null;
+let isDrawingSector = false;
 
 
 // --- Inicialização ---
@@ -108,6 +110,7 @@ function setupMainActionListeners() {
 
     // Listeners de botões da UI
     document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
+    document.getElementById('btn-draw-pivot-setorial').addEventListener('click', toggleModoDesenhoPivoSetorial);
 
     const toggleDistanciasBtn = document.getElementById('toggle-distancias-pivos');
     if (toggleDistanciasBtn) {
@@ -276,14 +279,18 @@ async function startMainSimulation(antenaData) {
 
 
 function handleMapClick(e) {
-    if (window.modoDesenhoPivo) {
-        handlePivotDrawClick(e);
+    // A verificação para modoDesenhoPivo FOI REMOVIDA DAQUI, pois ele agora tem seu próprio listener.
+    
+    // A verificação do setorial pode ser removida também para maior limpeza,
+    // pois ele também é autônomo, mas vamos mantê-la por segurança para evitar cliques indesejados.
+    if (window.modoDesenhoPivoSetorial) {
         return;
     }
 
-    if (window.modoEdicaoPivos) return;
-    if (window.modoLoSPivotAPivot) return;
+    // Não faz nada se algum destes modos estiverem ativos
+    if (window.modoEdicaoPivos || window.modoLoSPivotAPivot) return;
 
+    // Lógica para posicionar repetidora (continua igual)
     window.clickedCandidateData = null;
     window.ultimoCliqueFoiSobrePivo = false;
     window.coordenadaClicada = e.latlng;
@@ -560,6 +567,8 @@ function toggleModoDesenhoPivo() {
     btn.classList.toggle('glass-button-active', window.modoDesenhoPivo);
 
     if (window.modoDesenhoPivo) {
+        // Garante que outros modos estejam desativados
+        if (window.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
         if (window.modoEdicaoPivos) togglePivoEditing();
         if (window.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (window.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
@@ -567,14 +576,21 @@ function toggleModoDesenhoPivo() {
         map.getContainer().style.cursor = 'crosshair';
         mostrarMensagem(t('messages.info.draw_pivot_step1'), "info");
         
+        // ✅ Gerencia TODOS os seus próprios listeners de forma isolada
+        map.on('click', handlePivotDrawClick);
         map.on('mousemove', handlePivotDrawMouseMove);
+        map.on('contextmenu', handleCancelCircularDraw); // <-- Usa a nova função
+
     } else {
         map.getContainer().style.cursor = '';
         centroPivoTemporario = null;
         if (typeof removeTempCircle === 'function') removeTempCircle();
         mostrarMensagem(t('messages.info.draw_pivot_off'), "sucesso");
         
+        // ✅ Remove TODOS os seus listeners ao ser desativado
+        map.off('click', handlePivotDrawClick);
         map.off('mousemove', handlePivotDrawMouseMove);
+        map.off('contextmenu', handleCancelCircularDraw); // <-- Remove o listener de cancelamento
     }
 }
 
@@ -587,67 +603,73 @@ function handlePivotDrawMouseMove(e) {
 }
 
 async function handlePivotDrawClick(e) {
+
+    if (!window.modoDesenhoPivo) return;
+
     if (!window.jobId) {
         mostrarMensagem(t('messages.errors.session_not_started_for_draw'), "erro");
-        toggleModoDesenhoPivo();
+        toggleModoDesenhoPivo(); 
         return;
     }
 
     if (!centroPivoTemporario) {
         centroPivoTemporario = e.latlng;
         mostrarMensagem(t('messages.info.draw_pivot_step2'), "info");
+        return; 
     }
-    else {
-        const radiusPoint = e.latlng;
-        if (typeof drawTempCircle === 'function') {
-            drawTempCircle(centroPivoTemporario, radiusPoint);
-        }
-        mostrarLoader(true);
 
+    const radiusPoint = e.latlng;
+    mostrarLoader(true);
+
+    try {
         const payload = {
             job_id: window.jobId,
             center: [centroPivoTemporario.lat, centroPivoTemporario.lng],
             pivos_atuais: window.lastPivosDataDrawn
         };
 
-        try {
-            const result = await generatePivotInCircle(payload);
-            const novoPivo = { ...result.novo_pivo, fora: true };
-            const radiusInMeters = centroPivoTemporario.distanceTo(radiusPoint);
-            const circleCoords = generateCircleCoords(centroPivoTemporario, radiusInMeters);
-            const novoCiclo = {
-                nome_original_circulo: `Ciclo ${novoPivo.nome}`,
-                coordenadas: circleCoords
-            };
+        const result = await generatePivotInCircle(payload);
+        const novoPivo = { ...result.novo_pivo, fora: true };
+        const radiusInMeters = centroPivoTemporario.distanceTo(radiusPoint);
+        const circleCoords = generateCircleCoords(centroPivoTemporario, radiusInMeters);
+        const novoCiclo = {
+            nome_original_circulo: `Ciclo ${novoPivo.nome}`,
+            coordenadas: circleCoords
+        };
 
-            window.lastPivosDataDrawn.push(novoPivo);
-            window.ciclosGlobais.push(novoCiclo);
-            if (window.currentProcessedKmzData?.pivos) window.currentProcessedKmzData.pivos.push(novoPivo);
-            if (window.currentProcessedKmzData?.ciclos) window.currentProcessedKmzData.ciclos.push(novoCiclo);
+        window.lastPivosDataDrawn.push(novoPivo);
+        window.ciclosGlobais.push(novoCiclo);
+        if (window.currentProcessedKmzData?.pivos) window.currentProcessedKmzData.pivos.push(novoPivo);
+        if (window.currentProcessedKmzData?.ciclos) window.currentProcessedKmzData.ciclos.push(novoCiclo);
 
-            if (typeof drawPivos === 'function') drawPivos(window.lastPivosDataDrawn, false);
-            if (typeof drawCirculos === 'function') drawCirculos(window.ciclosGlobais);
-            if (typeof atualizarPainelDados === 'function') atualizarPainelDados();
-
-            await reavaliarPivosViaAPI();
-            
-            mostrarMensagem(t('messages.success.pivot_created', { name: novoPivo.nome }), "sucesso");
-            
-            setTimeout(() => {
-                if(window.modoDesenhoPivo) {
-                    mostrarMensagem(t('messages.info.draw_pivot_still_active'), "info");
-                }
-            }, 4100);
-
-
-        } catch (error) {
-            console.error("Falha ao criar o pivô:", error);
-        } finally {
-            mostrarLoader(false);
-            
-            centroPivoTemporario = null;
-            if (typeof removeTempCircle === 'function') removeTempCircle();
+        if (typeof removeTempCircle === 'function') {
+            removeTempCircle();
         }
+
+        drawPivos(window.lastPivosDataDrawn, false);
+        drawCirculos(window.ciclosGlobais);
+        atualizarPainelDados();
+
+        await reavaliarPivosViaAPI();
+        mostrarMensagem(t('messages.success.pivot_created', { name: novoPivo.nome }), "sucesso");
+
+        setTimeout(() => {
+            if(window.modoDesenhoPivo) {
+                mostrarMensagem(t('messages.info.draw_pivot_still_active'), "info");
+            }
+        }, 2500);
+
+    } catch (error) {
+        console.error("Falha ao criar o pivô:", error);
+        mostrarMensagem(t('messages.errors.generic_error', 'Ocorreu um erro ao criar o pivô.'), "erro");
+        
+        if (typeof removeTempCircle === 'function') {
+            removeTempCircle();
+        }
+    } finally {
+
+        centroPivoTemporario = null;
+        mostrarLoader(false);
     }
 }
 
@@ -856,9 +878,12 @@ async function handleExportClick() {
 }
 
 async function reavaliarPivosViaAPI() {
-    if (!window.jobId || !window.currentProcessedKmzData) return;
-    const pivosParaReavaliar = (window.lastPivosDataDrawn || []).map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' }));
+    if (!window.jobId || !window.lastPivosDataDrawn || window.lastPivosDataDrawn.length === 0) return;
+
+    // Prepara os dados para enviar à API (esta parte está correta)
+    const pivosParaReavaliar = window.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' }));
     const bombasParaReavaliar = (window.lastBombasDataDrawn || []).map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' }));
+    
     const overlays = [];
     const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
     if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename) {
@@ -872,18 +897,35 @@ async function reavaliarPivosViaAPI() {
             overlays.push({ id: `repetidora_${rep.id}`, imagem: rep.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
         }
     });
+
     try {
         const payload = { job_id: window.jobId, pivos: pivosParaReavaliar, bombas: bombasParaReavaliar, overlays };
         const data = await reevaluatePivots(payload);
+
         if (data.pivos) {
-            window.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
-            drawPivos(data.pivos, false);
+
+            const pivosAtualizadosDaAPI = data.pivos;
+            
+            window.lastPivosDataDrawn = window.lastPivosDataDrawn.map(pivoAntigo => {
+                const pivoNovoDaAPI = pivosAtualizadosDaAPI.find(p => p.nome === pivoAntigo.nome);
+                
+                if (pivoNovoDaAPI) {
+                    return { ...pivoAntigo, ...pivoNovoDaAPI };
+                }
+                
+                return pivoAntigo;
+            });
+
+            drawPivos(window.lastPivosDataDrawn, false);
         }
+
         if (data.bombas) {
             window.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
             drawBombas(data.bombas);
         }
+
         atualizarPainelDados();
+
     } catch (error) {
         console.error("❌ Erro ao reavaliar cobertura via API:", error);
         mostrarMensagem(t('messages.errors.reevaluate_fail', { error: error.message }), "erro");
@@ -934,7 +976,7 @@ function enablePivoEditingMode() {
         editMarker.on("contextmenu", (e) => {
             L.DomEvent.stopPropagation(e);
             L.DomEvent.preventDefault(e);
-            if (confirm(`❌ Tem certeza que deseja remover o pivô ${nome}? O círculo associado também será removido.`)) {
+            if (confirm(t('messages.confirm.remove_pivot', { name: nome }))) {
                 map.removeLayer(editMarker);
                 window.lastPivosDataDrawn = window.lastPivosDataDrawn.filter(p => p.nome !== nome);
                 if (window.currentProcessedKmzData?.pivos) window.currentProcessedKmzData.pivos = window.currentProcessedKmzData.pivos.filter(p => p.nome !== nome);
@@ -945,12 +987,12 @@ function enablePivoEditingMode() {
                 delete pivotsMap[nome];
                 delete posicoesEditadas[nome];
                 delete window.backupPosicoesPivos[nome];
-                mostrarMensagem(`🗑️ Pivô ${nome} e seu círculo foram removidos.`, "sucesso");
+                mostrarMensagem(t('messages.success.pivot_removed', { name: nome }), "sucesso");
                 atualizarPainelDados();
             }
         });
     });
-    mostrarMensagem("✏️ Modo de edição ativado. Arraste os pinos vermelhos. Clique com botão direito para remover.", "sucesso");
+    mostrarMensagem(t('messages.info.edit_mode_activated'), "sucesso");
 }
 
 function disablePivoEditingMode() {
@@ -958,7 +1000,7 @@ function disablePivoEditingMode() {
     Object.values(pivotsMap).forEach(editMarker => { if (editMarker && map.hasLayer(editMarker)) map.removeLayer(editMarker); });
     pivotsMap = {};
     drawPivos(window.lastPivosDataDrawn, false);
-    mostrarMensagem("💾 Posições atualizadas. Rode a simulação novamente para refletir mudanças na cobertura.", "sucesso");
+    mostrarMensagem(t('messages.info.positions_updated_resimulate'), "sucesso");
     window.backupPosicoesPivos = {};
     posicoesEditadas = {};
 }
@@ -975,7 +1017,7 @@ function undoPivoEdits() {
     });
     posicoesEditadas = {};
     if (typeof togglePivoEditing === 'function' && window.modoEdicaoPivos) togglePivoEditing();
-    mostrarMensagem("↩️ Edições desfeitas. Modo de edição encerrado.", "sucesso");
+    mostrarMensagem(t('messages.info.edits_undone'), "sucesso");
 }
 
 function toggleLoSPivotAPivotMode() {
@@ -983,7 +1025,7 @@ function toggleLoSPivotAPivotMode() {
     const btn = document.getElementById('btn-los-pivot-a-pivot');
     btn.classList.toggle('glass-button-active', window.modoLoSPivotAPivot);
     if (window.modoLoSPivotAPivot) {
-        mostrarMensagem("MODO DIAGNÓSTICO PIVÔ A PIVÔ: Selecione o pivô de ORIGEM (com sinal/verde).", "sucesso");
+        mostrarMensagem(t('messages.info.los_mode_step1_source'), "sucesso");
         if (window.marcadorPosicionamento) removePositioningMarker();
         document.getElementById("painel-repetidora").classList.add("hidden");
         window.losSourcePivot = null;
@@ -992,7 +1034,7 @@ function toggleLoSPivotAPivotMode() {
         if (window.modoBuscaLocalRepetidora && typeof handleBuscarLocaisRepetidoraActivation === 'function' && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) handleBuscarLocaisRepetidoraActivation();
         map.getContainer().style.cursor = 'help';
     } else {
-        mostrarMensagem("Modo 'Diagnóstico Pivô a Pivô' desativado.", "sucesso");
+        mostrarMensagem(t('messages.info.los_mode_deactivated'), "sucesso");
         window.losSourcePivot = null;
         window.losTargetPivot = null;
         map.getContainer().style.cursor = '';
@@ -1011,24 +1053,27 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
     const defaultPivotHeight = (window.antenaGlobal && typeof window.antenaGlobal.altura_receiver === 'number') ? window.antenaGlobal.altura_receiver : 3;
     if (!window.losSourcePivot) {
         if (!isGoodSignalPivot) {
-            mostrarMensagem("ORIGEM: Selecione um pivô COM SINAL (verde).", "erro");
+            mostrarMensagem(t('messages.errors.los_source_must_be_green'), "erro");
             return;
         }
         window.losSourcePivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
-        mostrarMensagem(`ORIGEM: ${pivoData.nome} selecionado. Agora selecione o pivô de DESTINO (sem sinal/vermelho).`, "sucesso");
+        mostrarMensagem(t('messages.info.los_source_selected', { name: pivoData.nome }), "sucesso");
     } else {
         if (pivoData.nome === window.losSourcePivot.nome) {
-            mostrarMensagem(`ORIGEM: ${pivoData.nome} já é a origem. Selecione o pivô de DESTINO.`, "info");
+            mostrarMensagem(t('messages.info.los_source_already_selected', { name: pivoData.nome }), "info");
             return;
         }
         if (isGoodSignalPivot) {
-            const confirmaMudanca = confirm(`Você já selecionou ${window.losSourcePivot.nome} como origem. Deseja alterar a origem para ${pivoData.nome}? As linhas de diagnóstico anteriores serão removidas.`);
+            const confirmaMudanca = confirm(t('messages.confirm.change_los_source', { 
+                sourceName: window.losSourcePivot.nome, 
+                newName: pivoData.nome 
+            }));
             if (confirmaMudanca) {
                 window.losSourcePivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
                 window.losTargetPivot = null;
                 linhasDiagnostico = [];
                 marcadoresBloqueio = [];
-                mostrarMensagem(`ORIGEM ALTERADA para: ${pivoData.nome}. Selecione o pivô de DESTINO (sem sinal/vermelho).`, "sucesso");
+                mostrarMensagem(t('messages.info.los_source_changed', { name: pivoData.nome }), "sucesso");
             }
             return;
         }
@@ -1054,23 +1099,34 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
             const resultadoApi = await getElevationProfile(payload);
             const estaBloqueado = resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number' && resultadoApi.bloqueio.diff > 0.1;
             drawDiagnostico(payload.pontos[0], payload.pontos[1], resultadoApi.bloqueio, resultadoApi.ponto_mais_alto, `${window.losSourcePivot.nome} → ${window.losTargetPivot.nome}`, distanciaFormatada);
-            let mensagemVisada = `Visada ${window.losSourcePivot.nome} → ${window.losTargetPivot.nome} (Dist: ${distanciaFormatada})`;
-            if (estaBloqueado) mensagemVisada += ` ⛔ Bloqueada.`;
-            else if (resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number') mensagemVisada += ` ✅ Livre no ponto crítico.`;
-            else mensagemVisada += ` ✅ Livre.`;
-            mostrarMensagem(mensagemVisada, estaBloqueado ? "erro" : "sucesso");
+            let statusKey;
+            if (estaBloqueado) {
+                statusKey = 'los_result_blocked';
+            } else if (resultadoApi.bloqueio && typeof resultadoApi.bloqueio.diff === 'number') {
+                statusKey = 'los_result_clear_critical';
+            } else {
+                statusKey = 'los_result_clear';
+            }
+            mostrarMensagem(t(`messages.info.${statusKey}`, {
+                source: window.losSourcePivot.nome,
+                target: window.losTargetPivot.nome,
+                distance: distanciaFormatada
+            }), estaBloqueado ? "erro" : "sucesso");
+
         } catch (error) {
             ocorreuErroNaAnalise = true;
             console.error(`Erro no diagnóstico LoS Pivô a Pivô:`, error);
-            let msgErroDiagnostico = `⚠️ Erro ao diagnosticar visada`;
-            if (distanciaFormatada !== "N/A" && distanciaFormatada !== "Erro no cálculo") msgErroDiagnostico += ` entre ${window.losSourcePivot?.nome || 'Pivô Origem'} → ${window.losTargetPivot?.nome || 'Pivô Destino'} (Dist: ${distanciaFormatada})`;
-            msgErroDiagnostico += `: ${error.message || 'Erro desconhecido'}`;
-            mostrarMensagem(msgErroDiagnostico, "erro");
+            mostrarMensagem(t('messages.info.los_result_error', {
+                source: window.losSourcePivot?.nome || 'Source',
+                target: window.losTargetPivot?.nome || 'Target',
+                distance: distanciaFormatada,
+                error: error.message || 'Unknown error'
+            }), "erro");
         } finally {
             mostrarLoader(false);
             window.losSourcePivot = null;
             window.losTargetPivot = null;
-            if (window.modoLoSPivotAPivot) setTimeout(() => { if (window.modoLoSPivotAPivot) mostrarMensagem("Selecione um novo pivô de ORIGEM (com sinal/verde) ou desative o modo.", "info"); }, ocorreuErroNaAnalise ? 700 : 1800);
+            if (window.modoLoSPivotAPivot) setTimeout(() => { if (window.modoLoSPivotAPivot) mostrarMensagem(t('messages.info.los_new_source_prompt'), "info"); }, ocorreuErroNaAnalise ? 700 : 1800);
         }
     }
 }
@@ -1080,7 +1136,9 @@ function handleToggleDistanciasPivos() {
     const btn = document.getElementById('toggle-distancias-pivos');
     if (btn) {
         btn.classList.toggle('glass-button-active', window.distanciasPivosVisiveis);
-        btn.title = window.distanciasPivosVisiveis ? "Esconder Distâncias dos Pivôs" : "Mostrar Distâncias dos Pivôs";
+        btn.title = window.distanciasPivosVisiveis 
+            ? t('ui.titles.hide_pivot_distances') 
+            : t('ui.titles.show_pivot_distances');
     }
     if (typeof window.togglePivoDistances === 'function') {
         window.togglePivoDistances(window.distanciasPivosVisiveis);
@@ -1096,13 +1154,19 @@ function handleToggleDistanciasPivos() {
 }
 
 function handleCancelDraw(e) {
-    if (window.modoDesenhoPivo && centroPivoTemporario) {
+    // Esta função agora cuida APENAS do cancelamento do modo SETORIAL.
+    if (window.modoDesenhoPivoSetorial && centroPivoTemporario) {
         L.DomEvent.preventDefault(e);
         L.DomEvent.stopPropagation(e);
-        console.log("✏️ Ação de desenho cancelada pelo usuário.");
+
+        console.log("✏️ Ação de desenho de SETOR cancelada.");
         centroPivoTemporario = null;
-        if (typeof removeTempCircle === 'function') removeTempCircle();
-        mostrarMensagem(t('messages.info.draw_pivot_cancelled'), "info");
+        
+        if (typeof removeTempSector === 'function') {
+            removeTempSector();
+        }
+        
+        mostrarMensagem(t('messages.info.draw_sector_cancelled', 'Desenho de setor cancelado. Clique para definir um novo centro.'), "info");
     }
 }
 
@@ -1172,11 +1236,12 @@ function handleCoordinateSearch() {
     const coordString = inputField.value;
 
     if (!coordString) {
-        mostrarMensagem("Por favor, insira uma coordenada para buscar.", "erro");
+        mostrarMensagem(t('messages.error.coordinate_input_empty'), "erro");
         return;
     }
 
     const coords = parseCoordinates(coordString);
+
 
     if (coords) {
         const latlng = L.latLng(coords.lat, coords.lon);
@@ -1195,7 +1260,7 @@ function handleCoordinateSearch() {
 
         // Centraliza o mapa na nova coordenada com um bom nível de zoom
         map.setView(latlng, 15);
-        mostrarMensagem("Localização encontrada e marcada no mapa.", "sucesso");
+        mostrarMensagem(t('messages.success.location_found'), "sucesso");
 
         // Simula um clique no mapa para abrir o painel de configuração de repetidora
         window.coordenadaClicada = latlng;
@@ -1206,6 +1271,199 @@ function handleCoordinateSearch() {
 
     } else {
         // Mensagem de erro mais detalhada
-        mostrarMensagem("Formato de coordenada inválido. Use DMS (19°26'29.5\"S 44°29'26.8\"W) ou Decimal (-19.44 -44.49).", "erro");
+        mostrarMensagem(t('messages.error.invalid_coordinate_format'), "erro");
+    }
+}
+
+// ✅ INÍCIO DO TRECHO PARA SUBSTITUIR
+
+// ========================================================
+// LÓGICA CORRIGIDA PARA DESENHO DE PIVÔ SETORIAL
+// ========================================================
+
+/**
+ * Encontra o maior número usado nos nomes de pivôs existentes ("Pivô X" ou "Setor X")
+ * e retorna o próximo número disponível na sequência.
+ * @returns {number} O próximo número sequencial para um novo pivô.
+ */
+function getNextPivotNumber() {
+    let maxNumber = 0;
+    // Itera sobre todos os pivôs já desenhados no mapa
+    window.lastPivosDataDrawn.forEach(pivo => {
+        // Usa uma expressão regular para encontrar o primeiro conjunto de dígitos no nome do pivô
+        const match = pivo.nome.match(/\d+/);
+        if (match) {
+            const currentNumber = parseInt(match[0], 10);
+            if (currentNumber > maxNumber) {
+                maxNumber = currentNumber;
+            }
+        }
+    });
+    // Retorna o maior número encontrado + 1
+    return maxNumber + 1;
+}
+
+/**
+ * Ativa ou desativa o modo de desenho de pivô setorial (método de 2 cliques).
+ */
+function toggleModoDesenhoPivoSetorial() {
+    window.modoDesenhoPivoSetorial = !window.modoDesenhoPivoSetorial;
+    const btn = document.getElementById('btn-draw-pivot-setorial');
+    btn.classList.toggle('glass-button-active', window.modoDesenhoPivoSetorial);
+
+    if (window.modoDesenhoPivoSetorial) {
+        // Garante que outros modos de desenho ou edição estejam desativados
+        if (window.modoDesenhoPivo) toggleModoDesenhoPivo();
+        if (window.modoEdicaoPivos && typeof togglePivoEditing === 'function') togglePivoEditing();
+        if (window.modoLoSPivotAPivot && typeof toggleLoSPivotAPivotMode === 'function') toggleLoSPivotAPivotMode();
+        if (window.modoBuscaLocalRepetidora && typeof handleBuscarLocaisRepetidoraActivation === 'function') handleBuscarLocaisRepetidoraActivation();
+
+        map.getContainer().style.cursor = 'crosshair';
+        
+        // Adiciona os listeners de evento para o modo de 2 cliques
+        map.on('click', handleSectorialPivotDrawClick);
+        map.on('mousemove', handleSectorialDrawMouseMove);
+        
+        mostrarMensagem(t('messages.info.draw_sector_pivot_step1', 'Modo Setorial: Clique no mapa para definir o centro do pivô.'), "info");
+
+    } else {
+        map.getContainer().style.cursor = '';
+
+        // Remove os listeners de evento para não interferir com outras ações
+        map.off('click', handleSectorialPivotDrawClick);
+        map.off('mousemove', handleSectorialDrawMouseMove);
+        
+        // Limpa qualquer desenho temporário que possa ter ficado no mapa
+        centroPivoTemporario = null;
+        if (typeof removeTempSector === 'function') {
+            removeTempSector();
+        }
+
+        mostrarMensagem(t('messages.info.draw_sector_pivot_off', 'Modo de Desenho Setorial desativado.'), "sucesso");
+    }
+}
+
+
+/**
+ * Manipula os cliques no mapa para desenhar o pivô setorial.
+ * O primeiro clique define o centro, o segundo finaliza o desenho.
+ */
+async function handleSectorialPivotDrawClick(e) {
+    if (!window.modoDesenhoPivoSetorial) return;
+
+    // Primeiro clique: Define o centro do pivô
+    if (!centroPivoTemporario) {
+        centroPivoTemporario = e.latlng;
+        mostrarMensagem(t('messages.info.draw_sector_pivot_step2', 'Centro definido. Mova o mouse para ajustar e clique novamente para finalizar.'), "info");
+    } 
+    // Segundo clique: Define o raio e a orientação, e cria o pivô
+    else {
+        const finalPoint = e.latlng;
+        const radius = centroPivoTemporario.distanceTo(finalPoint);
+
+        // Remove o desenho de pré-visualização
+        if (typeof removeTempSector === 'function') {
+            removeTempSector();
+        }
+
+        // Validação para evitar pivôs muito pequenos
+        if (radius < 10) {
+            centroPivoTemporario = null; // Reinicia o processo
+            mostrarMensagem(t('messages.errors.draw_pivot_radius_too_small', 'Raio muito pequeno. Clique para definir um novo centro.'), "erro");
+            return;
+        }
+
+        mostrarLoader(true);
+        try {
+            const bearing = calculateBearing(centroPivoTemporario, finalPoint);
+            
+            // Lógica de nomeação unificada
+            const novoNumero = getNextPivotNumber();
+            const novoNome = `Pivô ${String(novoNumero).padStart(2, '0')}`;
+            
+            const novoPivo = {
+                // CORREÇÃO: Usa a variável 'novoNome'
+                nome: novoNome,
+                lat: centroPivoTemporario.lat,
+                lon: centroPivoTemporario.lng,
+                fora: true,
+                tipo: 'setorial',
+                raio: radius,
+                angulo_central: bearing,
+                abertura_arco: 180 
+            };
+            
+            window.lastPivosDataDrawn.push(novoPivo);
+
+            // Adiciona um "ciclo placeholder" para manter a consistência dos dados
+            const novoCiclo = {
+                nome_original_circulo: `Ciclo ${novoPivo.nome}`,
+                coordenadas: []
+            };
+            window.ciclosGlobais.push(novoCiclo);
+
+            // Redesenha todos os pivôs e suas áreas
+            if (typeof drawPivos === 'function') drawPivos(window.lastPivosDataDrawn, false);
+            if (typeof drawCirculos === 'function') drawCirculos(window.ciclosGlobais);
+            
+            await reavaliarPivosViaAPI();
+            atualizarPainelDados();
+
+            // Mensagem de sucesso corrigida para refletir o nome correto
+            mostrarMensagem(t('messages.success.sector_pivot_created', `Pivô '${novoPivo.nome}' (setorial) criado com sucesso.`), "sucesso");
+
+        } catch (error) {
+            console.error("Erro ao criar pivô setorial:", error);
+            mostrarMensagem(t('messages.errors.generic_error', 'Ocorreu um erro.'), "erro");
+        } finally {
+            // Reinicia para permitir desenhar outro pivô em seguida
+            centroPivoTemporario = null;
+            mostrarLoader(false);
+            
+            setTimeout(() => {
+                if (window.modoDesenhoPivoSetorial) {
+                    mostrarMensagem(t('messages.info.draw_sector_pivot_still_active', 'Modo Setorial ainda ativo. Clique para um novo centro.'), "info");
+                }
+            }, 2000);
+        }
+    }
+}
+
+/**
+ * Desenha uma pré-visualização do setor no mapa enquanto o usuário move o mouse.
+ * Só é ativado após o primeiro clique (quando o centro já está definido).
+ */
+function handleSectorialDrawMouseMove(e) {
+    if (window.modoDesenhoPivoSetorial && centroPivoTemporario) {
+        if (typeof drawTempSector === 'function') {
+            drawTempSector(centroPivoTemporario, e.latlng);
+        }
+    }
+}
+
+
+/**
+ * ✅ NOVA FUNÇÃO: Manipula o cancelamento (clique direito) especificamente
+ * para o modo de desenho de pivô CIRCULAR.
+ */
+function handleCancelCircularDraw(e) {
+    // Só faz algo se o modo circular estiver ativo e um desenho tiver começado
+    if (window.modoDesenhoPivo && centroPivoTemporario) {
+        // Impede o menu padrão do navegador de aparecer
+        L.DomEvent.preventDefault(e);
+        L.DomEvent.stopPropagation(e);
+
+        console.log("✏️ Ação de desenho de CÍRCULO cancelada.");
+        
+        // Remove o círculo de pré-visualização do mapa
+        if (typeof removeTempCircle === 'function') {
+            removeTempCircle();
+        }
+
+        // Zera a variável de estado para interromper o processo
+        centroPivoTemporario = null;
+        
+        // Exibe mensagem para o usuário
+        mostrarMensagem(t('messages.info.draw_pivot_cancelled', 'Desenho de pivô cancelado.'), "info");
     }
 }
