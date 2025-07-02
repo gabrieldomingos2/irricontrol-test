@@ -275,12 +275,17 @@ function addRepetidoraNoPainel(repetidora) {
     const item = document.createElement("div");
     item.className = "flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `rep-item-${repetidora.id}`;
+    
+    // ✅ INÍCIO DA CORREÇÃO DO ÍCONE
+    const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-id="${repetidora.id}" data-action="diagnostico">
+        <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
+    </button>`;
+    // ✅ FIM DA CORREÇÃO DO ÍCONE
+
     item.innerHTML = `
         <span class="text-white/80 text-sm">${repetidora.label.options.icon.options.html}</span>
         <div class="flex gap-3 items-center">
-            <button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-id="${repetidora.id}" data-action="diagnostico">
-                <i data-lucide="activity" class="w-4 h-4"></i>
-            </button>
+            ${diagBtnHtml}
             <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-id="${repetidora.id}" data-action="toggle-visibility" data-visible="true">
                 <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
             </button>
@@ -292,7 +297,6 @@ function addRepetidoraNoPainel(repetidora) {
     container.appendChild(item);
     lucide.createIcons();
 
-    // Adiciona os event listeners de forma delegada ou direta
     item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(repetidora));
     item.querySelector('[data-action="remover"]').addEventListener('click', () => {
         map.removeLayer(repetidora.marker);
@@ -331,12 +335,17 @@ function addAntenaAoPainel(antena) {
     const item = document.createElement("div");
     item.className = "flex justify-between items-center bg-gray-700/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `antena-item`;
+
+    // ✅ INÍCIO DA CORREÇÃO DO ÍCONE
+    const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-action="diagnostico">
+        <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
+    </button>`;
+    // ✅ FIM DA CORREÇÃO DO ÍCONE
+
     item.innerHTML = `
         <span class="text-white/90 font-semibold text-sm">${antena.nome || t('ui.labels.main_antenna_default')}</span>
         <div class="flex gap-3 items-center">
-            <button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-action="diagnostico">
-                 <i data-lucide="activity" class="w-4 h-4"></i>
-            </button>
+            ${diagBtnHtml}
             <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-action="toggle-visibility" data-visible="true">
                 <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
             </button>

@@ -29,7 +29,6 @@ class AntenaSimPayload(BaseModel):
     nome: Optional[str] = "Antena Principal"
     template: str
     pivos_atuais: List[PivoData]
-    # ✅ CORREÇÃO: Adicionado para consistência
     bombas_atuais: List[BombaData] 
 
 class ManualSimPayload(BaseModel):

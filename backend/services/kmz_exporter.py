@@ -88,36 +88,51 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
     return files
 
 def _add_secondary_folders(doc, pivos, ciclos, bombas, style):
+
     if pivos:
         f_pivos = doc.newfolder(name="Pivôs (Marcadores)")
-        for p_data in pivos: f_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])]).style = style
+        for p_data in pivos:
+            f_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])]).style = style
     
-    # ✅ CORREÇÃO: Lógica de desenho de áreas refatorada para clareza e robustez
-    if pivos:
+
+    if (ciclos and any(c.get("coordenadas") for c in ciclos)) or any(p.get('tipo') == 'setorial' for p in pivos):
         f_areas = doc.newfolder(name="Áreas de Pivôs")
-        for pivo_data in pivos:
-            coords_area = []
-            if pivo_data.get('tipo') == 'setorial':
-                try:
-                    coords_area = _generate_sector_coords(
-                        lat=pivo_data['lat'], lon=pivo_data['lon'], radius_m=pivo_data['raio'],
-                        bearing_deg=pivo_data['angulo_central'], arc_width_deg=pivo_data['abertura_arco']
-                    )
-                except KeyError as e:
-                    logger.warning(f"Dados ausentes para desenhar setor '{pivo_data['nome']}': {e}. Pulando.")
-            else:
-                ciclo_data = next((c for c in ciclos if c.get("nome_original_circulo") == f"Ciclo {pivo_data['nome']}"), None)
-                if ciclo_data and ciclo_data.get("coordenadas"):
-                    coords_area = [(lon, lat, 0) for lat, lon in ciclo_data["coordenadas"]]
-            
-            if coords_area:
-                pol = f_areas.newpolygon(name=f"Área {pivo_data['nome']}")
-                pol.outerboundaryis = coords_area
-                pol.style.polystyle.fill = 0; pol.style.linestyle.color = simplekml.Color.red; pol.style.linestyle.width = 4
+        
+        # 1. Desenha as áreas dos pivôs SETORIAIS primeiro
+        pivos_setoriais = [p for p in pivos if p.get('tipo') == 'setorial']
+        for pivo_data in pivos_setoriais:
+            try:
+
+                coords_area = _generate_sector_coords(
+                    lat=pivo_data['lat'], lon=pivo_data['lon'], radius_m=pivo_data['raio'],
+                    bearing_deg=pivo_data['angulo_central'], arc_width_deg=pivo_data['abertura_arco']
+                )
+                if coords_area:
+                    pol = f_areas.newpolygon(name=f"Área {pivo_data['nome']}")
+                    pol.outerboundaryis = coords_area
+                    pol.style.polystyle.fill = 0
+                    pol.style.linestyle.color = simplekml.Color.red
+                    pol.style.linestyle.width = 4
+            except KeyError as e:
+                logger.warning(f"Dados ausentes para desenhar setor '{pivo_data.get('nome')}': {e}. Pulando.")
+
+
+        if ciclos:
+            for ciclo_data in ciclos:
+                coords = ciclo_data.get("coordenadas")
+
+                if coords and len(coords) > 2:
+                    nome_area = ciclo_data.get("nome_original_circulo", "Área sem nome").replace("Ciclo", "Área")
+                    pol = f_areas.newpolygon(name=nome_area)
+                    pol.outerboundaryis = [(lon, lat, 0) for lat, lon in coords]
+                    pol.style.polystyle.fill = 0
+                    pol.style.linestyle.color = simplekml.Color.red
+                    pol.style.linestyle.width = 4
 
     if bombas:
         f_bombas = doc.newfolder(name="Bombas")
-        for i, b_data in enumerate(bombas): f_bombas.newpoint(name=b_data.get("nome", f"Bomba {i+1}"), coords=[(b_data["lon"], b_data["lat"])]).style = style
+        for i, b_data in enumerate(bombas):
+            f_bombas.newpoint(name=b_data.get("nome", f"Bomba {i+1}"), coords=[(b_data["lon"], b_data["lat"])]).style = style
 
 def build_kml_document_and_get_image_list(doc, pivos_data, ciclos_data, bombas_data, repetidoras_selecionadas_data, generated_images_dir, selected_template, antena_data, imagem_principal_nome_relativo, bounds_principal_data) -> List[Tuple[Path, str]]:
     torre_style, default_point_style, _ = _create_kml_styles()

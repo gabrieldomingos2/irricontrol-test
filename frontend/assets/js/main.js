@@ -267,34 +267,50 @@ async function startMainSimulation(antenaData) {
 
     try {
         AppState.templateSelecionado = document.getElementById('template-modelo').value;
+        
+        // Mapeia os pivôs, garantindo que o tipo seja incluído para validação Pydantic
         const pivos_atuais = (AppState.lastPivosDataDrawn || []).map(p => ({
-            nome: p.nome, lat: p.lat, lon: p.lon
+            nome: p.nome,
+            lat: p.lat,
+            lon: p.lon,
+            type: 'pivo' // Garante conformidade com o modelo
         }));
 
+        // ✅ INÍCIO DA CORREÇÃO: Mapeia as bombas atuais para incluir no payload
+        const bombas_atuais = (AppState.lastBombasDataDrawn || []).map(b => ({
+            nome: b.nome,
+            lat: b.lat,
+            lon: b.lon,
+            type: 'bomba' // Garante conformidade com o modelo
+        }));
+        // ✅ FIM DA CORREÇÃO
+
+        // Cria o payload completo, agora incluindo as bombas
         const payload = {
             job_id: AppState.jobId,
             ...antenaData, // Inclui lat, lon, altura, nome, etc.
             pivos_atuais,
+            bombas_atuais, // <-- CAMPO OBRIGATÓRIO ADICIONADO
             template: AppState.templateSelecionado
         };
         
         const data = await simulateSignal(payload);
         console.log("✅ Simulação principal concluída:", data);
 
-        if (antenaCandidatesLayerGroup) {
+        if (window.antenaCandidatesLayerGroup) { // Usando a variável global temporária para esta camada
             const idParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
             const camadasParaRemover = [];
-            antenaCandidatesLayerGroup.eachLayer(layer => {
+            window.antenaCandidatesLayerGroup.eachLayer(layer => {
                 if (layer.options.customId === idParaRemover) camadasParaRemover.push(layer);
             });
-            camadasParaRemover.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
+            camadasParaRemover.forEach(layer => window.antenaCandidatesLayerGroup.removeLayer(layer));
         }
 
         AppState.antenaGlobal = {
             ...antenaData,
             overlay: drawImageOverlay(data.imagem_salva, data.bounds),
             bounds: data.bounds,
-            imagem_filename: data.imagem_salva.split('/').pop()
+            imagem_filename: data.imagem_filename // O nome do arquivo já vem corrigido da API
         };
 
         if(AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
@@ -303,13 +319,11 @@ async function startMainSimulation(antenaData) {
 
         const nomeAntenaPrincipal = AppState.antenaGlobal.nome;
         const labelWidth = (nomeAntenaPrincipal.length * 7) + 10;
-        const labelHeight = 20;
-
         const labelPrincipal = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], {
             icon: L.divIcon({
                 className: 'label-pivo',
                 html: nomeAntenaPrincipal,
-                iconSize: [labelWidth, labelHeight],
+                iconSize: [labelWidth, 20],
                 iconAnchor: [labelWidth / 2, 45]
             }),
             labelType: 'antena'
@@ -779,21 +793,29 @@ async function runTargetedDiagnostic(diagnosticoSource) {
     const sourceLatLng = diagnosticoSource.marker ? diagnosticoSource.marker.getLatLng() : L.latLng(diagnosticoSource.lat, diagnosticoSource.lon);
 
     mostrarLoader(true);
-    visadaLayerGroup.clearLayers();
+    
+    // ✅ INÍCIO DA CORREÇÃO: Usando AppState para acessar as camadas do mapa
+    if (AppState.visadaLayerGroup) {
+        AppState.visadaLayerGroup.clearLayers();
+    }
     AppState.linhasDiagnostico = [];
     AppState.marcadoresBloqueio = [];
+    // ✅ FIM DA CORREÇÃO
 
     let pivosParaAnalisar;
 
     if (AppState.modoEdicaoPivos) {
+        console.log("Diagnóstico em Modo de Edição: usando 'AppState.lastPivosDataDrawn'.");
         const pivosInfo = AppState.lastPivosDataDrawn.filter(pivo => pivo.fora === true);
         pivosParaAnalisar = pivosInfo.map(pivoInfo => {
             const marcador = AppState.pivotsMap[pivoInfo.nome];
             return marcador ? [pivoInfo.nome, marcador] : null;
         }).filter(Boolean);
+
     } else {
+        console.log("Diagnóstico em Modo Normal: usando a cor dos marcadores.");
         pivosParaAnalisar = Object.entries(AppState.pivotsMap).filter(([, marcador]) => {
-            return marcador?.options?.fillColor === 'red';
+            return marcador && marcador.options && marcador.options.fillColor === 'red';
         });
     }
 
@@ -807,6 +829,7 @@ async function runTargetedDiagnostic(diagnosticoSource) {
 
     for (const [nomePivo, marcadorPivo] of pivosParaAnalisar) {
         const pivoLatLng = marcadorPivo.getLatLng();
+
         const payload = {
             pontos: [
                 [sourceLatLng.lat, sourceLatLng.lng],
@@ -829,7 +852,7 @@ async function runTargetedDiagnostic(diagnosticoSource) {
         }
     }
 
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     mostrarLoader(false);
     mostrarMensagem(t('messages.success.los_diagnostic_complete'), "sucesso");
 }
@@ -863,7 +886,12 @@ async function handleExportClick() {
             }
         });
         
+        // ✅ INÍCIO DA CORREÇÃO
         let antenaDataParaExport = null;
+        let imagemPrincipal = null;
+        let boundsFilePrincipal = null;
+
+        // Verifica se a antena principal existe e popula TODOS os campos necessários
         if (AppState.antenaGlobal) {
             antenaDataParaExport = {
                 nome: AppState.antenaGlobal.nome,
@@ -872,12 +900,21 @@ async function handleExportClick() {
                 altura: AppState.antenaGlobal.altura,
                 altura_receiver: AppState.antenaGlobal.altura_receiver
             };
+            // Adiciona o nome do arquivo da imagem e dos bounds
+            imagemPrincipal = AppState.antenaGlobal.imagem_filename;
+            if (imagemPrincipal) {
+                boundsFilePrincipal = imagemPrincipal.replace(/\.png$/, '.json');
+            }
         }
+        // ✅ FIM DA CORREÇÃO
 
         const payload = {
             job_id: AppState.jobId,
             template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,
+            // Passa as variáveis corrigidas para o payload
             antena_principal_data: antenaDataParaExport,
+            imagem: imagemPrincipal,
+            bounds_file: boundsFilePrincipal,
             pivos_data: AppState.lastPivosDataDrawn,
             ciclos_data: AppState.ciclosGlobais,
             bombas_data: AppState.lastBombasDataDrawn,
@@ -888,6 +925,7 @@ async function handleExportClick() {
 
     } catch (error) {
         console.error("Erro no processo de exportação KMZ:", error);
+        // Não precisamos mostrar mensagem aqui, pois a função `exportKmz` em api.js já faz isso.
     } finally {
         mostrarLoader(false);
     }
