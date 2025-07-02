@@ -16,49 +16,29 @@ const nomeArquivoLabel = document.getElementById('nome-arquivo-label');
 // ==========================
 function mostrarMensagem(texto, tipo = 'sucesso') {
     const mensagemDiv = document.getElementById('mensagem');
-    
-    // Lista de todas as classes de estilo que podem ser aplicadas
-    const todasAsClassesDeEstilo = [
-        'flex', 'items-center', 'gap-x-3', 'text-white', 'px-4', 'py-3', 'rounded-lg', 'shadow-lg', 'border-l-4',
-        'bg-gray-800/90', 'border-green-400', 'border-red-500', 'border-yellow-400'
-    ];
-    
-    // Remove apenas as classes de estilo anteriores para evitar duplicatas
-    mensagemDiv.classList.remove(...todasAsClassesDeEstilo);
-    
-    // Variáveis para o novo estilo
-    let iconeHtml = '';
-    let classesParaAdicionar = ['flex', 'items-center', 'gap-x-3', 'text-white', 'px-4', 'py-3', 'rounded-lg', 'shadow-lg', 'border-l-4', 'bg-gray-800/90'];
+    mensagemDiv.className = 'fixed bottom-16 left-1/2 transform -translate-x-1/2 flex items-center gap-x-3 text-white px-4 py-3 rounded-lg shadow-lg border-l-4 bg-gray-800/90 z-[10000]'; // Base classes
 
-    // Define o ícone e a cor da borda com base no tipo
+    let iconeHtml = '';
+    let borderClass = '';
+
     if (tipo === 'sucesso') {
         iconeHtml = `<i data-lucide="check-circle-2" class="w-5 h-5 text-green-400"></i>`;
-        classesParaAdicionar.push('border-green-400');
+        borderClass = 'border-green-400';
     } else if (tipo === 'erro') {
         iconeHtml = `<i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>`;
-        classesParaAdicionar.push('border-red-500');
+        borderClass = 'border-red-500';
     } else { // 'info' ou 'aviso'
         iconeHtml = `<i data-lucide="info" class="w-5 h-5 text-yellow-400"></i>`;
-        classesParaAdicionar.push('border-yellow-400');
+        borderClass = 'border-yellow-400';
     }
 
-    // Aplica as novas classes de estilo, preservando as de posicionamento
-    mensagemDiv.classList.add(...classesParaAdicionar);
-
-    // Define o conteúdo HTML (ícone + texto)
+    mensagemDiv.classList.add(borderClass);
     mensagemDiv.innerHTML = `${iconeHtml}<span>${texto}</span>`;
-
-    // Renderiza o ícone do Lucide
     lucide.createIcons();
     
-    // Mostra a mensagem
-    mensagemDiv.classList.remove('hidden');
-    
-    // Define um tempo para a mensagem desaparecer
-    setTimeout(() => {
-        mensagemDiv.classList.add('hidden');
-    }, 4000);
+    setTimeout(() => mensagemDiv.classList.add('hidden'), 4000);
 }
+
 
 function mostrarLoader(ativo) {
     loaderDiv.classList.toggle('hidden', !ativo);
@@ -68,53 +48,39 @@ function mostrarLoader(ativo) {
 // 📊 ATUALIZAÇÕES DE PAINÉIS
 // ==========================
 function atualizarPainelDados() {
-    const total = Object.keys(pivotsMap).length;
-    const fora = Object.values(pivotsMap).filter(m => m.options.fillColor === 'red').length;
-    const antena = antenaGlobal || {};
-    const bombas = marcadoresBombas || [];
+    const totalPivos = AppState.lastPivosDataDrawn.length;
+    const foraCobertura = AppState.lastPivosDataDrawn.filter(p => p.fora).length;
+    const antena = AppState.antenaGlobal || {};
+    const totalRepetidoras = AppState.repetidoras.length + (AppState.antenaGlobal ? 1 : 0);
+    const totalBombas = AppState.marcadoresBombas.length;
 
-    let contagemFontesDeSinal = repetidoras.length;
-
-    if (window.antenaGlobal) {
-        contagemFontesDeSinal++;
-    }
-
-    document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${contagemFontesDeSinal}`;
-    document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${total}`;
-    document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${fora}`;
+    document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${totalRepetidoras}`;
+    document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${totalPivos}`;
+    document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${foraCobertura}`;
     document.getElementById("altura-antena-info").textContent = `${t('ui.labels.main_antenna')} ${antena.altura || '--'} m`;
     document.getElementById("altura-receiver-info").textContent = `${t('ui.labels.receiver')} ${antena.altura_receiver || '--'} m`;
-    document.getElementById("template-info").textContent = `🌐 Template: ${templateSelecionado || '--'}`;
-
+    document.getElementById("template-info").textContent = `🌐 Template: ${AppState.templateSelecionado || '--'}`;
+    
     const bombasElemento = document.getElementById("total-bombas");
-    if (bombas.length > 0) {
-        bombasElemento.textContent = `${t('ui.labels.pump_houses')} ${bombas.length}`;
-        bombasElemento.classList.remove("hidden");
-    } else {
-        bombasElemento.classList.add("hidden");
-    }
+    bombasElemento.textContent = `${t('ui.labels.pump_houses')} ${totalBombas}`;
+    bombasElemento.classList.toggle("hidden", totalBombas === 0);
 }
+
 
 function reposicionarPaineisLaterais() {
     const paineis = [painelDadosDiv, painelRepetidorasDiv];
-    const padding = 16;
-    let topoAtual = 16; // Distância do topo da janela de visualização
-
+    let topoAtual = 16;
     paineis.forEach(painel => {
         if (painel && !painel.classList.contains("hidden")) {
             painel.style.top = `${topoAtual}px`;
-            topoAtual += painel.offsetHeight + padding;
+            topoAtual += painel.offsetHeight + 16;
         }
     });
 }
 
 function togglePainel(id) {
-    const painel = document.getElementById(id);
-    if (painel) {
-        painel.classList.toggle("hidden");
-        // Atraso para garantir que o DOM foi atualizado antes de recalcular as posições
-        setTimeout(reposicionarPaineisLaterais, 50);
-    }
+    document.getElementById(id)?.classList.toggle("hidden");
+    setTimeout(reposicionarPaineisLaterais, 50);
 }
 
 // ==========================
@@ -129,27 +95,17 @@ function updateFileName(e) {
 async function loadAndPopulateTemplates() {
     try {
         const templates = await getTemplates();
-        templateSelect.innerHTML = '';
-
-        templates.forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = t;
-            opt.textContent = t.includes("Brazil") ? "🇧🇷 " + t :
-                              t.includes("Europe") ? "🇪🇺 " + t :
-                              "🌐 " + t;
-            templateSelect.appendChild(opt);
-        });
+        templateSelect.innerHTML = templates.map(t => {
+            const prefix = t.includes("Brazil") ? "🇧🇷 " : t.includes("Europe") ? "🇪🇺 " : "🌐 ";
+            return `<option value="${t}">${prefix}${t}</option>`;
+        }).join('');
 
         const savedTemplate = localStorage.getItem('templateSelecionado');
-        templateSelect.value = savedTemplate && templates.includes(savedTemplate)
-                             ? savedTemplate
-                             : templates[0];
-
+        templateSelect.value = savedTemplate && templates.includes(savedTemplate) ? savedTemplate : templates[0];
         templateSelect.dispatchEvent(new Event('change'));
     } catch (error) {
         console.error("⚠️ Erro ao carregar templates:", error);
         mostrarMensagem(t('messages.errors.template_load_fail'), "erro");
-        templateSelect.dispatchEvent(new Event('change'));
     }
 }
 
@@ -157,25 +113,21 @@ async function loadAndPopulateTemplates() {
 // 🧠 TOGGLES INTERATIVOS
 // ==========================
 function togglePivoEditing() {
-    window.modoEdicaoPivos = !window.modoEdicaoPivos;
+    // A lógica de estado agora é gerenciada em enable/disablePivoEditingMode em main.js
+    // Esta função agora apenas lida com a UI do botão.
+    const isEditing = !AppState.modoEdicaoPivos; // O novo estado será o oposto do atual
 
     const btn = document.getElementById("editar-pivos");
     const btnUndo = document.getElementById("desfazer-edicao");
 
-    // Usa a função `t` para obter os textos corretos
-    btn.innerHTML = window.modoEdicaoPivos
-        ? `<i data-lucide="save" class="w-5 h-5"></i>`
-        : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-
-    btn.title = window.modoEdicaoPivos ? t('ui.buttons.save_edit') : t('ui.titles.edit_pivots');
+    btn.innerHTML = isEditing ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+    btn.title = isEditing ? t('ui.buttons.save_edit') : t('ui.titles.edit_pivots');
+    btn.classList.toggle('glass-button-active', isEditing);
+    btnUndo.classList.toggle("hidden", !isEditing);
     
-    if (window.modoEdicaoPivos) {
-        btn.classList.add('glass-button-active');
-        btnUndo.classList.remove("hidden");
+    if (isEditing) {
         enablePivoEditingMode();
     } else {
-        btn.classList.remove('glass-button-active');
-        btnUndo.classList.add("hidden");
         disablePivoEditingMode();
     }
 
@@ -190,7 +142,7 @@ function setupUIEventListeners() {
     document.getElementById("toggle-repetidoras").addEventListener("click", () => togglePainel("painel-repetidoras"));
     
     document.getElementById("toggle-legenda").addEventListener("click", () => {
-        toggleLegendas(!legendasAtivas);
+        toggleLegendas(!AppState.legendasAtivas);
     });
 
     rangeOpacidade.addEventListener("input", () => {
@@ -200,31 +152,24 @@ function setupUIEventListeners() {
     arquivoInput.addEventListener("change", updateFileName);
 
     templateSelect.addEventListener("change", (e) => {
-        templateSelecionado = e.target.value;
-        localStorage.setItem('templateSelecionado', templateSelecionado);
+        AppState.templateSelecionado = e.target.value;
+        localStorage.setItem('templateSelecionado', AppState.templateSelecionado);
         atualizarPainelDados();
-        console.log("Template selecionado:", templateSelecionado);
+        console.log("Template selecionado:", AppState.templateSelecionado);
     });
 
     document.getElementById("fechar-painel-rep").addEventListener("click", () => {
         painelConfigRepetidoraDiv.classList.add('hidden');
-        if(typeof removePositioningMarker === 'function') {
-           removePositioningMarker();
-        }
+        removePositioningMarker();
     });
 
     document.getElementById("editar-pivos").addEventListener("click", togglePivoEditing);
     document.getElementById("desfazer-edicao").addEventListener("click", undoPivoEdits);
 
-    // Adiciona os listeners para os botões de idioma
     document.querySelectorAll('[data-lang]').forEach(button => {
         button.addEventListener('click', (e) => {
-            // Sobe para o elemento <button> caso o clique seja na imagem
-            const buttonElement = e.target.closest('button');
-            const lang = buttonElement.getAttribute('data-lang');
-            if (lang) {
-                setLanguage(lang); // Chama a função do i18n.js
-            }
+            const lang = e.currentTarget.getAttribute('data-lang');
+            if (lang) setLanguage(lang);
         });
     });
 
