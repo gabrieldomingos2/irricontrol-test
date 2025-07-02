@@ -254,15 +254,17 @@ def _consolidate_pivos(
         if centro_lat is not None and centro_lon is not None:
             nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados, "Pivô")
             
-            # 👇 ALTERAÇÃO APLICADA AQUI
             final_pivos_list.append({"nome": nome_pivo_gerado, "lat": centro_lat, "lon": centro_lon, "type": "pivo"}) # type: ignore
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
             logger.info(f"  -> 🛰️ Pivô (de ciclo) adicionado: {nome_pivo_gerado} ({centro_lat:.6f}, {centro_lon:.6f})")
+            
+            # ✅✅✅ LINHA ADICIONADA: ATUALIZA O NOME DO CÍRCULO PARA CORRESPONDER AO NOVO PIVÔ ✅✅✅
+            ciclo_info['nome_original_circulo'] = f"Ciclo {nome_pivo_gerado}"
+            
         else:
             logger.warning(f"  -> ⚠️ Não foi possível determinar o centro para o pivô de ciclo '{nome_ciclo_original}'.")
             
     return final_pivos_list
-
 
 # --- Função Principal ---
 
