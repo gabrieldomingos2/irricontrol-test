@@ -15,16 +15,46 @@ const nomeArquivoLabel = document.getElementById('nome-arquivo-label');
 // 🔥 FUNÇÕES DE MENSAGEM E LOADER
 // ==========================
 function mostrarMensagem(texto, tipo = 'sucesso') {
-    mensagemDiv.textContent = texto;
-    mensagemDiv.classList.remove('hidden', 'bg-red-600', 'bg-green-600', 'bg-yellow-500'); // Adicionado amarelo para 'info'
+    const mensagemDiv = document.getElementById('mensagem');
+    
+    // Lista de todas as classes de estilo que podem ser aplicadas
+    const todasAsClassesDeEstilo = [
+        'flex', 'items-center', 'gap-x-3', 'text-white', 'px-4', 'py-3', 'rounded-lg', 'shadow-lg', 'border-l-4',
+        'bg-gray-800/90', 'border-green-400', 'border-red-500', 'border-yellow-400'
+    ];
+    
+    // Remove apenas as classes de estilo anteriores para evitar duplicatas
+    mensagemDiv.classList.remove(...todasAsClassesDeEstilo);
+    
+    // Variáveis para o novo estilo
+    let iconeHtml = '';
+    let classesParaAdicionar = ['flex', 'items-center', 'gap-x-3', 'text-white', 'px-4', 'py-3', 'rounded-lg', 'shadow-lg', 'border-l-4', 'bg-gray-800/90'];
+
+    // Define o ícone e a cor da borda com base no tipo
     if (tipo === 'sucesso') {
-        mensagemDiv.classList.add('bg-green-600');
+        iconeHtml = `<i data-lucide="check-circle-2" class="w-5 h-5 text-green-400"></i>`;
+        classesParaAdicionar.push('border-green-400');
     } else if (tipo === 'erro') {
-        mensagemDiv.classList.add('bg-red-600');
-    } else { // info
-        mensagemDiv.classList.add('bg-yellow-500');
+        iconeHtml = `<i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>`;
+        classesParaAdicionar.push('border-red-500');
+    } else { // 'info' ou 'aviso'
+        iconeHtml = `<i data-lucide="info" class="w-5 h-5 text-yellow-400"></i>`;
+        classesParaAdicionar.push('border-yellow-400');
     }
-    void mensagemDiv.offsetWidth;
+
+    // Aplica as novas classes de estilo, preservando as de posicionamento
+    mensagemDiv.classList.add(...classesParaAdicionar);
+
+    // Define o conteúdo HTML (ícone + texto)
+    mensagemDiv.innerHTML = `${iconeHtml}<span>${texto}</span>`;
+
+    // Renderiza o ícone do Lucide
+    lucide.createIcons();
+    
+    // Mostra a mensagem
+    mensagemDiv.classList.remove('hidden');
+    
+    // Define um tempo para a mensagem desaparecer
     setTimeout(() => {
         mensagemDiv.classList.add('hidden');
     }, 4000);
@@ -43,13 +73,17 @@ function atualizarPainelDados() {
     const antena = antenaGlobal || {};
     const bombas = marcadoresBombas || [];
 
-    // Os data-i18n no HTML cuidam dos labels estáticos.
-    // Aqui atualizamos apenas os valores dinâmicos.
+    let contagemFontesDeSinal = repetidoras.length;
+
+    if (window.antenaGlobal) {
+        contagemFontesDeSinal++;
+    }
+
+    document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${contagemFontesDeSinal}`;
     document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${total}`;
     document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${fora}`;
     document.getElementById("altura-antena-info").textContent = `${t('ui.labels.main_antenna')} ${antena.altura || '--'} m`;
     document.getElementById("altura-receiver-info").textContent = `${t('ui.labels.receiver')} ${antena.altura_receiver || '--'} m`;
-    document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${repetidoras.length}`;
     document.getElementById("template-info").textContent = `🌐 Template: ${templateSelecionado || '--'}`;
 
     const bombasElemento = document.getElementById("total-bombas");
