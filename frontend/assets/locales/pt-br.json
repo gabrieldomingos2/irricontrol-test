@@ -59,7 +59,8 @@
         "los_ok": "Visada OK",
         "los_no": "Obstruído",
         "hide_legends": "Esconder Legendas",
-        "show_legends": "Mostrar Legendas"
+        "show_legends": "Mostrar Legendas",
+        "run_diagnostic_from_source": "Rodar diagnóstico a partir desta fonte"
     },
     "messages": {
         "success": {
@@ -130,7 +131,8 @@
             "draw_sector_pivot_step2": "Centro definido. Mova o mouse para ajustar o raio/direção e clique novamente para finalizar.",
             "draw_sector_pivot_off": "Modo de Desenho Setorial desativado.",
             "draw_sector_pivot_still_active": "Modo Setorial ainda ativo. Clique para desenhar um novo pivô.",
-            "draw_sector_cancelled": "Desenho de pivô setorial cancelado. Clique para definir um novo centro."
+            "draw_sector_cancelled": "Desenho de pivô setorial cancelado. Clique para definir um novo centro.",
+            "analyzing_pivots_from_source": "Analisando visada para {count} pivôs a partir de '{source}'..."
         },
         "confirm": {
             "remove_pivot": "Tem certeza que deseja remover o pivô \"{name}\"? O círculo associado também será removido.",

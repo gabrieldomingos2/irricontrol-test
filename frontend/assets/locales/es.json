@@ -130,7 +130,8 @@
             "draw_sector_pivot_step2": "Centro definido. Mueva el ratón para ajustar el radio/dirección y haga clic de nuevo para finalizar.",
             "draw_sector_pivot_off": "Modo de Dibujo Sectorial desactivado.",
             "draw_sector_pivot_still_active": "El Modo Sectorial sigue activo. Haga clic para dibujar un nuevo pivote.",
-            "draw_sector_cancelled": "Dibujo de pivote sectorial cancelado. Haga clic para establecer un nuevo centro."
+            "draw_sector_cancelled": "Dibujo de pivote sectorial cancelado. Haga clic para establecer un nuevo centro.",
+            "analyzing_pivots_from_source": "Analizando línea de visibilidad para {count} pivotes desde '{source}'..."
         },
         "confirm": {
             "remove_pivot": "¿Está seguro de que desea eliminar el pivote \"{name}\"? El círculo asociado también será eliminado.",

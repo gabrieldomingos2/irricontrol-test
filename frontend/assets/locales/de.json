@@ -130,7 +130,8 @@
             "draw_sector_pivot_step2": "Zentrum festgelegt. Bewegen Sie die Maus, um Radius/Richtung anzupassen, und klicken Sie erneut zum Abschließen.",
             "draw_sector_pivot_off": "Sektoraler Zeichenmodus deaktiviert.",
             "draw_sector_pivot_still_active": "Der Sektormodus ist noch aktiv. Klicken Sie, um einen neuen Pivot zu zeichnen.",
-            "draw_sector_cancelled": "Zeichnung des sektoralen Pivots abgebrochen. Klicken Sie, um ein neues Zentrum festzulegen."
+            "draw_sector_cancelled": "Zeichnung des sektoralen Pivots abgebrochen. Klicken Sie, um ein neues Zentrum festzulegen.",
+            "analyzing_pivots_from_source": "Sichtlinienanalyse für {count} Pivots von '{source}' wird durchgeführt..."
         },
         "confirm": {
             "remove_pivot": "Sind Sie sicher, dass Sie den Pivot \"{name}\" entfernen möchten? Der zugehörige Kreis wird ebenfalls entfernt.",

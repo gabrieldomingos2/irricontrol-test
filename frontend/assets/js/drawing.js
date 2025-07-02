@@ -275,7 +275,6 @@ function drawCirculos(ciclosData) {
     circulosPivos.forEach(c => map.removeLayer(c));
     circulosPivos = [];
 
-    // ✅ LÓGICA PARA DESENHAR OS SETORES DOS PIVÔS
     window.lastPivosDataDrawn.forEach(pivo => {
         if (pivo.tipo === 'setorial') {
             const center = L.latLng(pivo.lat, pivo.lon);
@@ -284,14 +283,13 @@ function drawCirculos(ciclosData) {
                 color: '#cc0000',
                 weight: 2,
                 opacity: 0.9,
-                fillOpacity: 0.1, // Preenchimento leve para o setor
+                fillOpacity: 0.1,
                 className: 'circulo-pivo-setorial'
             }).addTo(map);
             circulosPivos.push(sectorPolygon);
         }
     });
 
-    // Filtra para não redesenhar círculos de pivôs setoriais
     const ciclosCirculares = ciclosData.filter(ciclo => {
         const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
         const pivoCorrespondente = window.lastPivosDataDrawn.find(p => p.nome === nomePivo);
@@ -321,34 +319,58 @@ function drawImageOverlay(url, bounds, opacity = 1.0) {
     return overlay;
 }
 
+
 function addRepetidoraNoPainel(repetidora) {
     const container = document.getElementById("lista-repetidoras");
     const item = document.createElement("div");
     item.className = "flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `rep-item-${repetidora.id}`;
     const label = document.createElement("span");
-    label.textContent = `📡 ${repetidora.label.options.icon.options.html}`;
+    label.textContent = `${repetidora.label.options.icon.options.html}`;
     label.className = "text-white/80 text-sm";
     const controls = document.createElement("div");
     controls.className = "flex gap-3 items-center";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = true;
-    checkbox.className = "form-checkbox h-4 w-4 text-green-500 bg-gray-700 border-gray-600 rounded focus:ring-green-600";
-    checkbox.title = "Mostrar/Esconder Cobertura";
-    checkbox.addEventListener("change", () => {
-        const isChecked = checkbox.checked;
+
+    const diagBtn = document.createElement("button");
+    diagBtn.innerHTML = `<span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>`;
+    diagBtn.className = "text-white/60 hover:text-sky-300 transition relative top-px";
+    diagBtn.title = t('tooltips.run_diagnostic_from_source');
+    diagBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof runTargetedDiagnostic === 'function') {
+            runTargetedDiagnostic(repetidora);
+        }
+    });
+
+    const visibilityBtn = document.createElement("button");
+    visibilityBtn.className = "text-white/60 hover:text-sky-300 transition";
+    visibilityBtn.title = t('tooltips.show_hide_coverage');
+    visibilityBtn.setAttribute('data-visible', 'true');
+    visibilityBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-500"></i>`;
+    
+    visibilityBtn.addEventListener("click", () => {
+        const isCurrentlyVisible = visibilityBtn.getAttribute('data-visible') === 'true';
+        const newVisibilityState = !isCurrentlyVisible;
+        visibilityBtn.setAttribute('data-visible', newVisibilityState);
+
         const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
-        if (repetidora.marker) repetidora.marker.setOpacity(isChecked ? 1 : 0);
+        if (repetidora.marker) repetidora.marker.setOpacity(newVisibilityState ? 1 : 0);
         if (repetidora.label) {
             const labelEl = repetidora.label.getElement();
-            if(labelEl) labelEl.style.display = (isChecked && legendasAtivas) ? '' : 'none';
+            if(labelEl) labelEl.style.display = (newVisibilityState && legendasAtivas) ? '' : 'none';
         }
-        if (repetidora.overlay) repetidora.overlay.setOpacity(isChecked ? opacityValue : 0);
-        if(repetidora.marker) repetidora.marker.options.interactive = isChecked;
-        if(repetidora.label) repetidora.label.options.interactive = isChecked;
+        if (repetidora.overlay) repetidora.overlay.setOpacity(newVisibilityState ? opacityValue : 0);
+        
+    
+        visibilityBtn.innerHTML = newVisibilityState
+            ? `<i data-lucide="check" class="w-4 h-4 text-green-500"></i>`
+            : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
+        lucide.createIcons();
+
         setTimeout(reavaliarPivosViaAPI, 100);
     });
+
+    
     const removerBtn = document.createElement("button");
     removerBtn.innerHTML = "❌";
     removerBtn.className = "text-red-500 hover:text-red-400 text-xs font-bold transition";
@@ -366,11 +388,14 @@ function addRepetidoraNoPainel(repetidora) {
         atualizarPainelDados();
         setTimeout(reavaliarPivosViaAPI, 100);
     });
-    controls.appendChild(checkbox);
+    
+    controls.appendChild(diagBtn);
+    controls.appendChild(visibilityBtn);
     controls.appendChild(removerBtn);
     item.appendChild(label);
     item.appendChild(controls);
     container.appendChild(item);
+    lucide.createIcons();
 }
 
 function addAntenaAoPainel(antena) {
@@ -383,34 +408,60 @@ function addAntenaAoPainel(antena) {
     item.className = "flex justify-between items-center bg-gray-700/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `antena-item`;
     const label = document.createElement("span");
-    label.textContent = `🗼 ${antena.nome || t('ui.labels.main_antenna_default')}`;
+    label.textContent = `${antena.nome || t('ui.labels.main_antenna_default')}`;
     label.className = "text-white/90 font-semibold text-sm";
     const controls = document.createElement("div");
     controls.className = "flex gap-3 items-center";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = true;
-    checkbox.className = "form-checkbox h-4 w-4 text-green-500 bg-gray-700 border-gray-600 rounded focus:ring-green-600";
-    checkbox.title = t('tooltips.show_hide_coverage');
-    checkbox.addEventListener("change", () => {
-        const isChecked = checkbox.checked;
-        const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
-        if (window.antenaGlobal?.overlay) {
-            window.antenaGlobal.overlay.setOpacity(isChecked ? opacityValue : 0);
+
+    const diagBtn = document.createElement("button");
+    diagBtn.innerHTML = `<span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>`;
+    diagBtn.className = "text-white/60 hover:text-sky-300 transition relative top-px";
+    diagBtn.title = t('tooltips.run_diagnostic_from_source');
+    diagBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof runTargetedDiagnostic === 'function') {
+            runTargetedDiagnostic(antena);
+        }
+    });
+
+    const visibilityBtn = document.createElement("button");
+    visibilityBtn.className = "text-white/60 hover:text-sky-300 transition";
+    visibilityBtn.title = t('tooltips.show_hide_coverage');
+    visibilityBtn.setAttribute('data-visible', 'true');
+    visibilityBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-500"></i>`;
+    visibilityBtn.addEventListener("click", () => {
+        const isCurrentlyVisible = visibilityBtn.getAttribute('data-visible') === 'true';
+        const newVisibilityState = !isCurrentlyVisible;
+        visibilityBtn.setAttribute('data-visible', String(newVisibilityState));
+
+        const opacityValue = parseFloat(rangeOpacidade.value);
+
+        if (antena?.overlay) {
+            antena.overlay.setOpacity(newVisibilityState ? opacityValue : 0);
         }
         if (marcadorAntena) {
-            marcadorAntena.setOpacity(isChecked ? 1 : 0);
+            marcadorAntena.setOpacity(newVisibilityState ? 1 : 0);
         }
+
+        visibilityBtn.innerHTML = newVisibilityState
+            ? `<i data-lucide="check" class="w-4 h-4 text-green-500"></i>`
+            : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
+        lucide.createIcons();
+
         setTimeout(reavaliarPivosViaAPI, 100);
     });
-    controls.appendChild(checkbox);
+
+    controls.appendChild(diagBtn);
+    controls.appendChild(visibilityBtn);
     item.appendChild(label);
     item.appendChild(controls);
+
     if (container.firstChild) {
         container.insertBefore(item, container.firstChild);
     } else {
         container.appendChild(item);
     }
+    lucide.createIcons();
 }
 
 function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPontoMaisAlto, nomeDiagnostico, distanciaTotalPivosFormatada = null) {
@@ -563,23 +614,26 @@ function toggleLegendas(show) {
 }
 
 function updateOverlaysOpacity(opacityValue) {
-    const isPanelItemChecked = (overlay) => {
+    const isPanelItemVisible = (overlay) => {
+        let visibilityBtn = null;
         if (window.antenaGlobal?.overlay === overlay) {
-            const checkbox = document.querySelector("#antena-item input[type='checkbox']");
-            return checkbox ? checkbox.checked : true;
+            visibilityBtn = document.querySelector("#antena-item button[data-visible]");
+        } else {
+            const rep = repetidoras.find(r => r.overlay === overlay);
+            if (rep) {
+                visibilityBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
+            }
         }
-        const rep = repetidoras.find(r => r.overlay === overlay);
-        if (rep) {
-            const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
-            return checkbox ? checkbox.checked : true;
-        }
-        return true;
+        return !visibilityBtn || visibilityBtn.getAttribute('data-visible') === 'true';
     };
+
     overlaysVisiveis.forEach(overlay => {
-        if (map.hasLayer(overlay) && isPanelItemChecked(overlay)) {
-             overlay.setOpacity(opacityValue);
-        } else if (map.hasLayer(overlay)) {
-            overlay.setOpacity(0);
+        if (map.hasLayer(overlay)) {
+            if (isPanelItemVisible(overlay)) {
+                overlay.setOpacity(opacityValue);
+            } else {
+                overlay.setOpacity(0);
+            }
         }
     });
 }

@@ -106,11 +106,6 @@
                 <span class="text-sm font-medium" data-i18n="ui.buttons.run_study">Rodar Estudo de Sinal</span>
             </button>
 
-            <button id="btn-diagnostico" class="w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
-                <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
-                <span class="text-sm font-medium" data-i18n="ui.buttons.run_los_diagnostic">Diagnóstico de Visada</span>
-            </button>
-
             <button id="exportar-btn" class="w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
                 <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/download.svg); mask-image: url(assets/images/download.svg);"></span>
                 <span class="text-sm font-medium" data-i18n="ui.buttons.export_kmz">Exportar KMZ</span>
@@ -154,24 +149,28 @@
     </div>
 
     <div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
-        <div id="painel-dados" class="w-56 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4">
-            <h2 class="text-sm font-semibold text-white/80 mb-3" data-i18n="ui.titles.data_panel">📊 Dados da Simulação</h2>
-            <div class="flex justify-between items-center mb-3">
-                <span id="template-info" class="font-medium text-sm text-green-300">🌐 Template: --</span>
-            </div>
-            <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots">Pivôs: --</p>
-            <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage">Fora da cobertura: --</p>
-            <p id="altura-antena-info" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.main_antenna">Antena principal: -- m</p>
-            <p id="altura-receiver-info" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.receiver">Receiver: -- m</p>
-            <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters">Total Repetidoras: --</p>
-            <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses">Casas de bomba: --</p>
+
+    <div id="painel-dados" class="w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
+        <h2 class="text-sm font-semibold text-white/80 mb-3" data-i18n="ui.titles.data_panel">📊 Dados da Simulação</h2>
+        <div class="flex justify-between items-center mb-3">
+            <span id="template-info" class="font-medium text-sm text-green-300">🌐 Template: --</span>
         </div>
-        <div id="painel-repetidoras" class="w-56 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2">
-            <h2 class="text-sm font-semibold text-white/80 mb-2 px-2" data-i18n="ui.titles.repeater_panel">📡 Repetidoras</h2>
-            <div id="lista-repetidoras" class="space-y-1 text-sm max-h-36 overflow-y-auto px-2 pb-2">
-            </div>
-        </div>
+        <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots">Pivôs: --</p>
+        <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage">Fora da cobertura: --</p>
+        <p id="altura-antena-info" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.main_antenna">Antena principal: -- m</p>
+        <p id="altura-receiver-info" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.receiver">Receiver: -- m</p>
+        <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters">Total Repetidoras: --</p>
+        <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses">Casas de bomba: --</p>
     </div>
+
+    <div id="painel-repetidoras" class="w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
+        <h2 class="text-sm font-semibold text-white/80 mb-2 px-2 flex-shrink-0" data-i18n="ui.titles.repeater_panel">📡 Repetidoras</h2>
+        
+        <div id="lista-repetidoras" class="space-y-1 text-sm overflow-y-auto max-h-[460px] px-2 pb-2">
+            </div>
+    </div>
+    
+</div>
 
     <div id="mensagem" class="hidden absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"></div>
     <div id="loader" class="hidden absolute inset-0 bg-[#060B10] bg-opacity-60 flex flex-col items-center justify-center z-[10001]">

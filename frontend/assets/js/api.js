@@ -150,10 +150,10 @@ async function getTemplates() {
 async function getElevationProfile(payload) {
   try {
     const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/elevation_profile`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
      if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: response.statusText }));
         throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);

@@ -59,7 +59,8 @@
         "los_ok": "LoS OK",
         "los_no": "Obstructed",
         "hide_legends": "Hide Legends",
-        "show_legends": "Show Legends"
+        "show_legends": "Show Legends",
+        "run_diagnostic_from_source": "Run diagnostic from this source"
     },
     "messages": {
         "success": {
@@ -130,7 +131,8 @@
             "draw_sector_pivot_step2": "Center defined. Move the mouse to adjust radius/direction and click again to finish.",
             "draw_sector_pivot_off": "Sectorial Drawing Mode deactivated.",
             "draw_sector_pivot_still_active": "Sectorial Mode is still active. Click to draw a new pivot.",
-            "draw_sector_cancelled": "Sectorial pivot drawing cancelled. Click to set a new center."
+            "draw_sector_cancelled": "Sectorial pivot drawing cancelled. Click to set a new center.",
+            "analyzing_pivots_from_source": "Analyzing line of sight for {count} pivots from '{source}'..."
         },
         "confirm": {
             "remove_pivot": "Are you sure you want to remove the pivot \"{name}\"? The associated circle will also be removed.",

@@ -97,7 +97,6 @@ async function startNewSession() {
 function setupMainActionListeners() {
     document.getElementById('formulario').addEventListener('submit', handleFormSubmit);
     document.getElementById('resetar-btn').addEventListener('click', handleResetClick);
-    document.getElementById('btn-diagnostico').addEventListener('click', handleDiagnosticoClick);
     document.getElementById('exportar-btn').addEventListener('click', handleExportClick);
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
@@ -266,7 +265,6 @@ async function startMainSimulation(antenaData) {
 
         atualizarPainelDados();
         mostrarMensagem(t('messages.success.simulation_complete'), "sucesso");
-        document.getElementById("btn-diagnostico").classList.remove("hidden");
 
     } catch (error) {
         console.error("❌ Erro ao simular sinal:", error);
@@ -762,45 +760,93 @@ function handleResetClick(showMessage = true) {
     if (showMessage) mostrarMensagem(t('messages.success.app_reset'), "sucesso");
 }
 
-async function handleDiagnosticoClick() {
-    if (!window.antenaGlobal || Object.keys(pivotsMap).length === 0) {
+function handleDiagnosticoClick() {
+    let diagnosticoSource = null;
+
+    // A lógica para encontrar a fonte padrão permanece a mesma
+    if (repetidoras.length > 0) {
+        // Pega a última repetidora adicionada como fonte padrão
+        diagnosticoSource = repetidoras[repetidoras.length - 1];
+    } else if (window.antenaGlobal) {
+        // Se não houver repetidoras, usa a antena principal
+        diagnosticoSource = window.antenaGlobal;
+    }
+
+    // Chama a função principal de diagnóstico com a fonte encontrada
+    runTargetedDiagnostic(diagnosticoSource);
+}
+
+/**
+ * Executa o diagnóstico de visada para TODOS os pivôs vermelhos a partir
+ * de uma FONTE DE SINAL ESPECÍFICA (seja a antena principal ou uma repetidora).
+ * Esta função agora é o motor principal para todos os diagnósticos.
+ * @param {object} diagnosticoSource - O objeto da antena ou repetidora de onde o sinal se origina.
+ */
+async function runTargetedDiagnostic(diagnosticoSource) {
+    // Validação da fonte recebida
+    if (!diagnosticoSource) {
         mostrarMensagem(t('messages.errors.run_study_first'), "erro");
         return;
     }
 
+    // Normaliza o objeto da fonte para obter nome e coordenadas de forma consistente
+    const sourceName = diagnosticoSource.nome || (diagnosticoSource.label?.options.icon.options.html) || t('ui.labels.main_antenna_default');
+    const sourceLatLng = diagnosticoSource.marker ? diagnosticoSource.marker.getLatLng() : L.latLng(diagnosticoSource.lat, diagnosticoSource.lon);
+
     mostrarLoader(true);
+    visadaLayerGroup.clearLayers();
     linhasDiagnostico = [];
     marcadoresBloqueio = [];
 
-    const pivosVermelhos = Object.entries(pivotsMap).filter(([_, m]) => m.options.fillColor === 'red');
+    let pivosParaAnalisar;
 
-    if (pivosVermelhos.length === 0) {
+    // Lógica inteligente para encontrar pivôs vermelhos (inalterada)
+    if (window.modoEdicaoPivos) {
+        console.log("Diagnóstico em Modo de Edição: usando 'window.lastPivosDataDrawn'.");
+        const pivosInfo = window.lastPivosDataDrawn.filter(pivo => pivo.fora === true);
+        pivosParaAnalisar = pivosInfo.map(pivoInfo => {
+            const marcador = pivotsMap[pivoInfo.nome];
+            return marcador ? [pivoInfo.nome, marcador] : null;
+        }).filter(Boolean);
+
+    } else {
+        console.log("Diagnóstico em Modo Normal: usando a cor dos marcadores.");
+        pivosParaAnalisar = Object.entries(pivotsMap).filter(([nome, marcador]) => {
+            return marcador && marcador.options && marcador.options.fillColor === 'red';
+        });
+    }
+
+    if (pivosParaAnalisar.length === 0) {
         mostrarMensagem(t('messages.info.no_uncovered_pivots'), "sucesso");
         mostrarLoader(false);
         return;
     }
 
-    mostrarMensagem(t('messages.info.analyzing_pivots', { count: pivosVermelhos.length }), "sucesso");
+    mostrarMensagem(t('messages.info.analyzing_pivots_from_source', { count: pivosParaAnalisar.length, source: sourceName }), "sucesso");
 
-    for (const [nome, marcador] of pivosVermelhos) {
+    // Loop de análise que usa a fonte específica recebida como parâmetro
+    for (const [nomePivo, marcadorPivo] of pivosParaAnalisar) {
+        const pivoLatLng = marcadorPivo.getLatLng();
+
         const payload = {
             pontos: [
-                [window.antenaGlobal.lat, window.antenaGlobal.lon],
-                [marcador.getLatLng().lat, marcador.getLatLng().lng]
+                [sourceLatLng.lat, sourceLatLng.lng],
+                [pivoLatLng.lat, pivoLatLng.lng]
             ],
-            altura_antena: window.antenaGlobal.altura || 15,
-            altura_receiver: (window.antenaGlobal && typeof window.antenaGlobal.altura_receiver === 'number') ? window.antenaGlobal.altura_receiver : 3
+            altura_antena: diagnosticoSource.altura || 15,
+            altura_receiver: (window.antenaGlobal?.altura_receiver) ? window.antenaGlobal.altura_receiver : 3
         };
 
         try {
             const data = await getElevationProfile(payload);
+            const nomeDiagnostico = `${sourceName} → ${nomePivo}`;
             drawDiagnostico(
                 payload.pontos[0], payload.pontos[1],
-                data.bloqueio, data.ponto_mais_alto, nome
+                data.bloqueio, data.ponto_mais_alto, nomeDiagnostico
             );
         } catch (error) {
-            console.error(`Erro no diagnóstico do pivô ${nome}:`, error);
-            mostrarMensagem(t('messages.errors.los_diagnostic_fail', { name: nome }), "erro");
+            console.error(`Erro no diagnóstico do pivô ${nomePivo}:`, error);
+            mostrarMensagem(t('messages.errors.los_diagnostic_fail', { name: nomePivo }), "erro");
         }
     }
 
@@ -809,14 +855,13 @@ async function handleDiagnosticoClick() {
     mostrarMensagem(t('messages.success.los_diagnostic_complete'), "sucesso");
 }
 
+
 // ✅ FUNÇÃO FINAL E CORRIGIDA
 async function handleExportClick() {
-    // ✅ LÓGICA DE VALIDAÇÃO ATUALIZADA
     if (!window.jobId) {
         mostrarMensagem(t('messages.errors.session_not_started'), "erro");
         return;
     }
-    // Permite exportar se tiver uma antena principal OU pelo menos uma repetidora.
     if (!window.antenaGlobal && repetidoras.length === 0) {
         mostrarMensagem(t('messages.errors.nothing_to_export'), "erro");
         return;
@@ -827,9 +872,13 @@ async function handleExportClick() {
 
     try {
         const repetidorasSelecionadasParaExport = [];
+        
         repetidoras.forEach(rep => {
-            const checkbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
-            if (checkbox?.checked && rep.imagem_filename) {
+
+            const visibilityBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
+            const isVisible = !visibilityBtn || visibilityBtn.getAttribute('data-visible') === 'true';
+
+            if (isVisible && rep.imagem_filename) {
                 repetidorasSelecionadasParaExport.push({
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
@@ -843,7 +892,6 @@ async function handleExportClick() {
         let imagemPrincipal = null;
         let boundsFilePrincipal = null;
 
-        // ✅ Preenche os dados da antena principal somente se ela existir
         if (window.antenaGlobal) {
             antenaDataParaExport = {
                 nome: window.antenaGlobal.nome,
@@ -880,42 +928,47 @@ async function handleExportClick() {
 async function reavaliarPivosViaAPI() {
     if (!window.jobId || !window.lastPivosDataDrawn || window.lastPivosDataDrawn.length === 0) return;
 
-    // Prepara os dados para enviar à API (esta parte está correta)
     const pivosParaReavaliar = window.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' }));
     const bombasParaReavaliar = (window.lastBombasDataDrawn || []).map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' }));
     
     const overlays = [];
-    const antenaCheckbox = document.querySelector("#antena-item input[type='checkbox']");
-    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && (!antenaCheckbox || antenaCheckbox.checked) && window.antenaGlobal.imagem_filename) {
+
+    // --- INÍCIO DA CORREÇÃO ---
+    // Lógica corrigida para encontrar o botão de visibilidade em vez do checkbox
+    const antenaVisBtn = document.querySelector("#antena-item button[data-visible]");
+    const isAntenaActive = !antenaVisBtn || antenaVisBtn.getAttribute('data-visible') === 'true';
+
+    if (window.antenaGlobal?.overlay && map.hasLayer(window.antenaGlobal.overlay) && isAntenaActive && window.antenaGlobal.imagem_filename) {
         const b = window.antenaGlobal.overlay.getBounds();
         overlays.push({ id: 'antena_principal', imagem: window.antenaGlobal.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
     }
+
     repetidoras.forEach(rep => {
-        const repCheckbox = document.querySelector(`#rep-item-${rep.id} input[type='checkbox']`);
-        if (rep.overlay && map.hasLayer(rep.overlay) && (!repCheckbox || repCheckbox.checked) && rep.imagem_filename) {
+        // Lógica corrigida também para as repetidoras
+        const repVisBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
+        const isRepActive = !repVisBtn || repVisBtn.getAttribute('data-visible') === 'true';
+
+        if (rep.overlay && map.hasLayer(rep.overlay) && isRepActive && rep.imagem_filename) {
             const b = rep.overlay.getBounds();
             overlays.push({ id: `repetidora_${rep.id}`, imagem: rep.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
         }
     });
+    // --- FIM DA CORREÇÃO ---
 
     try {
         const payload = { job_id: window.jobId, pivos: pivosParaReavaliar, bombas: bombasParaReavaliar, overlays };
         const data = await reevaluatePivots(payload);
 
         if (data.pivos) {
-
             const pivosAtualizadosDaAPI = data.pivos;
             
             window.lastPivosDataDrawn = window.lastPivosDataDrawn.map(pivoAntigo => {
-                const pivoNovoDaAPI = pivosAtualizadosDaAPI.find(p => p.nome === pivoAntigo.nome);
-                
+                const pivoNovoDaAPI = pivosAtualizadosDaAPI.find(p => p.nome.trim() === pivoAntigo.nome.trim());
                 if (pivoNovoDaAPI) {
                     return { ...pivoAntigo, ...pivoNovoDaAPI };
                 }
-                
                 return pivoAntigo;
             });
-
             drawPivos(window.lastPivosDataDrawn, false);
         }
 

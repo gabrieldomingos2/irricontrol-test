@@ -166,7 +166,7 @@ def _add_secondary_folders(
     doc: simplekml.Document, pivos: list, ciclos: list, bombas: list,
     default_point_style: simplekml.Style
 ):
-    # Desenha os marcadores centrais dos pivôs (sem alteração)
+    # Desenha os marcadores centrais dos pivôs (lógica original mantida)
     if pivos:
         folder_pivos = doc.newfolder(name="Pivôs (Marcadores)")
         for i, p_data in enumerate(pivos):
@@ -174,8 +174,8 @@ def _add_secondary_folders(
             pnt_pivo.style = default_point_style
         logger.info(" -> Pasta 'Pivôs (Marcadores)' criada.")
 
-    # ✅ LÓGICA ATUALIZADA PARA DESENHAR AS ÁREAS DOS PIVÔS
-    # Esta nova pasta conterá tanto os círculos quanto os setores.
+    # ✅ LÓGICA ATUALIZADA PARA DESENHAR AS ÁREAS DOS PIVÔS (CÍRCULOS E SETORES)
+    # Esta nova lógica garante que as áreas sejam desenhadas corretamente.
     if pivos:
         folder_areas = doc.newfolder(name="Áreas de Pivôs")
         
@@ -183,10 +183,11 @@ def _add_secondary_folders(
             pivo_nome = pivo_data.get("nome", "Área de Pivô")
             coords_area = []
 
-            # Verifica se é um pivô setorial
+            # 1. Verifica se é um pivô do tipo 'setorial'
             if pivo_data.get('tipo') == 'setorial':
                 logger.info(f"  -> Desenhando área para pivô SETORIAL: {pivo_nome}")
                 try:
+                    # Usa a função auxiliar para gerar as coordenadas do setor
                     coords_area = _generate_sector_coords(
                         lat=pivo_data['lat'],
                         lon=pivo_data['lon'],
@@ -195,30 +196,32 @@ def _add_secondary_folders(
                         arc_width_deg=pivo_data['abertura_arco']
                     )
                 except KeyError as e:
-                    logger.warning(f"    -> ⚠️ Dados ausentes para desenhar setor '{pivo_nome}': {e}")
-                    continue # Pula para o próximo pivô
+                    logger.warning(f"    -> ⚠️ Dados ausentes para desenhar setor '{pivo_nome}': {e}. Pulando este pivô.")
+                    continue
             
-            # Se não for setorial, trata como circular (lógica antiga)
+            # 2. Se não for setorial, trata como um pivô circular padrão
             else:
                 logger.info(f"  -> Desenhando área para pivô CIRCULAR: {pivo_nome}")
+                # Encontra os dados do círculo correspondente pelo nome
                 nome_ciclo_correspondente = f"Ciclo {pivo_nome}"
                 ciclo_data = next((c for c in ciclos if c.get("nome_original_circulo") == nome_ciclo_correspondente), None)
                 
                 if ciclo_data and ciclo_data.get("coordenadas"):
+                    # Formata as coordenadas para o padrão do KML (lon, lat, alt)
                     coords_area = [(lon, lat, 0) for lat, lon in ciclo_data["coordenadas"]]
                 else:
-                    logger.warning(f"    -> ⚠️ Coordenadas do círculo para '{pivo_nome}' não encontradas em 'ciclos_data'. A área não será desenhada.")
+                    logger.warning(f"    -> ⚠️ Coordenadas do círculo para '{pivo_nome}' não encontradas. A área não será desenhada.")
                     continue
 
-            # Cria o polígono no KML se as coordenadas foram geradas
+            # 3. Cria o polígono no KML se as coordenadas foram geradas com sucesso
             if coords_area:
                 pol = folder_areas.newpolygon(name=f"Área {pivo_nome}")
                 pol.outerboundaryis = coords_area
-                pol.style.polystyle.fill = 0 # Sem preenchimento
+                pol.style.polystyle.fill = 0  # Sem preenchimento
                 pol.style.linestyle.color = simplekml.Color.red
                 pol.style.linestyle.width = 4
 
-    # Desenha as bombas (sem alteração)
+    # Desenha as bombas (lógica original mantida)
     if bombas:
         folder_bombas = doc.newfolder(name="Bombas")
         for i, bomba_data in enumerate(bombas):
