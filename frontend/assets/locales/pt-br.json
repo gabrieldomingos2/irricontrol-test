@@ -69,6 +69,7 @@
             "repeater_added": "Repetidora '{name}' adicionada.",
             "found_candidate_sites": "Encontrados {count} locais candidatos para a repetidora.",
             "pivot_created": "Novo pivô '{name}' criado com sucesso.",
+            "sector_pivot_created": "Pivô setorial '{name}' criado com sucesso.",
             "app_reset": "Aplicação resetada. Nova sessão iniciada.",
             "los_diagnostic_complete": "Diagnóstico de visada concluído.",
             "kmz_export_preparing": "Preparando exportação KMZ...",
@@ -95,7 +96,9 @@
             "los_diagnostic_fail": "Falha no diagnóstico de visada para o pivô {name}.",
             "los_source_must_be_green": "ORIGEM: Selecione um pivô COM SINAL (verde).",
             "coordinate_input_empty": "Por favor, insira uma coordenada para buscar.",
-            "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ex: 19°26'S 44°29'W) ou Decimal (ex: -19.44 -44.49)."
+            "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ex: 19°26'S 44°29'W) ou Decimal (ex: -19.44 -44.49).",
+            "draw_pivot_radius_too_small": "Raio muito pequeno. O desenho foi cancelado. Clique para definir um novo centro.",
+            "generic_error": "Ocorreu um erro inesperado. Por favor, tente novamente."
         },
         "info": {
             "no_towers_found": "Nenhuma torre encontrada no KMZ. Você pode adicionar uma antena manualmente clicando no mapa.",
@@ -122,7 +125,12 @@
             "los_result_clear_critical": "Visada {source} → {target} (Dist: {distance}) ✅ Livre no ponto crítico.",
             "los_result_clear": "Visada {source} → {target} (Dist: {distance}) ✅ Livre.",
             "los_result_error": "⚠️ Erro ao diagnosticar visada {source} → {target} (Dist: {distance}): {error}",
-            "los_new_source_prompt": "Selecione um novo pivô de ORIGEM (com sinal) ou desative o modo."
+            "los_new_source_prompt": "Selecione um novo pivô de ORIGEM (com sinal) ou desative o modo.",
+            "draw_sector_pivot_step1": "Modo Setorial: Clique no mapa para definir o centro do pivô.",
+            "draw_sector_pivot_step2": "Centro definido. Mova o mouse para ajustar o raio/direção e clique novamente para finalizar.",
+            "draw_sector_pivot_off": "Modo de Desenho Setorial desativado.",
+            "draw_sector_pivot_still_active": "Modo Setorial ainda ativo. Clique para desenhar um novo pivô.",
+            "draw_sector_cancelled": "Desenho de pivô setorial cancelado. Clique para definir um novo centro."
         },
         "confirm": {
             "remove_pivot": "Tem certeza que deseja remover o pivô \"{name}\"? O círculo associado também será removido.",

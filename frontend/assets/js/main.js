@@ -1275,7 +1275,6 @@ function handleCoordinateSearch() {
     }
 }
 
-// ✅ INÍCIO DO TRECHO PARA SUBSTITUIR
 
 // ========================================================
 // LÓGICA CORRIGIDA PARA DESENHO DE PIVÔ SETORIAL
@@ -1288,9 +1287,8 @@ function handleCoordinateSearch() {
  */
 function getNextPivotNumber() {
     let maxNumber = 0;
-    // Itera sobre todos os pivôs já desenhados no mapa
     window.lastPivosDataDrawn.forEach(pivo => {
-        // Usa uma expressão regular para encontrar o primeiro conjunto de dígitos no nome do pivô
+
         const match = pivo.nome.match(/\d+/);
         if (match) {
             const currentNumber = parseInt(match[0], 10);
@@ -1299,7 +1297,7 @@ function getNextPivotNumber() {
             }
         }
     });
-    // Retorna o maior número encontrado + 1
+
     return maxNumber + 1;
 }
 
@@ -1312,15 +1310,13 @@ function toggleModoDesenhoPivoSetorial() {
     btn.classList.toggle('glass-button-active', window.modoDesenhoPivoSetorial);
 
     if (window.modoDesenhoPivoSetorial) {
-        // Garante que outros modos de desenho ou edição estejam desativados
+
         if (window.modoDesenhoPivo) toggleModoDesenhoPivo();
         if (window.modoEdicaoPivos && typeof togglePivoEditing === 'function') togglePivoEditing();
         if (window.modoLoSPivotAPivot && typeof toggleLoSPivotAPivotMode === 'function') toggleLoSPivotAPivotMode();
         if (window.modoBuscaLocalRepetidora && typeof handleBuscarLocaisRepetidoraActivation === 'function') handleBuscarLocaisRepetidoraActivation();
 
         map.getContainer().style.cursor = 'crosshair';
-        
-        // Adiciona os listeners de evento para o modo de 2 cliques
         map.on('click', handleSectorialPivotDrawClick);
         map.on('mousemove', handleSectorialDrawMouseMove);
         
@@ -1328,12 +1324,9 @@ function toggleModoDesenhoPivoSetorial() {
 
     } else {
         map.getContainer().style.cursor = '';
-
-        // Remove os listeners de evento para não interferir com outras ações
         map.off('click', handleSectorialPivotDrawClick);
         map.off('mousemove', handleSectorialDrawMouseMove);
         
-        // Limpa qualquer desenho temporário que possa ter ficado no mapa
         centroPivoTemporario = null;
         if (typeof removeTempSector === 'function') {
             removeTempSector();
@@ -1354,22 +1347,22 @@ async function handleSectorialPivotDrawClick(e) {
     // Primeiro clique: Define o centro do pivô
     if (!centroPivoTemporario) {
         centroPivoTemporario = e.latlng;
-        mostrarMensagem(t('messages.info.draw_sector_pivot_step2', 'Centro definido. Mova o mouse para ajustar e clique novamente para finalizar.'), "info");
+        // USA A TRADUÇÃO CORRETA
+        mostrarMensagem(t('messages.info.draw_sector_pivot_step2'), "info");
     } 
     // Segundo clique: Define o raio e a orientação, e cria o pivô
     else {
         const finalPoint = e.latlng;
         const radius = centroPivoTemporario.distanceTo(finalPoint);
 
-        // Remove o desenho de pré-visualização
         if (typeof removeTempSector === 'function') {
             removeTempSector();
         }
 
-        // Validação para evitar pivôs muito pequenos
         if (radius < 10) {
             centroPivoTemporario = null; // Reinicia o processo
-            mostrarMensagem(t('messages.errors.draw_pivot_radius_too_small', 'Raio muito pequeno. Clique para definir um novo centro.'), "erro");
+            // USA A TRADUÇÃO CORRETA
+            mostrarMensagem(t('messages.errors.draw_pivot_radius_too_small'), "erro");
             return;
         }
 
@@ -1377,12 +1370,12 @@ async function handleSectorialPivotDrawClick(e) {
         try {
             const bearing = calculateBearing(centroPivoTemporario, finalPoint);
             
-            // Lógica de nomeação unificada
+            // Lógica de nomeação aprimorada
             const novoNumero = getNextPivotNumber();
-            const novoNome = `Pivô ${String(novoNumero).padStart(2, '0')}`;
+            // CORREÇÃO: Usa "Setor" no nome para diferenciar
+            const novoNome = `Setor ${String(novoNumero).padStart(2, '0')}`;
             
             const novoPivo = {
-                // CORREÇÃO: Usa a variável 'novoNome'
                 nome: novoNome,
                 lat: centroPivoTemporario.lat,
                 lon: centroPivoTemporario.lng,
@@ -1395,34 +1388,33 @@ async function handleSectorialPivotDrawClick(e) {
             
             window.lastPivosDataDrawn.push(novoPivo);
 
-            // Adiciona um "ciclo placeholder" para manter a consistência dos dados
             const novoCiclo = {
                 nome_original_circulo: `Ciclo ${novoPivo.nome}`,
-                coordenadas: []
+                coordenadas: [] // Setoriais não têm um polígono de círculo, mas mantemos para consistência
             };
             window.ciclosGlobais.push(novoCiclo);
 
-            // Redesenha todos os pivôs e suas áreas
             if (typeof drawPivos === 'function') drawPivos(window.lastPivosDataDrawn, false);
             if (typeof drawCirculos === 'function') drawCirculos(window.ciclosGlobais);
             
             await reavaliarPivosViaAPI();
             atualizarPainelDados();
 
-            // Mensagem de sucesso corrigida para refletir o nome correto
-            mostrarMensagem(t('messages.success.sector_pivot_created', `Pivô '${novoPivo.nome}' (setorial) criado com sucesso.`), "sucesso");
+            // USA A TRADUÇÃO CORRETA E PASSA O NOME DO PIVÔ
+            mostrarMensagem(t('messages.success.sector_pivot_created', { name: novoPivo.nome }), "sucesso");
 
         } catch (error) {
             console.error("Erro ao criar pivô setorial:", error);
-            mostrarMensagem(t('messages.errors.generic_error', 'Ocorreu um erro.'), "erro");
+            // USA A TRADUÇÃO CORRETA
+            mostrarMensagem(t('messages.errors.generic_error'), "erro");
         } finally {
-            // Reinicia para permitir desenhar outro pivô em seguida
             centroPivoTemporario = null;
             mostrarLoader(false);
             
             setTimeout(() => {
                 if (window.modoDesenhoPivoSetorial) {
-                    mostrarMensagem(t('messages.info.draw_sector_pivot_still_active', 'Modo Setorial ainda ativo. Clique para um novo centro.'), "info");
+                    // USA A TRADUÇÃO CORRETA
+                    mostrarMensagem(t('messages.info.draw_sector_pivot_still_active'), "info");
                 }
             }, 2000);
         }

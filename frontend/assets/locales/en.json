@@ -76,7 +76,8 @@
             "pivot_removed": "Pivot \"{name}\" removed successfully.",
             "tower_selected_for_simulation": "Tower '{name}' selected. Click 'Simulate' in the panel.",
             "repeater_suggestion_removed": "Repeater suggestion removed.",
-            "location_found": "Location found and marked on the map."
+            "location_found": "Location found and marked on the map.",
+            "sector_pivot_created": "Sectorial pivot '{name}' created successfully."
         },
         "errors": {
             "session_start_fail": "Critical failure starting new session. Please try reloading the page.",
@@ -95,7 +96,9 @@
             "los_diagnostic_fail": "Line of sight diagnostic failed for pivot {name}.",
             "los_source_must_be_green": "SOURCE: Please select a pivot WITH SIGNAL (green).",
             "coordinate_input_empty": "Please enter a coordinate to search.",
-            "invalid_coordinate_format": "Invalid coordinate format. Use DMS (e.g., 19°26'S 44°29'W) or Decimal (e.g., -19.44 -44.49)."
+            "invalid_coordinate_format": "Invalid coordinate format. Use DMS (e.g., 19°26'S 44°29'W) or Decimal (e.g., -19.44 -44.49).",
+            "draw_pivot_radius_too_small": "Radius too small. Drawing cancelled. Click to set a new center.",
+            "generic_error": "An unexpected error occurred. Please try again."
         },
         "info": {
             "no_towers_found": "No towers found in the KMZ. You can add an antenna manually by clicking on the map.",
@@ -122,7 +125,12 @@
             "los_result_clear_critical": "Line of Sight {source} → {target} (Dist: {distance}) ✅ Clear at critical point.",
             "los_result_clear": "Line of Sight {source} → {target} (Dist: {distance}) ✅ Clear.",
             "los_result_error": "⚠️ Error diagnosing LoS {source} → {target} (Dist: {distance}): {error}",
-            "los_new_source_prompt": "Select a new SOURCE pivot (with signal) or deactivate the mode."
+            "los_new_source_prompt": "Select a new SOURCE pivot (with signal) or deactivate the mode.",
+            "draw_sector_pivot_step1": "Sectorial Mode: Click on the map to define the pivot's center.",
+            "draw_sector_pivot_step2": "Center defined. Move the mouse to adjust radius/direction and click again to finish.",
+            "draw_sector_pivot_off": "Sectorial Drawing Mode deactivated.",
+            "draw_sector_pivot_still_active": "Sectorial Mode is still active. Click to draw a new pivot.",
+            "draw_sector_cancelled": "Sectorial pivot drawing cancelled. Click to set a new center."
         },
         "confirm": {
             "remove_pivot": "Are you sure you want to remove the pivot \"{name}\"? The associated circle will also be removed.",

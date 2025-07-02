@@ -76,7 +76,8 @@
             "pivot_removed": "Pivot \"{name}\" erfolgreich entfernt.",
             "tower_selected_for_simulation": "Turm '{name}' ausgewählt. Klicken Sie im Panel auf 'Simulieren'.",
             "repeater_suggestion_removed": "Repeater-Vorschlag entfernt.",
-            "location_found": "Standort gefunden und auf der Karte markiert."
+            "location_found": "Standort gefunden und auf der Karte markiert.",
+            "sector_pivot_created": "Sektoraler Pivot '{name}' erfolgreich erstellt."
         },
         "errors": {
             "session_start_fail": "Kritischer Fehler beim Starten der neuen Sitzung. Bitte laden Sie die Seite neu.",
@@ -95,7 +96,9 @@
             "los_diagnostic_fail": "Sichtlinien-Diagnose für Pivot {name} fehlgeschlagen.",
             "los_source_must_be_green": "QUELLE: Bitte wählen Sie einen Pivot MIT SIGNAL (grün).",
             "coordinate_input_empty": "Bitte geben Sie eine Koordinate für die Suche ein.",
-            "invalid_coordinate_format": "Ungültiges Koordinatenformat. Verwenden Sie DMS (z.B. 19°26'S 44°29'W) oder Dezimal (z.B. -19.44 -44.49)."
+            "invalid_coordinate_format": "Ungültiges Koordinatenformat. Verwenden Sie DMS (z.B. 19°26'S 44°29'W) oder Dezimal (z.B. -19.44 -44.49).",
+            "draw_pivot_radius_too_small": "Radius zu klein. Zeichnung abgebrochen. Klicken Sie, um ein neues Zentrum festzulegen.",
+            "generic_error": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
         },
         "info": {
             "no_towers_found": "Keine Türme in der KMZ-Datei gefunden. Sie können eine Antenne manuell durch Klicken auf die Karte hinzufügen.",
@@ -122,7 +125,12 @@
             "los_result_clear_critical": "Sichtverbindung {source} → {target} (Entf: {distance}) ✅ Frei am kritischen Punkt.",
             "los_result_clear": "Sichtverbindung {source} → {target} (Entf: {distance}) ✅ Frei.",
             "los_result_error": "⚠️ Fehler bei der Diagnose der Sichtverbindung {source} → {target} (Entf: {distance}): {error}",
-            "los_new_source_prompt": "Wählen Sie einen neuen QUELL-Pivot (mit Signal) oder deaktivieren Sie den Modus."
+            "los_new_source_prompt": "Wählen Sie einen neuen QUELL-Pivot (mit Signal) oder deaktivieren Sie den Modus.",
+            "draw_sector_pivot_step1": "Sektormodus: Klicken Sie auf die Karte, um das Zentrum des Pivots zu definieren.",
+            "draw_sector_pivot_step2": "Zentrum festgelegt. Bewegen Sie die Maus, um Radius/Richtung anzupassen, und klicken Sie erneut zum Abschließen.",
+            "draw_sector_pivot_off": "Sektoraler Zeichenmodus deaktiviert.",
+            "draw_sector_pivot_still_active": "Der Sektormodus ist noch aktiv. Klicken Sie, um einen neuen Pivot zu zeichnen.",
+            "draw_sector_cancelled": "Zeichnung des sektoralen Pivots abgebrochen. Klicken Sie, um ein neues Zentrum festzulegen."
         },
         "confirm": {
             "remove_pivot": "Sind Sie sicher, dass Sie den Pivot \"{name}\" entfernen möchten? Der zugehörige Kreis wird ebenfalls entfernt.",

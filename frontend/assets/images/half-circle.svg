@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" x="0px" y="0px" viewBox="-3.2 -6.4 70.4 86.4" enable-background="new 0 0 64 64" xml:space="preserve"><g><path d="M59.979,45.296C59.87,29.951,47.356,17.5,31.99,17.5C16.556,17.5,4,30.061,4,45.5c0,0.552,0.447,1,1,1H58.98   c0.007,0,0.014,0,0.02,0c0.552,0,1-0.448,1-1C60,45.43,59.993,45.362,59.979,45.296z M6.018,44.5c0.528-13.875,11.976-25,25.973-25   c13.996,0,25.444,11.125,25.972,25H6.018z"/></g><text x="0.0" y="75.2" font-size="3.2" font-weight="bold" font-family="Arbeit Regular, Helvetica, Arial-Unicode, Arial, Sans-serif" fill="#000000">Created by RAHMAT DWI CAHYO</text><text x="0.0" y="78.4" font-size="3.2" font-weight="bold" font-family="Arbeit Regular, Helvetica, Arial-Unicode, Arial, Sans-serif" fill="#000000">from Noun Project</text></svg>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Semi-círculo maior e centralizado -->
+  <path d="M2 14 A10 10 0 0 1 22 14" stroke="black" stroke-width="2" fill="none"/>
+  <line x1="2" y1="14" x2="22" y2="14" stroke="black" stroke-width="2"/>
+</svg>

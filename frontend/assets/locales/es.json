@@ -76,7 +76,8 @@
             "pivot_removed": "Pivote \"{name}\" eliminado con éxito.",
             "tower_selected_for_simulation": "Torre '{name}' seleccionada. Haga clic en 'Simular' en el panel.",
             "repeater_suggestion_removed": "Sugerencia de repetidor eliminada.",
-            "location_found": "Ubicación encontrada y marcada en el mapa."
+            "location_found": "Ubicación encontrada y marcada en el mapa.",
+            "sector_pivot_created": "Pivote sectorial '{name}' creado con éxito."
         },
         "errors": {
             "session_start_fail": "Fallo crítico al iniciar nueva sesión. Por favor, intente recargar la página.",
@@ -95,7 +96,9 @@
             "los_diagnostic_fail": "Fallo en el diagnóstico de línea de visión para el pivote {name}.",
             "los_source_must_be_green": "ORIGEN: Por favor, seleccione un pivote CON SEÑAL (verde).",
             "coordinate_input_empty": "Por favor, ingrese una coordenada para buscar.",
-            "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ej: 19°26'S 44°29'W) o Decimal (ej: -19.44 -44.49)."
+            "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ej: 19°26'S 44°29'W) o Decimal (ej: -19.44 -44.49).",
+            "draw_pivot_radius_too_small": "Radio demasiado pequeño. Dibujo cancelado. Haga clic para establecer un nuevo centro.",
+            "generic_error": "Ocurrió un error inesperado. Por favor, inténtelo de nuevo."
         },
         "info": {
             "no_towers_found": "No se encontraron torres en el KMZ. Puede añadir una antena manualmente haciendo clic en el mapa.",
@@ -122,7 +125,12 @@
             "los_result_clear_critical": "Línea de Visión {source} → {target} (Dist: {distance}) ✅ Libre en punto crítico.",
             "los_result_clear": "Línea de Visión {source} → {target} (Dist: {distance}) ✅ Libre.",
             "los_result_error": "⚠️ Error al diagnosticar LdV {source} → {target} (Dist: {distance}): {error}",
-            "los_new_source_prompt": "Seleccione un nuevo pivote de ORIGEN (con señal) o desactive el modo."
+            "los_new_source_prompt": "Seleccione un nuevo pivote de ORIGEN (con señal) o desactive el modo.",
+            "draw_sector_pivot_step1": "Modo Sectorial: Haga clic en el mapa para definir el centro del pivote.",
+            "draw_sector_pivot_step2": "Centro definido. Mueva el ratón para ajustar el radio/dirección y haga clic de nuevo para finalizar.",
+            "draw_sector_pivot_off": "Modo de Dibujo Sectorial desactivado.",
+            "draw_sector_pivot_still_active": "El Modo Sectorial sigue activo. Haga clic para dibujar un nuevo pivote.",
+            "draw_sector_cancelled": "Dibujo de pivote sectorial cancelado. Haga clic para establecer un nuevo centro."
         },
         "confirm": {
             "remove_pivot": "¿Está seguro de que desea eliminar el pivote \"{name}\"? El círculo asociado también será eliminado.",
