@@ -72,12 +72,19 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         if not bounds: continue
         
         altura_repetidora = item.get('altura', 5)
+        
+        nome_from_frontend = item.get("nome")
 
-        if item.get('sobre_pivo'):
-            nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
+        if nome_from_frontend:
+
+            nome = nome_from_frontend
         else:
-            nome = f"Repetidora Solar - {altura_repetidora}m"
-            
+
+            if item.get('sobre_pivo'):
+                nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
+            else:
+                nome = f"Repetidora Solar - {altura_repetidora}m"
+
         sub_nome = f"{ts_prefix}_Rep{i+1:02d}_Irricontrol_{template.id}"
         
         folder = doc.newfolder(name=nome); folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
@@ -85,7 +92,6 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         lat, lon = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
         
         pnt = sub.newpoint(name=nome, coords=[(lon, lat)])
-        
         pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": altura_repetidora}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name)
         pnt.style = style
         

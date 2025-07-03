@@ -392,12 +392,14 @@ async function handleConfirmRepetidoraClick() {
     mostrarLoader(true);
 
     let repetidoraObj;
-    let nomeRep; // ✅ CORREÇÃO: Declarar a variável aqui
-    let id;      // ✅ CORREÇÃO: Declarar a variável aqui
+    let nomeRep;
+    let id;
+    let isFromKmz = false;
 
     if (window.clickedCandidateData) {
         const candidateData = { ...window.clickedCandidateData };
         window.clickedCandidateData = null;
+        isFromKmz = true;
 
         if (!AppState.antenaGlobal) {
             await startMainSimulation({ ...candidateData, altura: alturaAntena || candidateData.altura });
@@ -413,21 +415,17 @@ async function handleConfirmRepetidoraClick() {
                 });
                 layersToRemove.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
             }
-            
             id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
             nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
-            
-            // O código do marcador e do tooltip foi movido para fora deste bloco
         }
     } 
     else {
         removePositioningMarker();
         id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
         nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
-        // O código do marcador e do tooltip estava faltando aqui e foi movido para fora.
+        isFromKmz = false;
     }
     
-    // ✅ CORREÇÃO: Este bloco agora é executado para AMBOS os casos (if e else)
     const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
     const labelRepetidora = L.marker(AppState.coordenadaClicada, {
         icon: L.divIcon({
@@ -439,7 +437,6 @@ async function handleConfirmRepetidoraClick() {
     }).addTo(map);
     AppState.marcadoresLegenda.push(labelRepetidora);
 
-    // Adiciona o tooltip ao marcador recém-criado
     const tooltipRepetidoraContent = `
         <div style="text-align: center;">
             ${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}
@@ -458,9 +455,9 @@ async function handleConfirmRepetidoraClick() {
         id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
         altura: alturaAntena, altura_receiver: alturaReceiver,
         lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
-        imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false, nome: nomeRep
+        imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false, nome: nomeRep,
+        is_from_kmz: isFromKmz
     };
-    // Fim do bloco corrigido
 
     if (repetidoraObj) {
         AppState.repetidoras.push(repetidoraObj);
@@ -887,20 +884,22 @@ async function handleExportClick() {
             const isVisible = !visibilityBtn || visibilityBtn.getAttribute('data-visible') === 'true';
 
             if (isVisible && rep.imagem_filename) {
+                // ✅ LÓGICA DE EXPORTAÇÃO CORRIGIDA
                 repetidorasSelecionadasParaExport.push({
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
                     sobre_pivo: rep.sobre_pivo,
+                    // Se for um placemark original do KMZ, envie seu nome.
+                    // Senão, não envie nome (null), para o backend criar "Repetidora Solar...".
+                    nome: rep.is_from_kmz ? rep.nome : null
                 });
             }
         });
         
-        // ✅ INÍCIO DA CORREÇÃO
         let antenaDataParaExport = null;
         let imagemPrincipal = null;
         let boundsFilePrincipal = null;
 
-        // Verifica se a antena principal existe e popula TODOS os campos necessários
         if (AppState.antenaGlobal) {
             antenaDataParaExport = {
                 nome: AppState.antenaGlobal.nome,
@@ -909,18 +908,15 @@ async function handleExportClick() {
                 altura: AppState.antenaGlobal.altura,
                 altura_receiver: AppState.antenaGlobal.altura_receiver
             };
-            // Adiciona o nome do arquivo da imagem e dos bounds
             imagemPrincipal = AppState.antenaGlobal.imagem_filename;
             if (imagemPrincipal) {
                 boundsFilePrincipal = imagemPrincipal.replace(/\.png$/, '.json');
             }
         }
-        // ✅ FIM DA CORREÇÃO
 
         const payload = {
             job_id: AppState.jobId,
             template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,
-            // Passa as variáveis corrigidas para o payload
             antena_principal_data: antenaDataParaExport,
             imagem: imagemPrincipal,
             bounds_file: boundsFilePrincipal,
@@ -934,7 +930,6 @@ async function handleExportClick() {
 
     } catch (error) {
         console.error("Erro no processo de exportação KMZ:", error);
-        // Não precisamos mostrar mensagem aqui, pois a função `exportKmz` em api.js já faz isso.
     } finally {
         mostrarLoader(false);
     }
