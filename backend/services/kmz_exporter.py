@@ -71,13 +71,14 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         with open(path_json) as f: bounds = json.load(f).get("bounds")
         if not bounds: continue
         
+        nome = item.get("nome")
         altura_repetidora = item.get('altura', 5)
-        
-        if item.get('sobre_pivo'):
-            nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
-        else:
-            nome = f"Repetidora Solar {i+1:02d} - {altura_repetidora}m"
 
+        if not nome:
+            if item.get('sobre_pivo'):
+                nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
+            else:
+                nome = f"Repetidora Solar {i+1:02d} - {altura_repetidora}m"
             
         sub_nome = f"{ts_prefix}_Rep{i+1:02d}_Irricontrol_{template.id}"
         folder = doc.newfolder(name=nome); folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
