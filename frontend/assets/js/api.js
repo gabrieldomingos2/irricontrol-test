@@ -1,203 +1,140 @@
-// ATENÇÃO AQUI: Verifique se esta URL é EXATAMENTE a URL do seu serviço no Render.
+// assets/js/api.js
+
 const BACKEND_URL = "https://irricontrol-test.onrender.com";
 const API_PREFIX = "/api/v1";
 
-
 /**
- * ✅ NOVO: Inicia uma sessão de trabalho vazia no backend.
- * Esta é a função que vai "destravar" o aplicativo no início.
- * @returns {Promise<object>} - A resposta da API contendo o 'job_id'.
+ * ✅ NOVO WRAPPER CENTRALIZADO PARA REQUISIÇÕES
+ * Esta função lida com toda a lógica comum de chamadas à API:
+ * - Monta a URL completa.
+ * - Realiza a chamada fetch.
+ * - Verifica se a resposta foi bem-sucedida (erros de rede, 4xx, 5xx).
+ * - Processa a resposta (JSON ou blob para downloads).
+ * - Centraliza o tratamento de erros.
+ * @param {string} endpoint - O endpoint da API (ex: '/kmz/processar').
+ * @param {object} options - As opções para a chamada fetch (method, headers, body, etc.).
+ * @returns {Promise<any>} - A resposta da API, já processada.
  */
+async function apiRequest(endpoint, options = {}) {
+  try {
+    const response = await fetch(`${BACKEND_URL}${API_PREFIX}${endpoint}`, options);
+
+    // Centraliza a verificação de erros HTTP (4xx, 5xx)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ 
+          detail: response.statusText || 'Erro de comunicação com o servidor' 
+      }));
+      // Lança um erro claro para ser pego pelo .catch() da função chamadora
+      throw new Error(`Erro ${response.status}: ${errorData.detail}`);
+    }
+    
+    // Tratamento especial para respostas que não são JSON, como downloads de arquivos
+    if (options.responseType === 'blob') {
+        return response; // Retorna o objeto de resposta completo para ser tratado
+    }
+
+    // Para a maioria dos casos, retorna o JSON já processado
+    return await response.json();
+  } catch (error) {
+    // Loga o erro em baixo nível e o re-lança para que o contexto específico possa tratá-lo
+    console.error(`Erro na requisição para ${endpoint}:`, error);
+    throw error;
+  }
+}
+
+// --- Funções da API Refatoradas para Usar o Wrapper ---
+// Note como cada função agora é mais curta e focada em seu propósito,
+// delegando a lógica de comunicação para o apiRequest.
+
 async function startEmptyJob() {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/kmz/iniciar_job_vazio`, {
-      method: "POST",
+  return apiRequest('/kmz/iniciar_job_vazio', { method: 'POST' })
+    .catch(error => {
+      mostrarMensagem(`Não foi possível iniciar uma nova sessão: ${error.message}`, "erro");
+      throw error;
     });
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Falha ao iniciar sessão' }));
-        throw new Error(`Erro ${response.status}: ${errorData.detail || 'Falha ao iniciar sessão'}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao iniciar job vazio:", error);
-    mostrarMensagem(`Não foi possível iniciar uma nova sessão: ${error.message}`, "erro");
-    throw error;
-  }
 }
 
-
-/**
- * Envia o arquivo KMZ para processamento no backend.
- * @param {FormData} formData - O formulário contendo o arquivo.
- * @returns {Promise<object>} - A resposta da API (incluindo o NOVO 'job_id').
- */
 async function processKmz(formData) {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/kmz/processar`, {
-      method: "POST",
-      body: formData,
+  return apiRequest('/kmz/processar', { method: 'POST', body: formData })
+    .catch(error => {
+      mostrarMensagem(`Falha ao carregar KMZ: ${error.message}`, "erro");
+      throw error;
     });
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao processar KMZ:", error);
-    mostrarMensagem(`Falha ao carregar KMZ: ${error.message}`, "erro");
-    throw error;
-  }
 }
 
-/**
- * Envia os dados da antena principal para simular o sinal.
- * O payload agora DEVE conter um campo 'job_id'.
- * @param {object} payload - Dados da antena, pivôs, e job_id.
- * @returns {Promise<object>} - A resposta da API.
- */
 async function simulateSignal(payload) {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/run_main`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao simular sinal:", error);
+  return apiRequest('/simulation/run_main', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(error => {
     mostrarMensagem(`Falha na simulação: ${error.message}`, "erro");
     throw error;
-  }
+  });
 }
 
-/**
- * Envia dados para simular uma repetidora manual.
- * O payload agora DEVE conter um campo 'job_id'.
- * @param {object} payload - Dados da repetidora, pivôs, job_id, etc.
- * @returns {Promise<object>} - A resposta da API.
- */
 async function simulateManual(payload) {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/run_manual`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao simular manual:", error);
+  return apiRequest('/simulation/run_manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(error => {
     mostrarMensagem(`Falha na simulação manual: ${error.message}`, "erro");
     throw error;
-  }
+  });
 }
 
-/**
- * Reavalia os pivôs com base nos overlays visíveis.
- * O payload agora DEVE conter um campo 'job_id'.
- * @param {object} payload - Dados dos pivôs, overlays, e job_id.
- * @returns {Promise<object>} - A resposta da API.
- */
 async function reevaluatePivots(payload) {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/reevaluate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao reavaliar pivôs:", error);
+  return apiRequest('/simulation/reevaluate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(error => {
     mostrarMensagem(`Falha ao reavaliar cobertura: ${error.message}`, "erro");
     throw error;
-  }
-}
-
-/**
- * Busca a lista de templates disponíveis no backend.
- * @returns {Promise<Array<string>>} - Um array com os nomes dos templates.
- */
-async function getTemplates() {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/templates`);
-    if (!response.ok) {
-        throw new Error(`Erro ${response.status}: ${response.statusText} ao buscar templates.`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao buscar templates:", error);
-    mostrarMensagem(`Falha ao buscar templates: ${error.message}`, "erro");
-    throw error;
-  }
-}
-
-/**
- * Busca o perfil de elevação entre dois pontos.
- * @param {object} payload - Dados dos pontos e alturas.
- * @returns {Promise<object>} - A resposta da API.
- */
-async function getElevationProfile(payload) {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/elevation_profile`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
   });
-     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao buscar perfil de elevação:", error);
+}
+
+async function getTemplates() {
+  return apiRequest('/simulation/templates')
+    .catch(error => {
+        mostrarMensagem(`Falha ao buscar templates: ${error.message}`, "erro");
+        throw error;
+    });
+}
+
+async function getElevationProfile(payload) {
+  return apiRequest('/simulation/elevation_profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(error => {
     mostrarMensagem(`Falha no diagnóstico de visada: ${error.message}`, "erro");
     throw error;
-  }
+  });
 }
 
-/**
- * ✅ NOVO E CORRIGIDO: Envia os dados via POST para gerar e baixar o arquivo KMZ.
- * @param {object} payload - O objeto contendo todos os dados para a exportação.
- */
 async function exportKmz(payload) {
   try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/kmz/exportar`, {
+    // A chamada à API agora usa o wrapper, informando que espera uma resposta do tipo 'blob'
+    const response = await apiRequest('/kmz/exportar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      responseType: 'blob' // <-- Opção especial para o wrapper
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(`Erro ${response.status}: ${errorData.detail || 'Falha na exportação'}`);
-    }
-
-    // Pega o nome do arquivo do header da resposta
+    // O restante da lógica de download do arquivo é mantido exatamente como estava
     const disposition = response.headers.get('content-disposition');
     let filename = 'estudo-irricontrol.kmz';
-    if (disposition && disposition.indexOf('attachment') !== -1) {
-      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-      const matches = filenameRegex.exec(disposition);
-      if (matches != null && matches[1]) {
-        filename = matches[1].replace(/['"]/g, '');
+    if (disposition?.includes('attachment')) {
+      const filenameMatch = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+      if (filenameMatch?.[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
       }
     }
 
-    // Converte a resposta em um 'blob' (arquivo binário)
     const blob = await response.blob();
-    
-    // Cria uma URL temporária para o arquivo e simula um clique para iniciar o download
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -209,57 +146,30 @@ async function exportKmz(payload) {
     a.remove();
 
   } catch (error) {
-    console.error("Erro ao exportar KMZ:", error);
+    // A lógica de captura de erro e mensagem ao usuário é mantida
     mostrarMensagem(`Falha ao exportar KMZ: ${error.message}`, "erro");
     throw error;
   }
 }
 
-/**
- * Busca pontos altos próximos a um pivô alvo para posicionar repetidoras.
- * O payload agora DEVE conter um campo 'job_id'.
- * @param {object} payload - Dados do pivô alvo, job_id, e parâmetros de busca.
- * @returns {Promise<object>} - A resposta da API.
- */
 async function findHighPointsForRepeater(payload) {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/find_repeater_sites`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(`Erro ${response.status}: ${errorData.detail || response.statusText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao buscar pontos altos para repetidora:", error);
+  return apiRequest('/simulation/find_repeater_sites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(error => {
     mostrarMensagem(`Falha na busca por locais de repetidora: ${error.message}`, "erro");
     throw error;
-  }
+  });
 }
 
-/**
- * Envia os dados para gerar um novo pivô no centro de um círculo.
- * @param {object} payload - Contém job_id, as coordenadas do centro e a lista de pivôs atuais.
- * @returns {Promise<object>} - A resposta da API com o novo pivô.
- */
 async function generatePivotInCircle(payload) {
-  try {
-    const response = await fetch(`${BACKEND_URL}${API_PREFIX}/simulation/generate_pivot_in_circle`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        throw new Error(`Erro ${response.status}: ${errorData.detail || 'Erro desconhecido'}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error("Erro ao gerar novo pivô:", error);
+  return apiRequest('/simulation/generate_pivot_in_circle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(error => {
     mostrarMensagem(`Falha ao criar pivô: ${error.message}`, "erro");
     throw error;
-  }
+  });
 }

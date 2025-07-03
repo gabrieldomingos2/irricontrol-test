@@ -1,9 +1,6 @@
 // =================================================================
 // ✅ ARQUITETURA DE ESTADO CENTRALIZADA
 // =================================================================
-// Em vez de usar múltiplas variáveis globais e o objeto 'window',
-// centralizamos todo o estado da aplicação em um único objeto.
-// Isso torna o código mais previsível, fácil de depurar e manter.
 
 const AppState = {
     // --- Estado da Sessão e Dados ---
@@ -268,36 +265,22 @@ async function startMainSimulation(antenaData) {
     try {
         AppState.templateSelecionado = document.getElementById('template-modelo').value;
         
-        // Mapeia os pivôs, garantindo que o tipo seja incluído para validação Pydantic
         const pivos_atuais = (AppState.lastPivosDataDrawn || []).map(p => ({
-            nome: p.nome,
-            lat: p.lat,
-            lon: p.lon,
-            type: 'pivo' // Garante conformidade com o modelo
+            nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo'
         }));
-
-        // ✅ INÍCIO DA CORREÇÃO: Mapeia as bombas atuais para incluir no payload
         const bombas_atuais = (AppState.lastBombasDataDrawn || []).map(b => ({
-            nome: b.nome,
-            lat: b.lat,
-            lon: b.lon,
-            type: 'bomba' // Garante conformidade com o modelo
+            nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba'
         }));
-        // ✅ FIM DA CORREÇÃO
 
-        // Cria o payload completo, agora incluindo as bombas
         const payload = {
-            job_id: AppState.jobId,
-            ...antenaData, // Inclui lat, lon, altura, nome, etc.
-            pivos_atuais,
-            bombas_atuais, // <-- CAMPO OBRIGATÓRIO ADICIONADO
-            template: AppState.templateSelecionado
+            job_id: AppState.jobId, ...antenaData, pivos_atuais,
+            bombas_atuais, template: AppState.templateSelecionado
         };
         
         const data = await simulateSignal(payload);
         console.log("✅ Simulação principal concluída:", data);
 
-        if (window.antenaCandidatesLayerGroup) { // Usando a variável global temporária para esta camada
+        if (window.antenaCandidatesLayerGroup) {
             const idParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
             const camadasParaRemover = [];
             window.antenaCandidatesLayerGroup.eachLayer(layer => {
@@ -310,12 +293,11 @@ async function startMainSimulation(antenaData) {
             ...antenaData,
             overlay: drawImageOverlay(data.imagem_salva, data.bounds),
             bounds: data.bounds,
-            imagem_filename: data.imagem_filename // O nome do arquivo já vem corrigido da API
+            imagem_filename: data.imagem_filename
         };
 
         if(AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
         AppState.marcadorAntena = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
-        addAntenaAoPainel(AppState.antenaGlobal);
 
         const nomeAntenaPrincipal = AppState.antenaGlobal.nome;
         const labelWidth = (nomeAntenaPrincipal.length * 7) + 10;
@@ -329,6 +311,11 @@ async function startMainSimulation(antenaData) {
             labelType: 'antena'
         }).addTo(map);
         AppState.marcadoresLegenda.push(labelPrincipal);
+        
+        AppState.antenaGlobal.label = labelPrincipal;
+        
+        addAntenaAoPainel(AppState.antenaGlobal);
+    
         
         if (data.pivos) {
             AppState.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));

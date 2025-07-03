@@ -276,26 +276,65 @@ function addRepetidoraNoPainel(repetidora) {
     item.className = "flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `rep-item-${repetidora.id}`;
     
-    // ✅ INÍCIO DA CORREÇÃO DO ÍCONE
-    const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-id="${repetidora.id}" data-action="diagnostico">
-        <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
-    </button>`;
-    // ✅ FIM DA CORREÇÃO DO ÍCONE
-
+    const nomeAtual = repetidora.nome;
     item.innerHTML = `
-        <span class="text-white/80 text-sm">${repetidora.label.options.icon.options.html}</span>
-        <div class="flex gap-3 items-center">
-            ${diagBtnHtml}
-            <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-id="${repetidora.id}" data-action="toggle-visibility" data-visible="true">
+        <div class="name-container flex-grow cursor-pointer mr-2">
+            <span class="entity-name text-sm">${nomeAtual}</span>
+            <input type="text" value="${nomeAtual}" class="name-input hidden" />
+        </div>
+        <div class="flex gap-3 items-center flex-shrink-0">
+            <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.run_diagnostic_from_source')}" data-action="diagnostico">
+                <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
+            </button>
+            <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-action="toggle-visibility" data-visible="true">
                 <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
             </button>
-            <button class="text-red-500 hover:text-red-400 text-xs font-bold transition" title="Remover Repetidora" data-id="${repetidora.id}" data-action="remover">
+            <button class="text-red-500 hover:text-red-400 text-xs font-bold transition" title="Remover Repetidora" data-action="remover">
                 ❌
             </button>
         </div>`;
     
     container.appendChild(item);
     lucide.createIcons();
+
+    const nameSpan = item.querySelector('.entity-name');
+    const nameInput = item.querySelector('.name-input');
+
+    nameSpan.addEventListener('click', () => {
+        nameSpan.classList.add('hidden');
+        nameInput.classList.remove('hidden');
+        nameInput.focus();
+        nameInput.select();
+    });
+
+    const finishEditing = (saveChanges) => {
+        const novoNome = nameInput.value.trim();
+        if (saveChanges && novoNome) {
+            repetidora.nome = novoNome;
+            nameSpan.textContent = novoNome;
+
+            if (repetidora.label) {
+                // ✅ INÍCIO DA CORREÇÃO DEFINITIVA
+                // 1. Pega o ícone EXISTENTE
+                const icon = repetidora.label.options.icon;
+                // 2. Modifica as opções do ícone existente
+                icon.options.html = novoNome;
+                icon.options.iconSize = [(novoNome.length * 7) + 10, 20];
+                icon.options.iconAnchor = [((novoNome.length * 7) + 10) / 2, 45];
+                // 3. Pede ao Leaflet para redesenhar O MESMO ícone, agora modificado
+                repetidora.label.setIcon(icon);
+                // ✅ FIM DA CORREÇÃO DEFINITIVA
+            }
+        } else {
+            nameInput.value = nameSpan.textContent;
+        }
+        
+        nameInput.classList.add('hidden');
+        nameSpan.classList.remove('hidden');
+    };
+
+    nameInput.addEventListener('keydown', e => (e.key === 'Enter') ? finishEditing(true) : (e.key === 'Escape') ? finishEditing(false) : null);
+    nameInput.addEventListener('blur', () => finishEditing(true));
 
     item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(repetidora));
     item.querySelector('[data-action="remover"]').addEventListener('click', () => {
@@ -317,13 +356,10 @@ function addRepetidoraNoPainel(repetidora) {
         const isVisible = visibilityBtn.getAttribute('data-visible') === 'true';
         const newState = !isVisible;
         visibilityBtn.setAttribute('data-visible', String(newState));
-        const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
-        
-        if (repetidora.marker) repetidora.marker.setOpacity(newState ? 1 : 0);
-        if (repetidora.label?.getElement()) repetidora.label.getElement().style.display = (newState && AppState.legendasAtivas) ? '' : 'none';
-        if (repetidora.overlay) repetidora.overlay.setOpacity(newState ? opacityValue : 0);
-        
-        visibilityBtn.innerHTML = newState ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>` : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
+        if (repetidora.marker) repetidora.marker.setOpacity(!isVisible ? 0 : 1);
+        if (repetidora.label?.getElement()) repetidora.label.getElement().style.display = (!isVisible || !AppState.legendasAtivas) ? 'none' : '';
+        if (repetidora.overlay) repetidora.overlay.setOpacity(!isVisible ? 0 : parseFloat(rangeOpacidade.value));
+        visibilityBtn.innerHTML = !isVisible ? `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>` : `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>`;
         lucide.createIcons();
         setTimeout(reavaliarPivosViaAPI, 100);
     });
@@ -336,16 +372,14 @@ function addAntenaAoPainel(antena) {
     item.className = "flex justify-between items-center bg-gray-700/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `antena-item`;
 
-    // ✅ INÍCIO DA CORREÇÃO DO ÍCONE
-    const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-action="diagnostico">
-        <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
-    </button>`;
-    // ✅ FIM DA CORREÇÃO DO ÍCONE
-
+    // ✅ LÓGICA REVERTIDA: Voltamos a usar um <span> simples e fixo para o nome.
+    const nomeAtual = antena.nome || t('ui.labels.main_antenna_default');
     item.innerHTML = `
-        <span class="text-white/90 font-semibold text-sm">${antena.nome || t('ui.labels.main_antenna_default')}</span>
-        <div class="flex gap-3 items-center">
-            ${diagBtnHtml}
+        <span class="font-semibold text-sm">${nomeAtual}</span>
+        <div class="flex gap-3 items-center flex-shrink-0">
+            <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.run_diagnostic_from_source')}" data-action="diagnostico">
+                <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
+            </button>
             <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-action="toggle-visibility" data-visible="true">
                 <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
             </button>
@@ -354,18 +388,14 @@ function addAntenaAoPainel(antena) {
     container.firstChild ? container.insertBefore(item, container.firstChild) : container.appendChild(item);
     lucide.createIcons();
 
-    item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(antena));
+    item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(AppState.antenaGlobal));
     const visibilityBtn = item.querySelector('[data-action="toggle-visibility"]');
     visibilityBtn.addEventListener('click', () => {
         const isVisible = visibilityBtn.getAttribute('data-visible') === 'true';
-        const newState = !isVisible;
-        visibilityBtn.setAttribute('data-visible', String(newState));
-        
-        const opacityValue = parseFloat(rangeOpacidade.value);
-        if (antena?.overlay) antena.overlay.setOpacity(newState ? opacityValue : 0);
-        if (AppState.marcadorAntena) AppState.marcadorAntena.setOpacity(newState ? 1 : 0);
-        
-        visibilityBtn.innerHTML = newState ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>` : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
+        visibilityBtn.setAttribute('data-visible', String(!isVisible));
+        if (AppState.antenaGlobal?.overlay) AppState.antenaGlobal.overlay.setOpacity(!isVisible ? 0 : parseFloat(rangeOpacidade.value));
+        if (AppState.marcadorAntena) AppState.marcadorAntena.setOpacity(!isVisible ? 0 : 1);
+        visibilityBtn.innerHTML = !isVisible ? `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>` : `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>`;
         lucide.createIcons();
         setTimeout(reavaliarPivosViaAPI, 100);
     });

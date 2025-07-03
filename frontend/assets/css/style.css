@@ -427,6 +427,31 @@ button, .glass-button, label[for="arquivo"] {
   font-weight: normal;
 }
 
+/* ============================ */
+/* ✒️ INPUT DE EDIÇÃO INLINE   */
+/* ============================ */
+.name-container {
+    flex-grow: 1; /* Permite que o contêiner do nome ocupe o espaço disponível */
+    cursor: pointer;
+}
+
+.name-input {
+    background-color: transparent;
+    border: none;
+    /* Adiciona uma linha inferior para indicar o modo de edição */
+    border-bottom: 2px solid #38bdf8; /* Cor sky-400 do Tailwind */
+    padding: 0;
+    color: #e2e8f0; /* Cor slate-200 do Tailwind */
+    width: 100%; /* Ocupa toda a largura do contêiner */
+    font-size: inherit; /* Herda o tamanho da fonte */
+    font-weight: inherit; /* Herda o peso da fonte */
+    line-height: inherit; /* Herda a altura da linha */
+}
+
+.name-input:focus {
+    outline: none; /* Remove o contorno padrão do navegador */
+}
+
 
 /* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */
