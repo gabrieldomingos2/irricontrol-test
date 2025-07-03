@@ -59,7 +59,7 @@ def _setup_main_antenna_structure(doc, antena, style, details_name, template, fi
     pnt.description = _create_html_description_table(antena, template, file_id, legend_name); pnt.style = style
     return subfolder
 
-# ✅ FUNÇÃO ATUALIZADA para receber as propriedades da legenda
+
 def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template, ts_prefix, overlay_props) -> list:
     files = []
     for i, item in enumerate(data):
@@ -71,19 +71,25 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         with open(path_json) as f: bounds = json.load(f).get("bounds")
         if not bounds: continue
         
-        nome = item.get("nome", f"Repetidora {i+1}")
+        altura_repetidora = item.get('altura', 5)
+        
+        if item.get('sobre_pivo'):
+            nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
+        else:
+            nome = f"Repetidora Solar {i+1:02d} - {altura_repetidora}m"
+
+            
         sub_nome = f"{ts_prefix}_Rep{i+1:02d}_Irricontrol_{template.id}"
         folder = doc.newfolder(name=nome); folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
         sub = folder.newfolder(name=sub_nome)
         lat, lon = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
         pnt = sub.newpoint(name=nome, coords=[(lon, lat)])
-        pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": item.get('altura',5)}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name)
+        pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": altura_repetidora}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name)
         pnt.style = style
         ground = sub.newgroundoverlay(name=f"Cobertura {nome}"); ground.icon.href = img_name
         ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = bounds[2], bounds[0], bounds[3], bounds[1]
         files.append((path_img, img_name))
         
-        # ✅ Usa as propriedades padronizadas recebidas como argumento
         screen_rep = sub.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
         screen_rep.icon.href = overlay_name
         screen_rep.overlayxy = simplekml.OverlayXY(**overlay_props['overlay_xy'])
