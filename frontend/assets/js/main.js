@@ -685,10 +685,10 @@ async function handlePivotDrawClick(e) {
 
         if (typeof removeTempCircle === 'function') removeTempCircle();
 
+        atualizarPainelDados();
         drawPivos(AppState.lastPivosDataDrawn, false);
         drawCirculos(AppState.ciclosGlobais);
-        atualizarPainelDados();
-
+        
         await reavaliarPivosViaAPI();
         mostrarMensagem(t('messages.success.pivot_created', { name: novoPivo.nome }), "sucesso");
 
@@ -700,7 +700,7 @@ async function handlePivotDrawClick(e) {
 
     } catch (error) {
         console.error("Falha ao criar o pivô:", error);
-        mostrarMensagem(t('messages.errors.generic_error'), "erro");
+        mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
         if (typeof removeTempCircle === 'function') removeTempCircle();
     } finally {
         AppState.centroPivoTemporario = null;
@@ -709,42 +709,48 @@ async function handlePivotDrawClick(e) {
 }
 
 function handleResetClick(showMessage = true) {
+    console.log("🔄 Resetando aplicação...");
     clearMapLayers(); 
-    AppState.reset(); // A mágica acontece aqui!
+    AppState.reset(); // Reseta todo o estado de DADOS primeiro.
     
     if (showMessage) {
       startNewSession();
     }
+
+
+    const toggleableButtonsIds = [
+        'editar-pivos',
+        'btn-los-pivot-a-pivot',
+        'btn-buscar-locais-repetidora',
+        'btn-draw-pivot',
+        'btn-draw-pivot-setorial',
+        'toggle-distancias-pivos',
+        'toggle-legenda'
+    ];
+
+
+    toggleableButtonsIds.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.classList.remove('glass-button-active');
+        }
+    });
     
-    // O restante é apenas para limpar a UI, o estado já foi resetado.
-    if (AppState.modoDesenhoPivo) {
-        toggleModoDesenhoPivo();
-    }
-    if (AppState.modoDesenhoPivoSetorial) {
-        toggleModoDesenhoPivoSetorial();
-    }
 
-    const btnDistancias = document.getElementById('toggle-distancias-pivos');
-    if (btnDistancias) {
-        btnDistancias.classList.remove('glass-button-active');
-        btnDistancias.title = t('ui.titles.show_pivot_distances');
-    }
-
-    if (document.getElementById("editar-pivos")?.classList.contains('glass-button-active')) {
-        togglePivoEditing();
-    }
-    if (document.getElementById('btn-los-pivot-a-pivot')?.classList.contains('glass-button-active')) {
-        toggleLoSPivotAPivotMode();
-    }
-    if (document.getElementById('btn-buscar-locais-repetidora')?.classList.contains('glass-button-active')) {
-        handleBuscarLocaisRepetidoraActivation();
-    }
     if (map) {
         map.getContainer().style.cursor = '';
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         }
     }
+    
+
+    map.off('click', handlePivotDrawClick);
+    map.off('mousemove', handlePivotDrawMouseMove);
+    map.off('contextmenu', handleCancelCircularDraw);
+    map.off('click', handleSectorialPivotDrawClick);
+    map.off('mousemove', handleSectorialDrawMouseMove);
+    
 
     document.getElementById("simular-btn")?.classList.add("hidden");
     document.getElementById("lista-repetidoras").innerHTML = "";
@@ -765,7 +771,7 @@ function handleResetClick(showMessage = true) {
     
     atualizarPainelDados();
     reposicionarPaineisLaterais();
-    toggleLegendas(true);
+    toggleLegendas(true); // Garante que as legendas voltem a ser visíveis
 
     if (showMessage) mostrarMensagem(t('messages.success.app_reset'), "sucesso");
 }
@@ -1297,17 +1303,21 @@ async function handleSectorialPivotDrawClick(e) {
             };
             AppState.ciclosGlobais.push(novoCiclo);
 
-            drawPivos(AppState.lastPivosDataDrawn, false);
-            drawCirculos(AppState.ciclosGlobais);
-            await reavaliarPivosViaAPI();
             atualizarPainelDados();
+            if (typeof drawPivos === 'function') drawPivos(AppState.lastPivosDataDrawn, false);
+            if (typeof drawCirculos === 'function') drawCirculos(AppState.ciclosGlobais);
+            
+            await reavaliarPivosViaAPI();
+            
             mostrarMensagem(t('messages.success.sector_pivot_created', { name: novoPivo.nome }), "sucesso");
+
         } catch (error) {
             console.error("Erro ao criar pivô setorial:", error);
-            mostrarMensagem(t('messages.errors.generic_error'), "erro");
+            mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
         } finally {
             AppState.centroPivoTemporario = null;
             mostrarLoader(false);
+            
             setTimeout(() => {
                 if (AppState.modoDesenhoPivoSetorial) {
                     mostrarMensagem(t('messages.info.draw_sector_pivot_still_active'), "info");
