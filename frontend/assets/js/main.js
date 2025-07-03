@@ -299,6 +299,20 @@ async function startMainSimulation(antenaData) {
         if(AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
         AppState.marcadorAntena = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
 
+        const tooltipAntenaContent = `
+            <div style="text-align: center;">
+                ${t('ui.labels.antenna_height_tooltip', { height: AppState.antenaGlobal.altura })}
+                <br>
+                ${t('ui.labels.receiver_height_tooltip', { height: AppState.antenaGlobal.altura_receiver })}
+            </div>
+        `;
+        AppState.marcadorAntena.bindTooltip(tooltipAntenaContent, {
+            permanent: false,
+            direction: 'top',
+            offset: [0, -40], 
+            className: 'tooltip-sinal'
+        });
+
         const nomeAntenaPrincipal = AppState.antenaGlobal.nome;
         const labelWidth = (nomeAntenaPrincipal.length * 7) + 10;
         const labelPrincipal = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], {
@@ -378,6 +392,8 @@ async function handleConfirmRepetidoraClick() {
     mostrarLoader(true);
 
     let repetidoraObj;
+    let nomeRep; // ✅ CORREÇÃO: Declarar a variável aqui
+    let id;      // ✅ CORREÇÃO: Declarar a variável aqui
 
     if (window.clickedCandidateData) {
         const candidateData = { ...window.clickedCandidateData };
@@ -398,52 +414,53 @@ async function handleConfirmRepetidoraClick() {
                 layersToRemove.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
             }
             
-            const id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
-            const nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
-
-            const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
-            const labelRepetidora = L.marker(AppState.coordenadaClicada, {
-                icon: L.divIcon({
-                    className: 'label-pivo',
-                    html: nomeRep,
-                    iconSize: [(nomeRep.length * 7) + 10, 20],
-                    iconAnchor: [((nomeRep.length * 7) + 10) / 2, 45]
-                }),
-                labelType: 'repetidora'
-            }).addTo(map);
-            AppState.marcadoresLegenda.push(labelRepetidora);
+            id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
+            nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
             
-            repetidoraObj = {
-                id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
-                altura: alturaAntena, altura_receiver: alturaReceiver,
-                lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
-                imagem_filename: null, sobre_pivo: false, nome: nomeRep
-            };
+            // O código do marcador e do tooltip foi movido para fora deste bloco
         }
     } 
     else {
         removePositioningMarker();
-        const id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
-        const nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
-
-        const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
-        const labelRepetidora = L.marker(AppState.coordenadaClicada, {
-            icon: L.divIcon({
-                className: 'label-pivo', html: nomeRep,
-                iconSize: [(nomeRep.length * 7) + 10, 20],
-                iconAnchor: [((nomeRep.length * 7) + 10) / 2, 45]
-            }),
-            labelType: 'repetidora'
-        }).addTo(map);
-        AppState.marcadoresLegenda.push(labelRepetidora);
-        
-        repetidoraObj = {
-            id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
-            altura: alturaAntena, altura_receiver: alturaReceiver,
-            lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
-            imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false, nome: nomeRep
-        };
+        id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
+        nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
+        // O código do marcador e do tooltip estava faltando aqui e foi movido para fora.
     }
+    
+    // ✅ CORREÇÃO: Este bloco agora é executado para AMBOS os casos (if e else)
+    const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
+    const labelRepetidora = L.marker(AppState.coordenadaClicada, {
+        icon: L.divIcon({
+            className: 'label-pivo', html: nomeRep,
+            iconSize: [(nomeRep.length * 7) + 10, 20],
+            iconAnchor: [((nomeRep.length * 7) + 10) / 2, 45]
+        }),
+        labelType: 'repetidora'
+    }).addTo(map);
+    AppState.marcadoresLegenda.push(labelRepetidora);
+
+    // Adiciona o tooltip ao marcador recém-criado
+    const tooltipRepetidoraContent = `
+        <div style="text-align: center;">
+            ${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}
+            <br>
+            ${t('ui.labels.receiver_height_tooltip', { height: alturaReceiver })}
+        </div>
+    `;
+    novaRepetidoraMarker.bindTooltip(tooltipRepetidoraContent, {
+        permanent: false,
+        direction: 'top',
+        offset: [0, -40],
+        className: 'tooltip-sinal'
+    });
+    
+    repetidoraObj = {
+        id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
+        altura: alturaAntena, altura_receiver: alturaReceiver,
+        lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
+        imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false, nome: nomeRep
+    };
+    // Fim do bloco corrigido
 
     if (repetidoraObj) {
         AppState.repetidoras.push(repetidoraObj);
@@ -874,7 +891,6 @@ async function handleExportClick() {
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
                     sobre_pivo: rep.sobre_pivo,
-                    nome: rep.nome
                 });
             }
         });

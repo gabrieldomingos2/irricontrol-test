@@ -71,22 +71,24 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         with open(path_json) as f: bounds = json.load(f).get("bounds")
         if not bounds: continue
         
-        nome = item.get("nome")
         altura_repetidora = item.get('altura', 5)
 
-        if not nome:
-            if item.get('sobre_pivo'):
-                nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
-            else:
-                nome = f"Repetidora Solar {i+1:02d} - {altura_repetidora}m"
+        if item.get('sobre_pivo'):
+            nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
+        else:
+            nome = f"Repetidora Solar - {altura_repetidora}m"
             
         sub_nome = f"{ts_prefix}_Rep{i+1:02d}_Irricontrol_{template.id}"
+        
         folder = doc.newfolder(name=nome); folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
         sub = folder.newfolder(name=sub_nome)
         lat, lon = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
+        
         pnt = sub.newpoint(name=nome, coords=[(lon, lat)])
+        
         pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": altura_repetidora}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name)
         pnt.style = style
+        
         ground = sub.newgroundoverlay(name=f"Cobertura {nome}"); ground.icon.href = img_name
         ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = bounds[2], bounds[0], bounds[3], bounds[1]
         files.append((path_img, img_name))

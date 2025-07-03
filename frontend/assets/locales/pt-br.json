@@ -25,6 +25,8 @@
             "processing": "Processando...",
             "antenna_height": "Altura da Antena (m)",
             "receiver_height": "Altura do Receiver (m)",
+            "antenna_height_tooltip": "Tx Height: {height}m",
+            "receiver_height_tooltip": "Rx Height: {height}m",
             "total_pivots": "Pivôs:",
             "out_of_coverage": "Fora da cobertura:",
             "main_antenna": "Antena principal:",
