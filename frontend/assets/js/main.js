@@ -337,10 +337,20 @@ async function startMainSimulation(antenaData) {
     
         
         if (data.pivos) {
-            AppState.lastPivosDataDrawn = JSON.parse(JSON.stringify(data.pivos));
-            drawPivos(data.pivos, false);
+            // Em vez de sobrescrever, mescla os resultados
+            AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.map(pivoAntigo => {
+                const pivoNovoDaAPI = data.pivos.find(p => p.nome.trim() === pivoAntigo.nome.trim());
+                // Se encontrou um correspondente na resposta da API, atualiza o status 'fora'.
+                // Senão, mantém o pivô antigo como está.
+                // Isso preserva 'tipo', 'raio', ângulos, etc.
+                return pivoNovoDaAPI ? { ...pivoAntigo, fora: pivoNovoDaAPI.fora } : pivoAntigo;
+            });
+            drawPivos(AppState.lastPivosDataDrawn, false);
         }
+        // ✅ FIM DA CORREÇÃO
+        
         if (data.bombas) {
+            // (a lógica das bombas já estava correta, mas mantemos para consistência)
             AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
             drawBombas(data.bombas);
         }
@@ -967,13 +977,15 @@ async function reavaliarPivosViaAPI() {
         const payload = { job_id: AppState.jobId, pivos: pivosParaReavaliar, bombas: bombasParaReavaliar, overlays };
         const data = await reevaluatePivots(payload);
 
+        // ✅ INÍCIO DA CORREÇÃO: Lógica de atualização segura
         if (data.pivos) {
             AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.map(pivoAntigo => {
                 const pivoNovoDaAPI = data.pivos.find(p => p.nome.trim() === pivoAntigo.nome.trim());
-                return pivoNovoDaAPI ? { ...pivoAntigo, ...pivoNovoDaAPI } : pivoAntigo;
+                return pivoNovoDaAPI ? { ...pivoAntigo, fora: pivoNovoDaAPI.fora } : pivoAntigo;
             });
             drawPivos(AppState.lastPivosDataDrawn, false);
         }
+        // ✅ FIM DA CORREÇÃO
 
         if (data.bombas) {
             AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));

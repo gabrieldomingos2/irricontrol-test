@@ -15,10 +15,21 @@ router = APIRouter(prefix="/simulation", tags=["Simulation & Analysis"])
 
 # --- Modelos Pydantic ---
 class PivoData(BaseModel):
-    nome: str; lat: float; lon: float
-    type: Literal['pivo'] = 'pivo'; fora: Optional[bool] = None
+    nome: str
+    lat: float
+    lon: float
+    # Permite que 'tipo' seja qualquer string, mas o padrão é 'pivo'
+    tipo: Optional[str] = 'pivo'
+    fora: Optional[bool] = None
+    # Adiciona os outros campos como opcionais para não quebrar em outras partes
+    raio: Optional[float] = None
+    angulo_central: Optional[float] = None
+    abertura_arco: Optional[float] = None
+    angulo_inicio: Optional[float] = None
+    angulo_fim: Optional[float] = None
 
 class BombaData(BaseModel):
+    # (este modelo não precisa de alteração)
     nome: str; lat: float; lon: float
     type: Literal['bomba'] = 'bomba'; fora: Optional[bool] = None
 

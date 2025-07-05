@@ -68,48 +68,62 @@ class CandidateSite(TypedDict):
     altura_necessaria_torre: Optional[float]
 
 # --- Análise de Cobertura (sem alterações) ---
-def verificar_cobertura_pivos(pivos: List[PivoInputData], overlays_info: List[OverlayInputData]) -> List[PivoInputData]:
-    # (código da função sem alterações)
+def verificar_cobertura_pivos(pivos: List[Dict[str, Any]], overlays_info: List[OverlayInputData]) -> List[Dict[str, Any]]:
     logger.info(f"🔎 Verificando cobertura para {len(pivos)} pivôs com {len(overlays_info)} overlays.")
     imagens_abertas_cache: Dict[Path, Image.Image] = {}
-    pivos_atualizados: List[PivoInputData] = []
+    pivos_atualizados: List[Dict[str, Any]] = []
+
     for pivo_data in pivos:
+        # Copia todos os dados originais do pivô
+        pivo_data_atualizado = pivo_data.copy()
         lat, lon = pivo_data["lat"], pivo_data["lon"]
         coberto_por_algum_overlay = False
+
         for overlay_data in overlays_info:
             bounds = overlay_data["bounds"]
             imagem_path_servidor = Path(overlay_data["imagem_path"])
+            
             if not imagem_path_servidor.is_file():
-                logger.warning(f"  -> ⚠️ Imagem não encontrada em: {imagem_path_servidor} (para overlay ID: {overlay_data.get('id', 'N/A')}). Pulando overlay.")
+                logger.warning(f"  -> ⚠️ Imagem não encontrada em: {imagem_path_servidor}. Pulando overlay.")
                 continue
+            
             try:
                 if imagem_path_servidor not in imagens_abertas_cache:
                     imagens_abertas_cache[imagem_path_servidor] = Image.open(imagem_path_servidor).convert("RGBA")
+                
                 pil_image = imagens_abertas_cache[imagem_path_servidor]
                 img_width, img_height = pil_image.size
                 s, w, n, e = bounds
+                
                 if s > n: s, n = n, s
                 if w > e: w, e = e, w
+                
                 delta_lon = e - w
                 delta_lat = n - s
+
                 if delta_lon == 0 or delta_lat == 0:
                     continue
+
                 pixel_x = int(((lon - w) / delta_lon) * img_width)
                 pixel_y = int(((n - lat) / delta_lat) * img_height)
+
                 if 0 <= pixel_x < img_width and 0 <= pixel_y < img_height:
                     _, _, _, alpha_channel = pil_image.getpixel((pixel_x, pixel_y))
                     if alpha_channel > 50:
                         coberto_por_algum_overlay = True
                         break
             except Exception as ex:
-                logger.error(f"  -> ❌ Erro ao analisar overlay {overlay_data.get('id', imagem_path_servidor.name)} para pivô '{pivo_data['nome']}': {ex}", exc_info=True)
-        pivo_data_atualizado = pivo_data.copy()
-        pivo_data_atualizado["fora"] = not coberto_por_algum_overlay # type: ignore
-        pivos_atualizados.append(pivo_data_atualizado) # type: ignore
+                logger.error(f"  -> ❌ Erro ao analisar overlay para pivô '{pivo_data['nome']}': {ex}", exc_info=True)
+        
+        # Apenas atualiza o status 'fora', preservando todo o resto
+        pivo_data_atualizado["fora"] = not coberto_por_algum_overlay
+        pivos_atualizados.append(pivo_data_atualizado)
+
     for img_obj in imagens_abertas_cache.values():
         img_obj.close()
+    
     logger.info("  -> Verificação de cobertura concluída.")
-    return pivos_atualizados # type: ignore
+    return pivos_atualizados
 
 # ✅ NOVA FUNÇÃO PARA VERIFICAR COBERTURA DAS BOMBAS
 def verificar_cobertura_bombas(bombas: List[Dict], overlays_info: List[OverlayInputData]) -> List[Dict]:
