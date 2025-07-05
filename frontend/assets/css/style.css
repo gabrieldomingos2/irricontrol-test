@@ -454,5 +454,31 @@ button, .glass-button, label[for="arquivo"] {
 
 
 /* ============================ */
+/* ✒️ LEGENDA DE CORES (IMAGEM) */
+/* ============================ */
+#legend-container {
+  backdrop-filter: blur(8px);
+  background: rgba(10, 15, 20, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  /* ✅ Posição final corrigida */
+  top: 4rem;
+  right: 0.1rem; /* colado na lateral direita real oficial */
+
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 51;
+}
+
+#legend-image {
+  max-width: 72px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */
 /* ============================ */

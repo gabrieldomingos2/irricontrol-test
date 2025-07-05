@@ -10,6 +10,8 @@ const rangeOpacidade = document.getElementById("range-opacidade");
 const templateSelect = document.getElementById('template-modelo');
 const arquivoInput = document.getElementById('arquivo');
 const nomeArquivoLabel = document.getElementById('nome-arquivo-label');
+const legendContainer = document.getElementById('legend-container');
+const legendImage = document.getElementById('legend-image'); 
 
 // ==========================
 // 🔥 FUNÇÕES DE MENSAGEM E LOADER
@@ -43,6 +45,32 @@ function mostrarMensagem(texto, tipo = 'sucesso') {
 function mostrarLoader(ativo) {
     loaderDiv.classList.toggle('hidden', !ativo);
 }
+
+/**
+ * ATUALIZA A IMAGEM DA LEGENDA DE CORES COM BASE NO TEMPLATE SELECIONADO
+ * @param {string} templateName - O nome do template (ex: "Brazil_v6").
+ */
+function updateLegendImage(templateName) {
+    if (!legendContainer || !legendImage) return;
+
+    let imagePath = null;
+    const normalizedName = templateName.toLowerCase();
+
+    if (normalizedName.includes("brazil_v6")) {
+        imagePath = "assets/images/IRRICONTRO.dBm.key.png";
+    } else if (normalizedName.includes("europe") && normalizedName.includes("v6")) {
+        // Captura "Europe_v6", "europe v6", etc.
+        imagePath = "assets/images/IRRIEUROPE.dBm.key.png";
+    }
+
+    if (imagePath) {
+        legendImage.src = imagePath;
+        legendContainer.classList.remove('hidden');
+    } else {
+        legendContainer.classList.add('hidden');
+    }
+}
+
 
 // ==========================
 // 📊 ATUALIZAÇÕES DE PAINÉIS
@@ -86,12 +114,6 @@ function togglePainel(id) {
 // ==========================
 // 📂 UPLOAD E TEMPLATE
 // ==========================
-function updateFileName(e) {
-    const nome = e.target.files[0]?.name || t('ui.labels.choose_kmz');
-    nomeArquivoLabel.textContent = nome;
-    nomeArquivoLabel.title = nome;
-}
-
 async function loadAndPopulateTemplates() {
     try {
         const templates = await getTemplates();
@@ -149,12 +171,11 @@ function setupUIEventListeners() {
         updateOverlaysOpacity(parseFloat(rangeOpacidade.value));
     });
 
-    arquivoInput.addEventListener("change", updateFileName);
-
     templateSelect.addEventListener("change", (e) => {
         AppState.templateSelecionado = e.target.value;
         localStorage.setItem('templateSelecionado', AppState.templateSelecionado);
         atualizarPainelDados();
+        updateLegendImage(e.target.value);
         console.log("Template selecionado:", AppState.templateSelecionado);
     });
 

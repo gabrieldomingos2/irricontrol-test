@@ -92,18 +92,13 @@
             <input type="text" id="lat-long-input-field" data-i18n-attr="placeholder" data-i18n="ui.placeholders.lat_lon_search" class="flex-grow h-full pl-0 pr-2 rounded-md bg-transparent border-none text-sm text-white/80 placeholder:text-white/50 focus:outline-none focus:ring-0" />
         </div>
 
-            <form id="formulario" enctype="multipart/form-data" class="flex flex-col gap-3">
+            <div class="flex flex-col gap-3">
                 <label for="arquivo" class="w-full h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
                     <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/file-up.svg); mask-image: url(assets/images/file-up.svg);"></span>
                     <span id="nome-arquivo-label" class="text-sm font-medium truncate" data-i18n="ui.labels.choose_kmz">Escolher Arquivo KMZ</span>
                 </label>
                 <input type="file" id="arquivo" accept=".kmz" required class="hidden" />
-
-                <button type="submit" class="w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
-                    <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/map-pinned.svg); mask-image: url(assets/images/map-pinned.svg);"></span>
-                    <span class="text-sm font-medium" data-i18n="ui.buttons.load_kmz">Carregar KMZ</span>
-                </button>
-            </form>
+            </div>
 
             <button id="simular-btn" class="w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
                 <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
@@ -184,6 +179,11 @@
         </svg>
         <span class="mt-4 text-lg font-bold text-green-300" data-i18n="ui.labels.processing">Processando...</span>
     </div>
+
+<div id="legend-container" class="absolute top-6 right-6 hidden">
+    <img id="legend-image" src="" alt="Legenda de Cores"
+         class="block max-w-[80px] h-auto rounded-md shadow-lg" />
+</div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="assets/js/i18n.js"></script>

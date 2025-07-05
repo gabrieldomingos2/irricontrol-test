@@ -109,7 +109,6 @@ const AppState = {
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("DOM Carregado. Iniciando Aplicação...");
     
-    // Inicializa o sistema de tradução antes de tudo
     const savedLang = localStorage.getItem('preferredLanguage') || 'pt-br';
     await setLanguage(savedLang);
     
@@ -120,7 +119,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     reposicionarPaineisLaterais();
     lucide.createIcons();
     
-    // Inicia uma sessão de trabalho vazia ao carregar a página
     await startNewSession();
 
     console.log("Aplicação Pronta.");
@@ -137,14 +135,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function startNewSession() {
     mostrarLoader(true);
     try {
-        const data = await startEmptyJob(); // Chama a nova função da API
+        const data = await startEmptyJob();
         if (!data.job_id) {
             throw new Error("A resposta do servidor não incluiu um ID de job.");
         }
         AppState.setJobId(data.job_id);
         mostrarMensagem(t('messages.success.new_session_started'), "sucesso");
         
-        // Simula dados vazios para que o resto do app não quebre
         AppState.currentProcessedKmzData = { antenas: [], pivos: [], ciclos: [], bombas: [] };
         
     } catch (error) {
@@ -159,7 +156,7 @@ async function startNewSession() {
 // --- Configuração dos Listeners Principais ---
 
 function setupMainActionListeners() {
-    document.getElementById('formulario').addEventListener('submit', handleFormSubmit);
+    document.getElementById('arquivo').addEventListener('change', handleKmzFileSelect);
     document.getElementById('resetar-btn').addEventListener('click', handleResetClick);
     document.getElementById('exportar-btn').addEventListener('click', handleExportClick);
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
@@ -185,16 +182,23 @@ function setupMainActionListeners() {
 
 // --- Handlers de Ações Principais ---
 
-async function handleFormSubmit(e) {
-    e.preventDefault();
-    const fileInput = document.getElementById('arquivo');
+async function handleKmzFileSelect(event) {
+    const fileInput = event.target;
     if (!fileInput.files || fileInput.files.length === 0) {
-        mostrarMensagem(t('messages.errors.select_kmz'), "erro");
         return;
     }
+    const file = fileInput.files[0];
+    
+    const nomeArquivoLabel = document.getElementById('nome-arquivo-label');
+    if (nomeArquivoLabel) {
+        const nome = file.name || t('ui.labels.choose_kmz');
+        nomeArquivoLabel.textContent = nome;
+        nomeArquivoLabel.title = nome;
+    }
+    
     mostrarLoader(true);
     const formData = new FormData();
-    formData.append("file", fileInput.files[0]);
+    formData.append("file", file);
 
     try {
         const data = await processKmz(formData);
@@ -204,10 +208,8 @@ async function handleFormSubmit(e) {
             throw new Error("A resposta do servidor não incluiu um ID de job.");
         }
         
-        // Limpa a sessão anterior e inicia com os dados do KMZ
         handleResetClick(false);
         
-        // Define o novo Job ID e os dados do KMZ
         AppState.setJobId(data.job_id);
         AppState.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
         
@@ -252,9 +254,10 @@ async function handleFormSubmit(e) {
     } catch (error) {
         console.error("❌ Erro no submit do formulário:", error);
         mostrarMensagem(t('messages.errors.kmz_load_fail', { error: error.message }), "erro");
-        await startNewSession(); // Tenta iniciar uma sessão vazia em caso de falha
+        await startNewSession(); 
     } finally {
         mostrarLoader(false);
+        fileInput.value = ''; 
     }
 }
 
@@ -337,20 +340,16 @@ async function startMainSimulation(antenaData) {
     
         
         if (data.pivos) {
-            // Em vez de sobrescrever, mescla os resultados
+
             AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.map(pivoAntigo => {
                 const pivoNovoDaAPI = data.pivos.find(p => p.nome.trim() === pivoAntigo.nome.trim());
-                // Se encontrou um correspondente na resposta da API, atualiza o status 'fora'.
-                // Senão, mantém o pivô antigo como está.
-                // Isso preserva 'tipo', 'raio', ângulos, etc.
+
                 return pivoNovoDaAPI ? { ...pivoAntigo, fora: pivoNovoDaAPI.fora } : pivoAntigo;
             });
             drawPivos(AppState.lastPivosDataDrawn, false);
         }
-        // ✅ FIM DA CORREÇÃO
         
         if (data.bombas) {
-            // (a lógica das bombas já estava correta, mas mantemos para consistência)
             AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
             drawBombas(data.bombas);
         }
@@ -785,12 +784,13 @@ function handleResetClick(showMessage = true) {
     const paineisParaEsconder = ["painel-repetidora", "painel-dados", "painel-repetidoras", "desfazer-edicao"];
     paineisParaEsconder.forEach(id => document.getElementById(id)?.classList.add("hidden"));
 
-    document.getElementById('formulario')?.reset();
     const nomeArquivoLabelElement = document.getElementById('nome-arquivo-label');
     if (nomeArquivoLabelElement) {
         nomeArquivoLabelElement.textContent = t('ui.labels.choose_kmz');
         nomeArquivoLabelElement.title = t('ui.labels.choose_kmz');
     }
+    const arquivoInput = document.getElementById('arquivo');
+    if (arquivoInput) arquivoInput.value = '';
 
     document.getElementById("range-opacidade").value = 1;
 
@@ -977,7 +977,6 @@ async function reavaliarPivosViaAPI() {
         const payload = { job_id: AppState.jobId, pivos: pivosParaReavaliar, bombas: bombasParaReavaliar, overlays };
         const data = await reevaluatePivots(payload);
 
-        // ✅ INÍCIO DA CORREÇÃO: Lógica de atualização segura
         if (data.pivos) {
             AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.map(pivoAntigo => {
                 const pivoNovoDaAPI = data.pivos.find(p => p.nome.trim() === pivoAntigo.nome.trim());
@@ -985,7 +984,6 @@ async function reavaliarPivosViaAPI() {
             });
             drawPivos(AppState.lastPivosDataDrawn, false);
         }
-        // ✅ FIM DA CORREÇÃO
 
         if (data.bombas) {
             AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
