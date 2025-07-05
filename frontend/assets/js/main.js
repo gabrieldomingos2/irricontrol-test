@@ -1303,67 +1303,90 @@ function toggleModoDesenhoPivoSetorial() {
     }
 }
 
+/**
+ * Lida com os cliques no mapa para desenhar um pivô setorial.
+ * O primeiro clique define o centro; o segundo define o raio e a direção.
+ * @param {object} e - O evento de clique do Leaflet.
+ */
 async function handleSectorialPivotDrawClick(e) {
+    // Garante que a função só execute se o modo de desenho setorial estiver ativo.
     if (!AppState.modoDesenhoPivoSetorial) return;
 
+    // Primeiro clique: Define o ponto central do pivô.
     if (!AppState.centroPivoTemporario) {
         AppState.centroPivoTemporario = e.latlng;
         mostrarMensagem(t('messages.info.draw_sector_pivot_step2'), "info");
-    } else {
-        const finalPoint = e.latlng;
-        const radius = AppState.centroPivoTemporario.distanceTo(finalPoint);
+        return; // Aguarda o próximo clique.
+    }
 
-        if (typeof removeTempSector === 'function') removeTempSector();
+    // Segundo clique: Define o ponto final, que determina o raio e a direção.
+    const finalPoint = e.latlng;
+    const radius = AppState.centroPivoTemporario.distanceTo(finalPoint);
 
-        if (radius < 10) {
-            AppState.centroPivoTemporario = null;
-            mostrarMensagem(t('messages.errors.draw_pivot_radius_too_small'), "erro");
-            return;
-        }
-        mostrarLoader(true);
-        try {
-            const bearing = calculateBearing(AppState.centroPivoTemporario, finalPoint);
-            const novoNumero = getNextPivotNumber();
-            const novoNome = `Pivô ${novoNumero}`;
-            
-            const novoPivo = {
-                nome: novoNome,
-                lat: AppState.centroPivoTemporario.lat,
-                lon: AppState.centroPivoTemporario.lng,
-                fora: true,
-                tipo: 'setorial',
-                raio: radius,
-                angulo_central: bearing,
-                abertura_arco: 180 
-            };
-            AppState.lastPivosDataDrawn.push(novoPivo);
-            const novoCiclo = {
-                nome_original_circulo: `Ciclo ${novoPivo.nome}`,
-                coordenadas: []
-            };
-            AppState.ciclosGlobais.push(novoCiclo);
+    // Limpa a forma de pré-visualização do mapa.
+    if (typeof removeTempSector === 'function') {
+        removeTempSector();
+    }
 
-            atualizarPainelDados();
-            if (typeof drawPivos === 'function') drawPivos(AppState.lastPivosDataDrawn, false);
-            if (typeof drawCirculos === 'function') drawCirculos(AppState.ciclosGlobais);
-            
-            await reavaliarPivosViaAPI();
-            
-            mostrarMensagem(t('messages.success.sector_pivot_created', { name: novoPivo.nome }), "sucesso");
+    // Validação para evitar pivôs muito pequenos ou cliques acidentais.
+    if (radius < 10) { // Raio mínimo de 10 metros.
+        AppState.centroPivoTemporario = null; // Reseta o desenho.
+        mostrarMensagem(t('messages.errors.draw_pivot_radius_too_small'), "erro");
+        return;
+    }
 
-        } catch (error) {
-            console.error("Erro ao criar pivô setorial:", error);
-            mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
-        } finally {
-            AppState.centroPivoTemporario = null;
-            mostrarLoader(false);
-            
-            setTimeout(() => {
-                if (AppState.modoDesenhoPivoSetorial) {
-                    mostrarMensagem(t('messages.info.draw_sector_pivot_still_active'), "info");
-                }
-            }, 2000);
-        }
+    mostrarLoader(true);
+    try {
+        // Calcula a direção (azimute) do centro para o ponto final.
+        const bearing = calculateBearing(AppState.centroPivoTemporario, finalPoint);
+        const novoNumero = getNextPivotNumber();
+        const novoNome = `Pivô ${novoNumero}`;
+        
+        // Cria o objeto de dados para o novo pivô setorial.
+        const novoPivo = {
+            nome: novoNome,
+            lat: AppState.centroPivoTemporario.lat,
+            lon: AppState.centroPivoTemporario.lng,
+            fora: true, // Começa como "fora da cobertura" até a reavaliação.
+            tipo: 'setorial', // Identificador crucial para o frontend e backend.
+            raio: radius,
+            angulo_central: bearing, // A direção do setor.
+            abertura_arco: 180       // A largura do arco (fixa em 180 graus neste caso).
+        };
+        AppState.lastPivosDataDrawn.push(novoPivo);
+
+        // Cria um "ciclo" correspondente com coordenadas vazias.
+        // Isso mantém a consistência da estrutura de dados para a exportação.
+        const novoCiclo = {
+            nome_original_circulo: `Ciclo ${novoPivo.nome}`,
+            coordenadas: []
+        };
+        AppState.ciclosGlobais.push(novoCiclo);
+
+        // Atualiza a UI para refletir o novo pivô.
+        atualizarPainelDados();
+        if (typeof drawPivos === 'function') drawPivos(AppState.lastPivosDataDrawn, false);
+        if (typeof drawCirculos === 'function') drawCirculos(AppState.ciclosGlobais);
+        
+        // Chama a API para recalcular a cobertura de sinal com o novo pivô.
+        await reavaliarPivosViaAPI();
+        
+        mostrarMensagem(t('messages.success.sector_pivot_created', { name: novoPivo.nome }), "sucesso");
+
+    } catch (error) {
+        console.error("Erro ao criar pivô setorial:", error);
+        mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
+    } finally {
+        // Reseta o estado do desenho para permitir a criação de um novo pivô.
+        AppState.centroPivoTemporario = null;
+        mostrarLoader(false);
+        
+        // Informa ao usuário que ele pode continuar desenhando.
+        setTimeout(() => {
+            if (AppState.modoDesenhoPivoSetorial) {
+                mostrarMensagem(t('messages.info.draw_sector_pivot_still_active'), "info");
+            }
+        }, 2000);
     }
 }
 
@@ -1445,7 +1468,7 @@ async function handlePacmanPivotDrawClick(e) {
         const centro = AppState.centroPivoTemporario;
         const raio = centro.distanceTo(AppState.pontoRaioTemporario);
 
-        if (raio < 10) { // Validação de raio mínimo
+        if (raio < 10) {
              throw new Error(t('messages.errors.draw_pivot_radius_too_small'));
         }
 
@@ -1460,14 +1483,24 @@ async function handlePacmanPivotDrawClick(e) {
             lat: centro.lat,
             lon: centro.lng,
             fora: true,
-            tipo: 'pacman', // Novo tipo!
+            tipo: 'pacman',
             raio: raio,
             angulo_inicio: anguloInicio,
             angulo_fim: anguloFim
         };
         
         AppState.lastPivosDataDrawn.push(novoPivo);
-        // O "círculo" associado será o polígono do pacman, desenhado por drawCirculos
+
+        // ✅ INÍCIO DA CORREÇÃO: Adiciona o placeholder na lista de ciclos.
+        // Isto é crucial para que o backend saiba que esta área existe.
+        const novoCiclo = {
+            nome_original_circulo: `Ciclo ${novoPivo.nome}`,
+            coordenadas: [] // Coordenadas vazias, pois a forma é gerada por parâmetros.
+        };
+        AppState.ciclosGlobais.push(novoCiclo);
+        // ✅ FIM DA CORREÇÃO
+
+        // Redesenha tudo no mapa
         drawPivos(AppState.lastPivosDataDrawn, false);
         drawCirculos(AppState.ciclosGlobais);
         

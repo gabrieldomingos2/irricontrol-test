@@ -31,13 +31,11 @@ def _generate_sector_coords(lat, lon, radius_m, bearing_deg, arc_width_deg, step
     coords.append((lon, lat, 0)) # Fecha o polígono no centro
     return coords
 
-# ✅ NOVA FUNÇÃO PARA GERAR A GEOMETRIA DO PAC-MAN
 def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, steps=80) -> list:
     """Gera coordenadas para um polígono de setor invertido (Pac-Man)."""
     coords = [(lon, lat, 0)]
     center_point = Point(latitude=lat, longitude=lon)
 
-    # Normaliza ângulos para desenhar o arco maior
     start_angle = start_angle_deg
     end_angle = end_angle_deg
     if end_angle <= start_angle:
@@ -46,9 +44,7 @@ def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, 
     mouth_angle = end_angle - start_angle
     irrigated_angle = 360 - mouth_angle
 
-    # Gera os pontos para o arco irrigado
     for i in range(steps + 1):
-        # Começa do fim da "boca" e desenha o arco principal
         current_angle = end_angle + (i * irrigated_angle / steps)
         dest = geodesic(meters=radius_m).destination(center_point, current_angle)
         coords.append((dest.longitude, dest.latitude, 0))
@@ -60,6 +56,7 @@ def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, 
 # --- Funções de Criação de Estrutura KML ---
 
 def _create_html_description_table(entity_data: dict, template: Any, file_id_info: str, colour_key_filename: str) -> str:
+    # (Esta função permanece inalterada)
     txw, txg_dbi = template.transmitter.txw, template.antenna.txg
     tx_power_dbm = 10 * log10(txw * 1000)
     eirp_dbm = tx_power_dbm + txg_dbi
@@ -90,11 +87,13 @@ def _create_html_description_table(entity_data: dict, template: Any, file_id_inf
     </table></div>"""
 
 def _create_kml_styles() -> Tuple[simplekml.Style, simplekml.Style]:
+    # (Esta função permanece inalterada)
     torre_style = simplekml.Style(iconstyle=simplekml.IconStyle(icon=simplekml.Icon(href=TORRE_ICON_NAME), scale=1.2), labelstyle=simplekml.LabelStyle(scale=1.1))
     default_point_style = simplekml.Style(iconstyle=simplekml.IconStyle(icon=simplekml.Icon(href=DEFAULT_ICON_URL)))
     return torre_style, default_point_style
 
 def _setup_main_antenna_structure(doc, antena, style, details_name, template, file_id, legend_name) -> simplekml.Folder:
+    # (Esta função permanece inalterada)
     folder = doc.newfolder(name=antena.get("nome", "Antena Principal")); folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
     subfolder = folder.newfolder(name=details_name)
     pnt = subfolder.newpoint(name=antena.get("nome", "Antena"), coords=[(antena["lon"], antena["lat"])])
@@ -102,6 +101,7 @@ def _setup_main_antenna_structure(doc, antena, style, details_name, template, fi
     return subfolder
 
 def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template, ts_prefix, overlay_props) -> list:
+    # (Esta função permanece inalterada)
     files = []
     for i, item in enumerate(data):
         img_name = item.get("imagem")
@@ -145,27 +145,28 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         
     return files
 
-# ✅ FUNÇÃO REFATORADA PARA INCLUIR TODOS OS TIPOS DE ÁREAS
+# ✅ FUNÇÃO COMPLETAMENTE REFATORADA PARA CORRIGIR O PROBLEMA
 def _add_secondary_folders(doc, pivos, ciclos, bombas, style):
-    # Adiciona marcadores de ponto para todos os pivôs
+    # 1. Adiciona marcadores de ponto para todos os pivôs, independente do tipo
     if pivos:
         f_pivos = doc.newfolder(name="Pivôs (Marcadores)")
         for p_data in pivos:
             f_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])]).style = style
 
-    # Verifica se há alguma área (de qualquer tipo) para ser desenhada
-    has_ciclos = ciclos and any(c.get("coordenadas") for c in ciclos)
-    pivos_com_area_desenhada_manualmente = [p for p in pivos if p.get('tipo') in ['setorial', 'pacman']]
+    # 2. Prepara para desenhar as áreas, se houver alguma
+    f_areas = doc.newfolder(name="Áreas de Pivôs")
+    nomes_pivos_desenhados_manualmente = set()
 
-    if has_ciclos or pivos_com_area_desenhada_manualmente:
-        f_areas = doc.newfolder(name="Áreas de Pivôs")
-
-        # Desenha pivôs manuais (setorial e pacman)
-        for pivo_data in pivos_com_area_desenhada_manualmente:
+    # 3. Primeiro, desenha TODAS as áreas de pivôs desenhados manualmente (Setorial e Pac-Man)
+    pivos_com_area_manual = [p for p in pivos if p.get('tipo') in ['setorial', 'pacman']]
+    if pivos_com_area_manual:
+        logger.info(f"Exportando {len(pivos_com_area_manual)} áreas de pivôs desenhados manualmente.")
+        for pivo_data in pivos_com_area_manual:
+            coords_area = []
+            pivo_nome = pivo_data.get('nome', 'Sem Nome')
+            pivo_tipo = pivo_data.get('tipo')
+            
             try:
-                coords_area = []
-                pivo_tipo = pivo_data.get('tipo')
-                
                 if pivo_tipo == 'setorial':
                     coords_area = _generate_sector_coords(
                         lat=pivo_data['lat'], lon=pivo_data['lon'], radius_m=pivo_data['raio'],
@@ -178,27 +179,37 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style):
                     )
                 
                 if coords_area:
-                    pol = f_areas.newpolygon(name=f"Área {pivo_data['nome']}")
+                    pol = f_areas.newpolygon(name=f"Área {pivo_nome}")
                     pol.outerboundaryis = coords_area
                     pol.style.polystyle.fill = 0
                     pol.style.linestyle.color = simplekml.Color.red
                     pol.style.linestyle.width = 4
+                    nomes_pivos_desenhados_manualmente.add(pivo_nome) # ✅ Adiciona à lista de já desenhados
             except KeyError as e:
-                logger.warning(f"Dados ausentes para desenhar área do pivô '{pivo_data.get('nome')}': {e}. Pulando.")
-        
-        # Desenha os círculos que vieram do KMZ original
-        if has_ciclos:
-            for ciclo_data in ciclos:
-                coords = ciclo_data.get("coordenadas")
-                if coords and len(coords) > 2:
-                    nome_area = ciclo_data.get("nome_original_circulo", "Área").replace("Ciclo", "Área")
-                    pol = f_areas.newpolygon(name=nome_area)
-                    pol.outerboundaryis = [(lon, lat, 0) for lat, lon in coords]
-                    pol.style.polystyle.fill = 0
-                    pol.style.linestyle.color = simplekml.Color.red
-                    pol.style.linestyle.width = 4
+                logger.warning(f"Dados ausentes para desenhar área do pivô '{pivo_nome}': {e}. Pulando.")
 
-    # Adiciona marcadores de ponto para as bombas
+    # 4. Depois, desenha os círculos que vieram do KMZ original OU desenhados como círculo
+    if ciclos:
+        logger.info(f"Exportando {len(ciclos)} áreas de pivôs circulares.")
+        for ciclo_data in ciclos:
+            coords = ciclo_data.get("coordenadas")
+            nome_ciclo = ciclo_data.get("nome_original_circulo", "")
+            nome_pivo_associado = nome_ciclo.replace("Ciclo ", "").strip()
+
+            # ✅ CORREÇÃO CRÍTICA: Só desenha o círculo se ele NÃO foi desenhado acima
+            if nome_pivo_associado in nomes_pivos_desenhados_manualmente:
+                logger.info(f" -> Pulando círculo para '{nome_pivo_associado}', pois já foi desenhado como Setorial/Pac-Man.")
+                continue
+
+            if coords and len(coords) > 2:
+                nome_area = nome_ciclo.replace("Ciclo", "Área")
+                pol = f_areas.newpolygon(name=nome_area)
+                pol.outerboundaryis = [(lon, lat, 0) for lat, lon in coords]
+                pol.style.polystyle.fill = 0
+                pol.style.linestyle.color = simplekml.Color.red
+                pol.style.linestyle.width = 4
+
+    # 5. Adiciona marcadores de ponto para as bombas
     if bombas:
         f_bombas = doc.newfolder(name="Bombas")
         for i, b_data in enumerate(bombas):
@@ -206,6 +217,7 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style):
 
 
 def build_kml_document_and_get_image_list(doc, pivos_data, ciclos_data, bombas_data, repetidoras_selecionadas_data, generated_images_dir, selected_template, antena_data, imagem_principal_nome_relativo, bounds_principal_data) -> List[Tuple[Path, str]]:
+    # (Esta função permanece inalterada)
     logger.info("Iniciando construção da estrutura KML.")
     torre_style, default_point_style = _create_kml_styles()
     
