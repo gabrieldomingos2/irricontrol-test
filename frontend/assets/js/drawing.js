@@ -39,6 +39,7 @@ const posicionamentoIcon = L.icon({
 // As camadas agora são gerenciadas pelo AppState, mas a declaração da variável pode permanecer se for mais conveniente
 let antenaCandidatesLayerGroup = L.layerGroup();
 let tempSectorShape = null;
+let tempPacmanShape = null;
 
 
 // --- FUNÇÃO AUXILIAR PARA MEDIÇÃO DINÂMICA ---
@@ -247,19 +248,25 @@ function drawCirculos(ciclosData) {
             const sectorCoords = generateSectorCoords(L.latLng(pivo.lat, pivo.lon), pivo.raio, pivo.angulo_central, pivo.abertura_arco);
             const sectorPolygon = L.polygon(sectorCoords, { color: '#cc0000', weight: 2, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-setorial' }).addTo(map);
             AppState.circulosPivos.push(sectorPolygon);
+        } else if (pivo.tipo === 'pacman') {
+            const pacmanCoords = generatePacmanCoords(L.latLng(pivo.lat, pivo.lon), pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
+            const pacmanPolygon = L.polygon(pacmanCoords, { color: '#cc0000', weight: 2, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-pacman' }).addTo(map);
+            AppState.circulosPivos.push(pacmanPolygon);
         }
     });
 
     const ciclosCirculares = ciclosData.filter(ciclo => {
+        if (!ciclo.nome_original_circulo) return false;
         const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
         const pivoCorrespondente = AppState.lastPivosDataDrawn.find(p => p.nome === nomePivo);
-        return !pivoCorrespondente || pivoCorrespondente.tipo !== 'setorial';
+        return !pivoCorrespondente || !['setorial', 'pacman'].includes(pivoCorrespondente.tipo);
     });
 
     AppState.circulosPivos.push(...ciclosCirculares.map(circulo =>
         L.polygon(circulo.coordenadas, { color: '#cc0000', weight: 2, opacity: 0.9, fillOpacity: 0, className: 'circulo-vermelho-pulsante' }).addTo(map)
     ));
 }
+
 
 function drawImageOverlay(url, bounds, opacity = 1.0) {
     if (!map || !url || !bounds) return null;
@@ -649,4 +656,76 @@ if (!L.LatLng.prototype.destination) {
         const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(distance / R) * Math.cos(lat1), Math.cos(distance / R) - Math.sin(lat1) * Math.sin(lat2));
         return L.latLng(toDeg(lat2), toDeg(lon2));
     };
+}
+
+/**
+ * Gera as coordenadas para um polígono em forma de Pac-Man (setor invertido).
+ * @param {L.LatLng} center - O ponto central.
+ * @param {number} radius - O raio em metros.
+ * @param {number} startAngle - O ângulo que inicia a boca (0-360).
+ * @param {number} endAngle - O ângulo que termina a boca (0-360).
+ * @param {number} points - A quantidade de pontos para formar o arco.
+ * @returns {Array<Array<number>>} - As coordenadas para L.polygon.
+ */
+function generatePacmanCoords(center, radius, startAngle, endAngle, points = 80) {
+    let anguloInicioNormalizado = startAngle;
+    let anguloFimNormalizado = endAngle;
+
+    // Garante que o arco seja desenhado no caminho mais longo
+    if (anguloFimNormalizado <= anguloInicioNormalizado) {
+        anguloFimNormalizado += 360;
+    }
+
+    const vertices = [[center.lat, center.lng]];
+    const arcAngle = anguloFimNormalizado - anguloInicioNormalizado;
+    const irrigatedAngle = 360 - arcAngle;
+
+    // Desenha o arco principal (a parte "comestível" do Pac-Man)
+    for (let i = 0; i <= points; i++) {
+        const angle = anguloFimNormalizado + (i * irrigatedAngle / points);
+        const point = center.destination(radius, angle);
+        vertices.push([point.lat, point.lng]);
+    }
+    
+    // Fecha o polígono voltando ao centro
+    vertices.push([center.lat, center.lng]);
+
+    return vertices;
+}
+
+function drawTempPacman(center, radiusPoint, currentMousePoint) {
+    if (tempPacmanShape) {
+        map.removeLayer(tempPacmanShape);
+        tempPacmanShape = null;
+    }
+
+    // Estágio 1: Desenhando o raio inicial (pré-visualização com círculo)
+    if (!radiusPoint) {
+        const radius = center.distanceTo(currentMousePoint);
+        if (radius > 5) { // Evita criar círculos muito pequenos
+            tempPacmanShape = L.circle(center, {
+                radius: radius, color: '#3B82F6', weight: 2, dashArray: '5, 5',
+                fillColor: '#3B82F6', fillOpacity: 0.1, interactive: false
+            }).addTo(map);
+        }
+    } 
+    // Estágio 2: Desenhando a forma Pac-Man final
+    else {
+        const radius = center.distanceTo(radiusPoint);
+        const startAngle = calculateBearing(center, radiusPoint);
+        const endAngle = calculateBearing(center, currentMousePoint);
+        const coords = generatePacmanCoords(center, radius, startAngle, endAngle);
+        
+        tempPacmanShape = L.polygon(coords, {
+            color: '#3B82F6', weight: 2, dashArray: '8, 8',
+            fillColor: '#3B82F6', fillOpacity: 0.2, interactive: false
+        }).addTo(map);
+    }
+}
+
+function removeTempPacman() {
+    if (tempPacmanShape) {
+        map.removeLayer(tempPacmanShape);
+        tempPacmanShape = null;
+    }
 }

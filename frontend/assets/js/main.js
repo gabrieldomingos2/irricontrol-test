@@ -18,6 +18,8 @@ const AppState = {
     modoBuscaLocalRepetidora: false,
     modoDesenhoPivo: false,
     modoDesenhoPivoSetorial: false,
+    modoDesenhoPivoPacman: false,
+    pontoRaioTemporario: null,
     distanciasPivosVisiveis: false,
     legendasAtivas: true,
 
@@ -96,6 +98,8 @@ const AppState = {
         this.overlaysVisiveis = [];
         this.linhasDiagnostico = [];
         this.marcadoresBloqueio = [];
+        this.modoDesenhoPivoPacman = false;
+        this.pontoRaioTemporario = null;
     }
 };
 
@@ -162,6 +166,7 @@ function setupMainActionListeners() {
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
     document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
     document.getElementById('coord-search-btn').addEventListener('click', handleCoordinateSearch);
+    document.getElementById('btn-draw-pivot-pacman').addEventListener('click', toggleModoDesenhoPivoPacman);
     
     // Listeners do mapa
     map.on("click", handleMapClick); 
@@ -636,7 +641,6 @@ function toggleModoDesenhoPivo() {
         
         map.on('click', handlePivotDrawClick);
         map.on('mousemove', handlePivotDrawMouseMove);
-        map.on('contextmenu', handleCancelCircularDraw);
 
     } else {
         map.getContainer().style.cursor = '';
@@ -646,7 +650,6 @@ function toggleModoDesenhoPivo() {
         
         map.off('click', handlePivotDrawClick);
         map.off('mousemove', handlePivotDrawMouseMove);
-        map.off('contextmenu', handleCancelCircularDraw);
     }
 }
 
@@ -1172,14 +1175,40 @@ function handleToggleDistanciasPivos() {
 }
 
 function handleCancelDraw(e) {
-    if (AppState.modoDesenhoPivoSetorial && AppState.centroPivoTemporario) {
+    let drawCancelled = false;
+    let messageKey = '';
+
+    // Lógica de cancelamento para Pivô Circular
+    if (AppState.modoDesenhoPivo && AppState.centroPivoTemporario) {
+        if (typeof removeTempCircle === 'function') removeTempCircle();
+        messageKey = 'messages.info.draw_pivot_cancelled';
+        drawCancelled = true;
+    }
+    // Lógica de cancelamento para Pivô Setorial
+    else if (AppState.modoDesenhoPivoSetorial && AppState.centroPivoTemporario) {
+        if (typeof removeTempSector === 'function') removeTempSector();
+        messageKey = 'messages.info.draw_sector_cancelled';
+        drawCancelled = true;
+    }
+    // Lógica de cancelamento para Pivô Pac-Man
+    else if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
+        if (typeof removeTempPacman === 'function') removeTempPacman();
+        messageKey = 'messages.info.draw_pacman_cancelled';
+        drawCancelled = true;
+    }
+
+    // Se uma ação de desenho foi cancelada, reseta os estados e mostra a mensagem.
+    if (drawCancelled) {
         L.DomEvent.preventDefault(e);
         L.DomEvent.stopPropagation(e);
 
-        console.log("✏️ Ação de desenho de SETOR cancelada.");
+        console.log("✏️ Ação de desenho cancelada pelo usuário.");
         AppState.centroPivoTemporario = null;
-        if (typeof removeTempSector === 'function') removeTempSector();
-        mostrarMensagem(t('messages.info.draw_sector_cancelled'), "info");
+        AppState.pontoRaioTemporario = null; // Reseta para todos os modos por segurança
+        
+        if (messageKey) {
+            mostrarMensagem(t(messageKey), "info");
+        }
     }
 }
 
@@ -1354,5 +1383,111 @@ function handleCancelCircularDraw(e) {
         if (typeof removeTempCircle === 'function') removeTempCircle();
         AppState.centroPivoTemporario = null;
         mostrarMensagem(t('messages.info.draw_pivot_cancelled'), "info");
+    }
+}
+
+function toggleModoDesenhoPivoPacman() {
+    AppState.modoDesenhoPivoPacman = !AppState.modoDesenhoPivoPacman;
+    document.getElementById('btn-draw-pivot-pacman').classList.toggle('glass-button-active', AppState.modoDesenhoPivoPacman);
+
+    if (AppState.modoDesenhoPivoPacman) {
+        // Desativa outros modos para evitar conflitos
+        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
+        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
+        if (AppState.modoEdicaoPivos) togglePivoEditing();
+        
+        map.getContainer().style.cursor = 'crosshair';
+        map.on('click', handlePacmanPivotDrawClick);
+        map.on('mousemove', handlePacmanDrawMouseMove);
+        mostrarMensagem(t('messages.info.draw_pacman_step1'), "info");
+    } else {
+        map.getContainer().style.cursor = '';
+        map.off('click', handlePacmanPivotDrawClick);
+        map.off('mousemove', handlePacmanDrawMouseMove);
+        AppState.centroPivoTemporario = null;
+        AppState.pontoRaioTemporario = null;
+        if (typeof removeTempPacman === 'function') removeTempPacman();
+        mostrarMensagem(t('messages.info.draw_pacman_off'), "sucesso");
+    }
+}
+
+function handlePacmanDrawMouseMove(e) {
+    if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
+        if (typeof drawTempPacman === 'function') {
+            // A função de desenho temporário saberá em que estágio estamos
+            drawTempPacman(AppState.centroPivoTemporario, AppState.pontoRaioTemporario, e.latlng);
+        }
+    }
+}
+
+async function handlePacmanPivotDrawClick(e) {
+    if (!AppState.modoDesenhoPivoPacman) return;
+
+    // 1. Primeiro clique: Define o centro
+    if (!AppState.centroPivoTemporario) {
+        AppState.centroPivoTemporario = e.latlng;
+        mostrarMensagem(t('messages.info.draw_pacman_step2'), "info");
+        return;
+    }
+
+    // 2. Segundo clique: Define o raio e o primeiro ângulo
+    if (!AppState.pontoRaioTemporario) {
+        AppState.pontoRaioTemporario = e.latlng;
+        mostrarMensagem(t('messages.info.draw_pacman_step3'), "info");
+        return;
+    }
+
+    // 3. Terceiro clique: Define o ângulo final e cria o pivô
+    const finalPoint = e.latlng;
+    mostrarLoader(true);
+
+    try {
+        const centro = AppState.centroPivoTemporario;
+        const raio = centro.distanceTo(AppState.pontoRaioTemporario);
+
+        if (raio < 10) { // Validação de raio mínimo
+             throw new Error(t('messages.errors.draw_pivot_radius_too_small'));
+        }
+
+        const anguloInicio = calculateBearing(centro, AppState.pontoRaioTemporario);
+        const anguloFim = calculateBearing(centro, finalPoint);
+        
+        const novoNumero = getNextPivotNumber();
+        const novoNome = `Pivô ${novoNumero}`;
+
+        const novoPivo = {
+            nome: novoNome,
+            lat: centro.lat,
+            lon: centro.lng,
+            fora: true,
+            tipo: 'pacman', // Novo tipo!
+            raio: raio,
+            angulo_inicio: anguloInicio,
+            angulo_fim: anguloFim
+        };
+        
+        AppState.lastPivosDataDrawn.push(novoPivo);
+        // O "círculo" associado será o polígono do pacman, desenhado por drawCirculos
+        drawPivos(AppState.lastPivosDataDrawn, false);
+        drawCirculos(AppState.ciclosGlobais);
+        
+        await reavaliarPivosViaAPI();
+        mostrarMensagem(t('messages.success.pacman_pivot_created', { name: novoPivo.nome }), "sucesso");
+
+    } catch (error) {
+        console.error("Erro ao criar pivô Pac-Man:", error);
+        mostrarMensagem(error.message, "erro");
+    } finally {
+        // Reseta para o próximo desenho
+        AppState.centroPivoTemporario = null;
+        AppState.pontoRaioTemporario = null;
+        if (typeof removeTempPacman === 'function') removeTempPacman();
+        mostrarLoader(false);
+
+        setTimeout(() => {
+            if (AppState.modoDesenhoPivoPacman) {
+                mostrarMensagem(t('messages.info.draw_pacman_still_active'), "info");
+            }
+        }, 2500);
     }
 }

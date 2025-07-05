@@ -17,6 +17,48 @@ logger = logging.getLogger("irricontrol")
 COLOUR_KEY_KML_NAME, LOGO_FILENAME, TORRE_ICON_NAME = "Colour Key", "IRRICONTROL.png", "cloudrf.png"
 DEFAULT_ICON_URL = "http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png"
 
+# --- Funções de Geração de Geometria ---
+
+def _generate_sector_coords(lat, lon, radius_m, bearing_deg, arc_width_deg, steps=40) -> list:
+    """Gera coordenadas para um polígono de setor (fatia de pizza)."""
+    coords = [(lon, lat, 0)]
+    center_point = Point(latitude=lat, longitude=lon)
+    start_angle = bearing_deg - (arc_width_deg / 2)
+    for i in range(steps + 1):
+        angle = start_angle + (i * arc_width_deg / steps)
+        dest = geodesic(meters=radius_m).destination(center_point, angle)
+        coords.append((dest.longitude, dest.latitude, 0))
+    coords.append((lon, lat, 0)) # Fecha o polígono no centro
+    return coords
+
+# ✅ NOVA FUNÇÃO PARA GERAR A GEOMETRIA DO PAC-MAN
+def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, steps=80) -> list:
+    """Gera coordenadas para um polígono de setor invertido (Pac-Man)."""
+    coords = [(lon, lat, 0)]
+    center_point = Point(latitude=lat, longitude=lon)
+
+    # Normaliza ângulos para desenhar o arco maior
+    start_angle = start_angle_deg
+    end_angle = end_angle_deg
+    if end_angle <= start_angle:
+        end_angle += 360
+
+    mouth_angle = end_angle - start_angle
+    irrigated_angle = 360 - mouth_angle
+
+    # Gera os pontos para o arco irrigado
+    for i in range(steps + 1):
+        # Começa do fim da "boca" e desenha o arco principal
+        current_angle = end_angle + (i * irrigated_angle / steps)
+        dest = geodesic(meters=radius_m).destination(center_point, current_angle)
+        coords.append((dest.longitude, dest.latitude, 0))
+
+    coords.append((lon, lat, 0)) # Fecha o polígono de volta ao centro
+    return coords
+
+
+# --- Funções de Criação de Estrutura KML ---
+
 def _create_html_description_table(entity_data: dict, template: Any, file_id_info: str, colour_key_filename: str) -> str:
     txw, txg_dbi = template.transmitter.txw, template.antenna.txg
     tx_power_dbm = 10 * log10(txw * 1000)
@@ -59,7 +101,6 @@ def _setup_main_antenna_structure(doc, antena, style, details_name, template, fi
     pnt.description = _create_html_description_table(antena, template, file_id, legend_name); pnt.style = style
     return subfolder
 
-
 def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template, ts_prefix, overlay_props) -> list:
     files = []
     for i, item in enumerate(data):
@@ -72,14 +113,11 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         if not bounds: continue
         
         altura_repetidora = item.get('altura', 5)
-        
         nome_from_frontend = item.get("nome")
 
         if nome_from_frontend:
-
             nome = nome_from_frontend
         else:
-
             if item.get('sobre_pivo'):
                 nome = f"Repetidora Solar Pivô - {altura_repetidora}m"
             else:
@@ -107,20 +145,38 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         
     return files
 
+# ✅ FUNÇÃO REFATORADA PARA INCLUIR TODOS OS TIPOS DE ÁREAS
 def _add_secondary_folders(doc, pivos, ciclos, bombas, style):
+    # Adiciona marcadores de ponto para todos os pivôs
     if pivos:
         f_pivos = doc.newfolder(name="Pivôs (Marcadores)")
-        for p_data in pivos: f_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])]).style = style
-    
-    if (ciclos and any(c.get("coordenadas") for c in ciclos)) or any(p.get('tipo') == 'setorial' for p in pivos):
+        for p_data in pivos:
+            f_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])]).style = style
+
+    # Verifica se há alguma área (de qualquer tipo) para ser desenhada
+    has_ciclos = ciclos and any(c.get("coordenadas") for c in ciclos)
+    pivos_com_area_desenhada_manualmente = [p for p in pivos if p.get('tipo') in ['setorial', 'pacman']]
+
+    if has_ciclos or pivos_com_area_desenhada_manualmente:
         f_areas = doc.newfolder(name="Áreas de Pivôs")
-        pivos_setoriais = [p for p in pivos if p.get('tipo') == 'setorial']
-        for pivo_data in pivos_setoriais:
+
+        # Desenha pivôs manuais (setorial e pacman)
+        for pivo_data in pivos_com_area_desenhada_manualmente:
             try:
-                coords_area = _generate_sector_coords(
-                    lat=pivo_data['lat'], lon=pivo_data['lon'], radius_m=pivo_data['raio'],
-                    bearing_deg=pivo_data['angulo_central'], arc_width_deg=pivo_data['abertura_arco']
-                )
+                coords_area = []
+                pivo_tipo = pivo_data.get('tipo')
+                
+                if pivo_tipo == 'setorial':
+                    coords_area = _generate_sector_coords(
+                        lat=pivo_data['lat'], lon=pivo_data['lon'], radius_m=pivo_data['raio'],
+                        bearing_deg=pivo_data['angulo_central'], arc_width_deg=pivo_data['abertura_arco']
+                    )
+                elif pivo_tipo == 'pacman':
+                    coords_area = _generate_pacman_coords(
+                        lat=pivo_data['lat'], lon=pivo_data['lon'], radius_m=pivo_data['raio'],
+                        start_angle_deg=pivo_data['angulo_inicio'], end_angle_deg=pivo_data['angulo_fim']
+                    )
+                
                 if coords_area:
                     pol = f_areas.newpolygon(name=f"Área {pivo_data['nome']}")
                     pol.outerboundaryis = coords_area
@@ -128,8 +184,10 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style):
                     pol.style.linestyle.color = simplekml.Color.red
                     pol.style.linestyle.width = 4
             except KeyError as e:
-                logger.warning(f"Dados ausentes para desenhar setor '{pivo_data.get('nome')}': {e}. Pulando.")
-        if ciclos:
+                logger.warning(f"Dados ausentes para desenhar área do pivô '{pivo_data.get('nome')}': {e}. Pulando.")
+        
+        # Desenha os círculos que vieram do KMZ original
+        if has_ciclos:
             for ciclo_data in ciclos:
                 coords = ciclo_data.get("coordenadas")
                 if coords and len(coords) > 2:
@@ -140,9 +198,12 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style):
                     pol.style.linestyle.color = simplekml.Color.red
                     pol.style.linestyle.width = 4
 
+    # Adiciona marcadores de ponto para as bombas
     if bombas:
         f_bombas = doc.newfolder(name="Bombas")
-        for i, b_data in enumerate(bombas): f_bombas.newpoint(name=b_data.get("nome", f"Bomba {i+1}"), coords=[(b_data["lon"], b_data["lat"])]).style = style
+        for i, b_data in enumerate(bombas):
+            f_bombas.newpoint(name=b_data.get("nome", f"Bomba {i+1}"), coords=[(b_data["lon"], b_data["lat"])]).style = style
+
 
 def build_kml_document_and_get_image_list(doc, pivos_data, ciclos_data, bombas_data, repetidoras_selecionadas_data, generated_images_dir, selected_template, antena_data, imagem_principal_nome_relativo, bounds_principal_data) -> List[Tuple[Path, str]]:
     logger.info("Iniciando construção da estrutura KML.")
@@ -156,8 +217,6 @@ def build_kml_document_and_get_image_list(doc, pivos_data, ciclos_data, bombas_d
     files_for_kmz: List[Tuple[Path, str]] = []
     ts = datetime.now().strftime('%m%d%H%M%S')
 
-    # ✅ 1. Definir as propriedades da legenda de cores EM UM SÓ LUGAR
-    # Usar x=-1 e y=-1 diz ao Google Earth para usar o tamanho original da imagem.
     OVERLAY_PROPS = {
         "overlay_xy": {'x': 0, 'y': 1, 'xunits': simplekml.Units.fraction, 'yunits': simplekml.Units.fraction},
         "screen_xy": {'x': 10, 'y': 1, 'xunits': simplekml.Units.pixels, 'yunits': simplekml.Units.fraction},
@@ -176,14 +235,12 @@ def build_kml_document_and_get_image_list(doc, pivos_data, ciclos_data, bombas_d
         b = bounds_principal_data; ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = b[2], b[0], b[3], b[1]
         files_for_kmz.append((generated_images_dir / imagem_principal_nome_relativo, imagem_principal_nome_relativo))
         
-        # ✅ 2. Usa as propriedades padronizadas
         screen = folder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
         screen.icon.href = key_overlay_name
         screen.overlayxy = simplekml.OverlayXY(**OVERLAY_PROPS['overlay_xy'])
         screen.screenxy = simplekml.ScreenXY(**OVERLAY_PROPS['screen_xy'])
-        screen.size = simplekml.Size(**OVERLAY_PROPS['size']) # Aplica o tamanho aqui
+        screen.size = simplekml.Size(**OVERLAY_PROPS['size'])
 
-    # ✅ 3. Passa as propriedades padronizadas para a função das repetidoras
     repeater_files = _add_repeaters(
         doc, repetidoras_selecionadas_data, torre_style, generated_images_dir,
         overlay_name=key_overlay_name, desc_name=key_desc_name,
@@ -201,13 +258,3 @@ def build_kml_document_and_get_image_list(doc, pivos_data, ciclos_data, bombas_d
             
     logger.info("Construção da estrutura KML concluída.")
     return files_for_kmz
-
-def _generate_sector_coords(lat, lon, radius_m, bearing_deg, arc_width_deg, steps=40) -> list:
-    coords = [(lon, lat, 0)]
-    start_angle = bearing_deg - (arc_width_deg / 2)
-    for i in range(steps + 1):
-        angle = start_angle + (i * arc_width_deg / steps)
-        dest = geodesic(meters=radius_m).destination(Point(lat, lon), angle)
-        coords.append((dest.longitude, dest.latitude, 0))
-    coords.append((lon, lat, 0))
-    return coords
