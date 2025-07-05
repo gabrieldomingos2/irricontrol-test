@@ -173,3 +173,14 @@ async function generatePivotInCircle(payload) {
     throw error;
   });
 }
+
+async function optimizeNetwork(payload) {
+  return apiRequest('/simulation/optimize-network', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(error => {
+
+    throw error;
+  });
+}

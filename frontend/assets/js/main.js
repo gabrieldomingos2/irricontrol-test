@@ -19,6 +19,7 @@ const AppState = {
     modoDesenhoPivo: false,
     modoDesenhoPivoSetorial: false,
     modoDesenhoPivoPacman: false,
+    modoDesenhoIrripump: false,
     pontoRaioTemporario: null,
     distanciasPivosVisiveis: false,
     legendasAtivas: true,
@@ -27,6 +28,7 @@ const AppState = {
     coordenadaClicada: null,
     marcadorPosicionamento: null,
     backupPosicoesPivos: {},
+    historyStack: [],
     losSourcePivot: null,
     losTargetPivot: null,
     pivoAlvoParaLocalRepetidora: null,
@@ -80,6 +82,7 @@ const AppState = {
         this.coordenadaClicada = null;
         this.marcadorPosicionamento = null;
         this.backupPosicoesPivos = {};
+        this.historyStack = [];
         this.losSourcePivot = null;
         this.losTargetPivot = null;
         this.pivoAlvoParaLocalRepetidora = null;
@@ -99,6 +102,7 @@ const AppState = {
         this.linhasDiagnostico = [];
         this.marcadoresBloqueio = [];
         this.modoDesenhoPivoPacman = false;
+        this.modoDesenhoIrripump = false;
         this.pontoRaioTemporario = null;
     }
 };
@@ -164,6 +168,7 @@ function setupMainActionListeners() {
     document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
     document.getElementById('coord-search-btn').addEventListener('click', handleCoordinateSearch);
     document.getElementById('btn-draw-pivot-pacman').addEventListener('click', toggleModoDesenhoPivoPacman);
+    document.getElementById('btn-draw-irripump').addEventListener('click', toggleModoDesenhoIrripump);
     
     // Listeners do mapa
     map.on("click", handleMapClick); 
@@ -212,6 +217,20 @@ async function handleKmzFileSelect(event) {
         
         AppState.setJobId(data.job_id);
         AppState.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
+
+        if (data.pivos && data.ciclos) {
+            data.ciclos.forEach(ciclo => {
+                const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
+                const pivoCorrespondente = data.pivos.find(p => p.nome === nomePivo);
+                if (pivoCorrespondente && ciclo.coordenadas.length > 0) {
+                    const bounds = L.polygon(ciclo.coordenadas).getBounds();
+                    const centro = bounds.getCenter();
+                    // Cálculo de raio mais preciso (distância do centro ao norte)
+                    const pontoNorte = L.latLng(bounds.getNorth(), centro.lng);
+                    pivoCorrespondente.raio = centro.distanceTo(pontoNorte);
+                }
+            });
+        }
         
         AppState.antenaGlobal = null; 
         const antenasCandidatas = data.antenas || [];
@@ -250,6 +269,8 @@ async function handleKmzFileSelect(event) {
         document.getElementById("painel-dados").classList.remove("hidden");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
         reposicionarPaineisLaterais();
+
+        expandAllPanels();
 
     } catch (error) {
         console.error("❌ Erro no submit do formulário:", error);
@@ -368,7 +389,14 @@ async function startMainSimulation(antenaData) {
 
 
 function handleMapClick(e) {
-    if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo) {
+
+    if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo || AppState.modoDesenhoPivoPacman) {
+
+        return;
+    }
+    
+    if (AppState.modoDesenhoIrripump) {
+        handleIrripumpDrawClick(e);
         return;
     }
     
@@ -390,6 +418,54 @@ function handleMapClick(e) {
     }).addTo(map);
 
     document.getElementById("painel-repetidora").classList.remove("hidden");
+}
+
+/**
+ * Lida com o clique no mapa quando o modo de desenho de Irripump está ativo.
+ * Adiciona um novo Irripump no local clicado.
+ * @param {object} e - O evento de clique do Leaflet.
+ */
+async function handleIrripumpDrawClick(e) {
+    if (!AppState.jobId) {
+        mostrarMensagem(t('messages.errors.session_not_started_for_draw'), "erro");
+        toggleModoDesenhoIrripump(); 
+        return;
+    }
+
+    mostrarLoader(true);
+    try {
+        const novoNumero = AppState.lastBombasDataDrawn.length + 1;
+        const novoNome = `Irripump ${String(novoNumero).padStart(2, '0')}`;
+        
+        const novaBomba = {
+            nome: novoNome,
+            lat: e.latlng.lat,
+            lon: e.latlng.lng,
+            fora: true
+        };
+
+        AppState.lastBombasDataDrawn.push(novaBomba);
+
+        drawBombas(AppState.lastBombasDataDrawn); 
+        atualizarPainelDados();
+        
+        await reavaliarPivosViaAPI();
+        
+        mostrarMensagem(t('messages.success.irripump_created', { name: novoNome }), "sucesso");
+
+        setTimeout(() => {
+            if(AppState.modoDesenhoIrripump) {
+                mostrarMensagem(t('messages.info.draw_irripump_still_active'), "info");
+            }
+        }, 2500);
+
+    } catch (error) {
+        console.error("Falha ao criar o Irripump:", error);
+        mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
+    } finally {
+        mostrarLoader(false);
+    
+    }
 }
 
 async function handleConfirmRepetidoraClick() {
@@ -423,11 +499,11 @@ async function handleConfirmRepetidoraClick() {
         else {
             if (antenaCandidatesLayerGroup) {
                 const idToRemove = `candidate-${candidateData.nome}-${candidateData.lat}`;
-                const layersToRemove = [];
+                const camadasParaRemover = [];
                 antenaCandidatesLayerGroup.eachLayer(layer => {
-                    if (layer.options.customId === idToRemove) layersToRemove.push(layer);
+                    if (layer.options.customId === idToRemove) camadasParaRemover.push(layer);
                 });
-                layersToRemove.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
+                camadasParaRemover.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
             }
             id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
             nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
@@ -531,7 +607,7 @@ function handleBuscarLocaisRepetidoraActivation() {
                 togglePivoEditing();
             }
         }
-        
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump(); //
         if (map) map.getContainer().style.cursor = 'crosshair';
 
     } else {
@@ -640,10 +716,13 @@ function toggleModoDesenhoPivo() {
     document.getElementById('btn-draw-pivot').classList.toggle('glass-button-active', AppState.modoDesenhoPivo);
 
     if (AppState.modoDesenhoPivo) {
+
         if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
+        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
         if (AppState.modoEdicaoPivos) togglePivoEditing();
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump(); //
 
         map.getContainer().style.cursor = 'crosshair';
         mostrarMensagem(t('messages.info.draw_pivot_step1'), "info");
@@ -695,9 +774,9 @@ async function handlePivotDrawClick(e) {
             pivos_atuais: AppState.lastPivosDataDrawn
         };
 
-        const result = await generatePivotInCircle(payload);
-        const novoPivo = { ...result.novo_pivo, fora: true };
         const radiusInMeters = AppState.centroPivoTemporario.distanceTo(radiusPoint);
+        const result = await generatePivotInCircle(payload);
+        const novoPivo = { ...result.novo_pivo, fora: true, raio: radiusInMeters };
         const circleCoords = generateCircleCoords(AppState.centroPivoTemporario, radiusInMeters);
         const novoCiclo = {
             nome_original_circulo: `Ciclo ${novoPivo.nome}`,
@@ -751,7 +830,8 @@ function handleResetClick(showMessage = true) {
         'btn-draw-pivot',
         'btn-draw-pivot-setorial',
         'toggle-distancias-pivos',
-        'toggle-legenda'
+        'toggle-legenda',
+        'btn-draw-irripump'
     ];
 
 
@@ -814,61 +894,93 @@ async function runTargetedDiagnostic(diagnosticoSource) {
 
     mostrarLoader(true);
     
-    // ✅ INÍCIO DA CORREÇÃO: Usando AppState para acessar as camadas do mapa
     if (AppState.visadaLayerGroup) {
         AppState.visadaLayerGroup.clearLayers();
     }
     AppState.linhasDiagnostico = [];
     AppState.marcadoresBloqueio = [];
-    // ✅ FIM DA CORREÇÃO
 
-    let pivosParaAnalisar;
+    const alvosParaAnalisar = [];
+    const defaultReceiverHeight = (AppState.antenaGlobal?.altura_receiver) ?? 3;
 
-    if (AppState.modoEdicaoPivos) {
-        console.log("Diagnóstico em Modo de Edição: usando 'AppState.lastPivosDataDrawn'.");
-        const pivosInfo = AppState.lastPivosDataDrawn.filter(pivo => pivo.fora === true);
-        pivosParaAnalisar = pivosInfo.map(pivoInfo => {
-            const marcador = AppState.pivotsMap[pivoInfo.nome];
-            return marcador ? [pivoInfo.nome, marcador] : null;
-        }).filter(Boolean);
+    // Adicionar pivôs sem cobertura
+    AppState.lastPivosDataDrawn.filter(p => p.fora).forEach(pivoInfo => {
+        const marcador = AppState.pivotsMap[pivoInfo.nome];
+        if (marcador) {
+            alvosParaAnalisar.push({
+                nome: pivoInfo.nome,
+                latlng: marcador.getLatLng(),
+                altura_receiver: defaultReceiverHeight
+            });
+        }
+    });
 
-    } else {
-        console.log("Diagnóstico em Modo Normal: usando a cor dos marcadores.");
-        pivosParaAnalisar = Object.entries(AppState.pivotsMap).filter(([, marcador]) => {
-            return marcador && marcador.options && marcador.options.fillColor === 'red';
-        });
-    }
+    // Adicionar casas de bombas sem cobertura
+    AppState.lastBombasDataDrawn.forEach((bomba, index) => {
+        if (bomba.fora) {
+            const marcadorBomba = AppState.marcadoresBombas[index];
+            if (marcadorBomba) {
+                alvosParaAnalisar.push({
+                    nome: `Irripump ${String(index + 1).padStart(2, '0')}`,
+                    latlng: marcadorBomba.getLatLng(),
+                    altura_receiver: defaultReceiverHeight
+                });
+            }
+        }
+    });
 
-    if (pivosParaAnalisar.length === 0) {
-        mostrarMensagem(t('messages.info.no_uncovered_pivots'), "sucesso");
+    const LIMITE_DISTANCIA_KM = 4;
+    const LIMITE_DISTANCIA_MTS = LIMITE_DISTANCIA_KM * 1000;
+    const totalAlvosSemCobertura = alvosParaAnalisar.length;
+
+    const alvosFiltrados = alvosParaAnalisar.filter(alvo => {
+        const pivoLatLng = alvo.latlng;
+        const distancia = sourceLatLng.distanceTo(pivoLatLng);
+        return distancia <= LIMITE_DISTANCIA_MTS;
+    });
+    
+    if (alvosFiltrados.length === 0) {
+        if (totalAlvosSemCobertura > 0) {
+            mostrarMensagem(t('messages.info.no_uncovered_targets_in_radius', { limit: `${LIMITE_DISTANCIA_KM}km` }), "info");
+        } else {
+            mostrarMensagem(t('messages.info.no_uncovered_targets'), "sucesso");
+        }
         mostrarLoader(false);
         return;
     }
 
-    mostrarMensagem(t('messages.info.analyzing_pivots_from_source', { count: pivosParaAnalisar.length, source: sourceName }), "sucesso");
+    const alvosIgnorados = totalAlvosSemCobertura - alvosFiltrados.length;
+    let mensagemInicial = t('messages.info.analyzing_targets_from_source', { count: alvosFiltrados.length, source: sourceName });
+    if (alvosIgnorados > 0) {
+        mensagemInicial += ` ${t('messages.info.targets_ignored_by_distance', { count: alvosIgnorados, limit: `${LIMITE_DISTANCIA_KM}km` })}`;
+    }
+    mostrarMensagem(mensagemInicial, "sucesso");
 
-    for (const [nomePivo, marcadorPivo] of pivosParaAnalisar) {
-        const pivoLatLng = marcadorPivo.getLatLng();
+    for (const alvo of alvosFiltrados) {
+        const alvoLatLng = alvo.latlng;
+        const distanciaEntreAlvos = sourceLatLng.distanceTo(alvoLatLng); // Calculate distance here
+        const distanciaFormatada = distanciaEntreAlvos > 999 ? (distanciaEntreAlvos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntreAlvos) + ' m'; // Format distance
 
         const payload = {
             pontos: [
                 [sourceLatLng.lat, sourceLatLng.lng],
-                [pivoLatLng.lat, pivoLatLng.lng]
+                [alvoLatLng.lat, alvoLatLng.lng]
             ],
             altura_antena: diagnosticoSource.altura || 15,
-            altura_receiver: (AppState.antenaGlobal?.altura_receiver) ?? 3
+            altura_receiver: alvo.altura_receiver,
+            return_highest_point: true
         };
 
         try {
             const data = await getElevationProfile(payload);
-            const nomeDiagnostico = `${sourceName} → ${nomePivo}`;
+            const nomeDiagnostico = `${sourceName} → ${alvo.nome}`;
             drawDiagnostico(
                 payload.pontos[0], payload.pontos[1],
-                data.bloqueio, data.ponto_mais_alto, nomeDiagnostico
+                data.bloqueio, data.ponto_mais_alto, nomeDiagnostico, distanciaFormatada // Pass formatted distance
             );
         } catch (error) {
-            console.error(`Erro no diagnóstico do pivô ${nomePivo}:`, error);
-            mostrarMensagem(t('messages.errors.los_diagnostic_fail', { name: nomePivo }), "erro");
+            console.error(`Erro no diagnóstico do alvo ${alvo.nome}:`, error);
+            mostrarMensagem(t('messages.errors.los_diagnostic_fail', { name: alvo.nome }), "erro");
         }
     }
 
@@ -1005,11 +1117,91 @@ function removePositioningMarker() {
     }
 }
 
+/**
+ * ✅ NOVA FUNÇÃO AUXILIAR
+ * Cria um único marcador de pivô editável no mapa, com todos os seus eventos.
+ * @param {object} pivoInfo - O objeto de dados do pivô a ser desenhado.
+ */
+function createEditablePivotMarker(pivoInfo) {
+    const nome = pivoInfo.nome;
+    const currentLatLng = L.latLng(pivoInfo.lat, pivoInfo.lon);
+    const undoButton = document.getElementById("desfazer-edicao");
+
+    const editMarkerIcon = L.divIcon({
+        className: 'pivo-edit-handle-custom-pin',
+        html: `<svg viewBox="0 0 28 40" width="18" height="26" xmlns="http://www.w3.org/2000/svg"><path d="M14 0 C7.486 0 2 5.486 2 12.014 C2 20.014 14 40 14 40 C14 40 26 20.014 26 12.014 C26 5.486 20.514 0 14 0 Z M14 18 C10.686 18 8 15.314 8 12 C8 8.686 10.686 6 14 6 C17.314 6 20 8.686 20 12 C20 15.314 17.314 18 14 18 Z" fill="#FF3333" stroke="#660000" stroke-width="1"/></svg>`,
+        iconSize: [18, 26],
+        iconAnchor: [9, 26]
+    });
+    const editMarker = L.marker(currentLatLng, { draggable: true, icon: editMarkerIcon }).addTo(map);
+    AppState.pivotsMap[nome] = editMarker;
+
+    // Evento de arrastar (move)
+    editMarker.on("dragend", (e) => {
+        const novaPos = e.target.getLatLng();
+        const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
+        
+        if (pivoEmLastData) {
+            const historyEntry = {
+                type: 'move',
+                pivotName: nome,
+                from: { lat: pivoEmLastData.lat, lon: pivoEmLastData.lon }
+            };
+            AppState.historyStack.push(historyEntry);
+            if(undoButton) undoButton.disabled = false;
+
+            pivoEmLastData.lat = novaPos.lat;
+            pivoEmLastData.lon = novaPos.lng;
+
+            const nomeCiclo = `Ciclo ${nome}`;
+            const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
+            if (cicloCorrespondente && pivoEmLastData.raio) {
+                const novasCoordenadas = generateCircleCoords(novaPos, pivoEmLastData.raio);
+                cicloCorrespondente.coordenadas = novasCoordenadas;
+            }
+            drawCirculos(AppState.ciclosGlobais);
+        }
+    });
+    
+    // Evento de clique direito (delete)
+    editMarker.on("contextmenu", (e) => {
+        L.DomEvent.stop(e);
+        if (confirm(t('messages.confirm.remove_pivot', { name: nome }))) {
+            const pivoParaDeletar = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
+            const nomeCicloParaDeletar = `Ciclo ${nome}`;
+            const cicloParaDeletar = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCicloParaDeletar);
+
+            if(pivoParaDeletar) {
+                const historyEntry = {
+                  type: 'delete',
+                  deletedPivot: { ...pivoParaDeletar },
+                  deletedCiclo: cicloParaDeletar ? { ...cicloParaDeletar } : null
+                };
+                AppState.historyStack.push(historyEntry);
+                if(undoButton) undoButton.disabled = false;
+            }
+
+            map.removeLayer(editMarker);
+            AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.filter(p => p.nome !== nome);
+            AppState.ciclosGlobais = AppState.ciclosGlobais.filter(c => c.nome_original_circulo !== nomeCicloParaDeletar);
+            drawCirculos(AppState.ciclosGlobais);
+            delete AppState.pivotsMap[nome];
+            
+            mostrarMensagem(t('messages.success.pivot_removed', { name: nome }), "sucesso");
+            atualizarPainelDados();
+        }
+    });
+}
+
 function enablePivoEditingMode() {
     AppState.modoEdicaoPivos = true;
     console.log("✏️ Ativando modo de edição.");
-    AppState.backupPosicoesPivos = {};
-    
+
+    AppState.historyStack = [];
+    const undoButton = document.getElementById("desfazer-edicao");
+    if(undoButton) undoButton.disabled = true;
+
+    // Limpeza da UI
     AppState.marcadoresPivos.forEach(m => map.removeLayer(m));
     AppState.marcadoresPivos = [];
     AppState.marcadoresLegenda.filter(l => l.options.labelType === 'pivot').forEach(l => map.hasLayer(l) && map.removeLayer(l));
@@ -1017,45 +1209,11 @@ function enablePivoEditingMode() {
     Object.values(AppState.pivotsMap).forEach(marker => marker && map.hasLayer(marker) && map.removeLayer(marker));
     AppState.pivotsMap = {};
 
+    // Itera sobre os dados dos pivôs e chama a função auxiliar para criar cada marcador
     AppState.lastPivosDataDrawn.forEach(pivoInfo => {
-        const nome = pivoInfo.nome;
-        const currentLatLng = L.latLng(pivoInfo.lat, pivoInfo.lon);
-        AppState.backupPosicoesPivos[nome] = currentLatLng;
-        const editMarkerIcon = L.divIcon({
-            className: 'pivo-edit-handle-custom-pin',
-            html: `<svg viewBox="0 0 28 40" width="18" height="26" xmlns="http://www.w3.org/2000/svg"><path d="M14 0 C7.486 0 2 5.486 2 12.014 C2 20.014 14 40 14 40 C14 40 26 20.014 26 12.014 C26 5.486 20.514 0 14 0 Z M14 18 C10.686 18 8 15.314 8 12 C8 8.686 10.686 6 14 6 C17.314 6 20 8.686 20 12 C20 15.314 17.314 18 14 18 Z" fill="#FF3333" stroke="#660000" stroke-width="1"/></svg>`,
-            iconSize: [18, 26],
-            iconAnchor: [9, 26]
-        });
-        const editMarker = L.marker(currentLatLng, { draggable: true, icon: editMarkerIcon }).addTo(map);
-        AppState.pivotsMap[nome] = editMarker;
-        editMarker.on("dragend", (e) => {
-            const novaPos = e.target.getLatLng();
-            AppState.posicoesEditadas[nome] = { lat: novaPos.lat, lng: novaPos.lng };
-            const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
-            if (pivoEmLastData) {
-                pivoEmLastData.lat = novaPos.lat;
-                pivoEmLastData.lon = novaPos.lng;
-            }
-        });
-        editMarker.on("contextmenu", (e) => {
-            L.DomEvent.stop(e);
-            if (confirm(t('messages.confirm.remove_pivot', { name: nome }))) {
-                map.removeLayer(editMarker);
-                AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.filter(p => p.nome !== nome);
-                if (AppState.currentProcessedKmzData?.pivos) AppState.currentProcessedKmzData.pivos = AppState.currentProcessedKmzData.pivos.filter(p => p.nome !== nome);
-                const nomeCicloParaRemover = `Ciclo ${nome}`;
-                AppState.ciclosGlobais = AppState.ciclosGlobais.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
-                if (AppState.currentProcessedKmzData?.ciclos) AppState.currentProcessedKmzData.ciclos = AppState.currentProcessedKmzData.ciclos.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
-                drawCirculos(AppState.ciclosGlobais);
-                delete AppState.pivotsMap[nome];
-                delete AppState.posicoesEditadas[nome];
-                delete AppState.backupPosicoesPivos[nome];
-                mostrarMensagem(t('messages.success.pivot_removed', { name: nome }), "sucesso");
-                atualizarPainelDados();
-            }
-        });
+        createEditablePivotMarker(pivoInfo);
     });
+
     mostrarMensagem(t('messages.info.edit_mode_activated'), "sucesso");
 }
 
@@ -1065,23 +1223,77 @@ function disablePivoEditingMode() {
     AppState.pivotsMap = {};
     drawPivos(AppState.lastPivosDataDrawn, false);
     mostrarMensagem(t('messages.info.positions_updated_resimulate'), "sucesso");
-    AppState.backupPosicoesPivos = {};
-    AppState.posicoesEditadas = {};
+    AppState.historyStack = [];
+    document.getElementById("desfazer-edicao").disabled = true;
 }
 
-function undoPivoEdits() {
-    Object.entries(AppState.backupPosicoesPivos).forEach(([nome, posicaoOriginalLatLng]) => {
-        const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
-        if (pivoEmLastData) {
-            pivoEmLastData.lat = posicaoOriginalLatLng.lat;
-            pivoEmLastData.lon = posicaoOriginalLatLng.lng;
+
+function desfazerUltimaAcao() {
+    if (AppState.historyStack.length === 0) {
+        mostrarMensagem(t('messages.info.nothing_to_undo'), "info");
+        return;
+    }
+
+    const lastAction = AppState.historyStack.pop();
+    const undoButton = document.getElementById("desfazer-edicao");
+
+    // --- Desfazer MOVIMENTO ---
+    if (lastAction.type === 'move') {
+        const { pivotName, from } = lastAction;
+        const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === pivotName);
+        const editMarker = AppState.pivotsMap[pivotName];
+
+        if (pivoEmLastData && editMarker) {
+            const posicaoOriginalLatLng = L.latLng(from.lat, from.lon);
+
+            // 1. Reverte os dados de lat/lon do pivô
+            pivoEmLastData.lat = from.lat;
+            pivoEmLastData.lon = from.lon;
+
+            // 2. Reverte a posição do marcador visual no mapa
+            editMarker.setLatLng(posicaoOriginalLatLng);
+
+            // ✅ INÍCIO DA CORREÇÃO: Atualiza os dados do círculo antes de redesenhar
+            const nomeCiclo = `Ciclo ${pivotName}`;
+            const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
+            
+            // Se o pivô for circular e tiver um raio, recalcula suas coordenadas
+            if (cicloCorrespondente && pivoEmLastData.raio && typeof generateCircleCoords === 'function') {
+                const novasCoordenadas = generateCircleCoords(posicaoOriginalLatLng, pivoEmLastData.raio);
+                cicloCorrespondente.coordenadas = novasCoordenadas;
+            }
+            // ✅ FIM DA CORREÇÃO
+
+            // 3. Agora, redesenha os círculos com os dados já corrigidos
+            drawCirculos(AppState.ciclosGlobais);
+            
+            mostrarMensagem(t('messages.success.action_undone_move', { pivot_name: pivotName }), "sucesso");
         }
-        const editMarker = AppState.pivotsMap[nome];
-        if (editMarker && map.hasLayer(editMarker)) editMarker.setLatLng(posicaoOriginalLatLng);
-    });
-    AppState.posicoesEditadas = {};
-    if (typeof togglePivoEditing === 'function' && AppState.modoEdicaoPivos) togglePivoEditing();
-    mostrarMensagem(t('messages.info.edits_undone'), "sucesso");
+    }
+    // --- Desfazer EXCLUSÃO ---
+    else if (lastAction.type === 'delete') {
+        const { deletedPivot, deletedCiclo } = lastAction;
+
+        // Reinsere os dados nos arrays de estado
+        AppState.lastPivosDataDrawn.push(deletedPivot);
+        if (deletedCiclo) {
+            AppState.ciclosGlobais.push(deletedCiclo);
+        }
+        
+        // Recria o marcador editável para o pivô restaurado
+        createEditablePivotMarker(deletedPivot);
+        
+        // Redesenha todos os círculos para garantir que o círculo restaurado apareça
+        drawCirculos(AppState.ciclosGlobais);
+        
+        atualizarPainelDados();
+        mostrarMensagem(t('messages.success.action_undone_delete', { pivot_name: deletedPivot.nome }), "sucesso");
+    }
+
+    // Atualiza o estado do botão de desfazer
+    if (undoButton && AppState.historyStack.length === 0) {
+        undoButton.disabled = true;
+    }
 }
 
 function toggleLoSPivotAPivotMode() {
@@ -1096,60 +1308,67 @@ function toggleLoSPivotAPivotMode() {
         AppState.losTargetPivot = null;
         if (AppState.modoEdicaoPivos && document.getElementById("editar-pivos").classList.contains('glass-button-active')) togglePivoEditing();
         if (AppState.modoBuscaLocalRepetidora && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) handleBuscarLocaisRepetidoraActivation();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
         map.getContainer().style.cursor = 'help';
     } else {
         mostrarMensagem(t('messages.info.los_mode_deactivated'), "sucesso");
         AppState.losSourcePivot = null;
         AppState.losTargetPivot = null;
         map.getContainer().style.cursor = '';
-        if (visadaLayerGroup) {
-            visadaLayerGroup.clearLayers();
+        if (AppState.visadaLayerGroup) {
+            AppState.visadaLayerGroup.clearLayers();
             AppState.linhasDiagnostico = [];
             AppState.marcadoresBloqueio = [];
         }
     }
 }
 
-async function handleLoSPivotClick(pivoData, pivoMarker) {
+async function handleLoSTargetClick(itemData, itemMarker) {
     if (!AppState.modoLoSPivotAPivot) return;
-    const isGoodSignalPivot = pivoMarker.options.fillColor === 'green';
-    const pivotLatlng = pivoMarker.getLatLng();
-    const defaultPivotHeight = (AppState.antenaGlobal?.altura_receiver) ?? 3;
+    
+    const hasGoodSignal = itemData.fora === false;
+    const targetLatlng = itemMarker.getLatLng();
+    const defaultReceiverHeight = (AppState.antenaGlobal?.altura_receiver) ?? 3;
 
     if (!AppState.losSourcePivot) {
-        if (!isGoodSignalPivot) {
-            mostrarMensagem(t('messages.errors.los_source_must_be_green'), "erro");
+        if (!hasGoodSignal) {
+            mostrarMensagem(t('messages.errors.los_source_must_have_signal'), "erro");
             return;
         }
-        AppState.losSourcePivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
-        mostrarMensagem(t('messages.info.los_source_selected', { name: pivoData.nome }), "sucesso");
+        AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
+        mostrarMensagem(t('messages.info.los_source_selected', { name: itemData.nome }), "sucesso");
     } else {
-        if (pivoData.nome === AppState.losSourcePivot.nome) {
-            mostrarMensagem(t('messages.info.los_source_already_selected', { name: pivoData.nome }), "info");
+        if (itemData.nome === AppState.losSourcePivot.nome) {
+            mostrarMensagem(t('messages.info.los_source_already_selected', { name: itemData.nome }), "info");
             return;
         }
-        if (isGoodSignalPivot) {
-            if (confirm(t('messages.confirm.change_los_source', { sourceName: AppState.losSourcePivot.nome, newName: pivoData.nome }))) {
-                AppState.losSourcePivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
+        if (hasGoodSignal) {
+            if (confirm(t('messages.confirm.change_los_source', { sourceName: AppState.losSourcePivot.nome, newName: itemData.nome }))) {
+                AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
                 AppState.losTargetPivot = null;
-                visadaLayerGroup.clearLayers();
+                if (AppState.visadaLayerGroup) AppState.visadaLayerGroup.clearLayers();
                 AppState.linhasDiagnostico = [];
                 AppState.marcadoresBloqueio = [];
-                mostrarMensagem(t('messages.info.los_source_changed', { name: pivoData.nome }), "sucesso");
+                mostrarMensagem(t('messages.info.los_source_changed', { name: itemData.nome }), "sucesso");
             }
             return;
         }
-        AppState.losTargetPivot = { nome: pivoData.nome, latlng: pivotLatlng, altura: defaultPivotHeight };
+        AppState.losTargetPivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
         mostrarLoader(true);
         let ocorreuErroNaAnalise = false;
         let distanciaFormatada = "N/A";
         try {
-            const distanciaEntrePivos = AppState.losSourcePivot.latlng.distanceTo(AppState.losTargetPivot.latlng);
-            distanciaFormatada = distanciaEntrePivos > 999 ? (distanciaEntrePivos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntrePivos) + ' m';
+            const distanciaEntreAlvos = AppState.losSourcePivot.latlng.distanceTo(AppState.losTargetPivot.latlng);
+            distanciaFormatada = distanciaEntreAlvos > 999 ? (distanciaEntreAlvos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntreAlvos) + ' m';
             
             const payload = {
-                pontos: [ [AppState.losSourcePivot.latlng.lat, AppState.losSourcePivot.latlng.lng], [AppState.losTargetPivot.latlng.lat, AppState.losTargetPivot.latlng.lng] ],
-                altura_antena: AppState.losSourcePivot.altura, altura_receiver: AppState.losTargetPivot.altura
+                pontos: [
+                    [AppState.losSourcePivot.latlng.lat, AppState.losSourcePivot.latlng.lng],
+                    [AppState.losTargetPivot.latlng.lat, AppState.losTargetPivot.latlng.lng]
+                ],
+                altura_antena: AppState.losSourcePivot.altura,
+                altura_receiver: AppState.losTargetPivot.altura,
+                return_highest_point: true
             };
             const resultadoApi = await getElevationProfile(payload);
             const estaBloqueado = resultadoApi.bloqueio?.diff > 0.1;
@@ -1163,7 +1382,7 @@ async function handleLoSPivotClick(pivoData, pivoMarker) {
 
         } catch (error) {
             ocorreuErroNaAnalise = true;
-            console.error(`Erro no diagnóstico LoS Pivô a Pivô:`, error);
+            console.error(`Erro no diagnóstico LoS Alvo a Alvo:`, error);
             mostrarMensagem(t('messages.info.los_result_error', { source: AppState.losSourcePivot?.nome || 'Origem', target: AppState.losTargetPivot?.nome || 'Destino', distance: distanciaFormatada, error: error.message }), "erro");
         } finally {
             mostrarLoader(false);
@@ -1204,6 +1423,12 @@ function handleCancelDraw(e) {
     else if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
         if (typeof removeTempPacman === 'function') removeTempPacman();
         messageKey = 'messages.info.draw_pacman_cancelled';
+        drawCancelled = true;
+    }
+    // Lógica de cancelamento para Irripump
+    else if (AppState.modoDesenhoIrripump) {
+        toggleModoDesenhoIrripump();
+        messageKey = 'messages.info.draw_irripump_cancelled';
         drawCancelled = true;
     }
 
@@ -1294,10 +1519,14 @@ function toggleModoDesenhoPivoSetorial() {
     document.getElementById('btn-draw-pivot-setorial').classList.toggle('glass-button-active', AppState.modoDesenhoPivoSetorial);
 
     if (AppState.modoDesenhoPivoSetorial) {
+        // ✅ INÍCIO DA CORREÇÃO: Desativa outros modos conflitantes
         if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
+        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
         if (AppState.modoEdicaoPivos) togglePivoEditing();
+        // ✅ FIM DA CORREÇÃO
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
 
         map.getContainer().style.cursor = 'crosshair';
         map.on('click', handleSectorialPivotDrawClick);
@@ -1424,10 +1653,11 @@ function toggleModoDesenhoPivoPacman() {
     document.getElementById('btn-draw-pivot-pacman').classList.toggle('glass-button-active', AppState.modoDesenhoPivoPacman);
 
     if (AppState.modoDesenhoPivoPacman) {
-        // Desativa outros modos para evitar conflitos
+
         if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
         if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
         if (AppState.modoEdicaoPivos) togglePivoEditing();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
         
         map.getContainer().style.cursor = 'crosshair';
         map.on('click', handlePacmanPivotDrawClick);
@@ -1501,16 +1731,13 @@ async function handlePacmanPivotDrawClick(e) {
         
         AppState.lastPivosDataDrawn.push(novoPivo);
 
-        // ✅ INÍCIO DA CORREÇÃO: Adiciona o placeholder na lista de ciclos.
-        // Isto é crucial para que o backend saiba que esta área existe.
         const novoCiclo = {
             nome_original_circulo: `Ciclo ${novoPivo.nome}`,
             coordenadas: [] // Coordenadas vazias, pois a forma é gerada por parâmetros.
         };
         AppState.ciclosGlobais.push(novoCiclo);
-        // ✅ FIM DA CORREÇÃO
 
-        // Redesenha tudo no mapa
+
         drawPivos(AppState.lastPivosDataDrawn, false);
         drawCirculos(AppState.ciclosGlobais);
         
@@ -1532,5 +1759,26 @@ async function handlePacmanPivotDrawClick(e) {
                 mostrarMensagem(t('messages.info.draw_pacman_still_active'), "info");
             }
         }, 2500);
+    }
+}
+
+function toggleModoDesenhoIrripump() {
+    AppState.modoDesenhoIrripump = !AppState.modoDesenhoIrripump;
+    document.getElementById('btn-draw-irripump').classList.toggle('glass-button-active', AppState.modoDesenhoIrripump);
+
+    if (AppState.modoDesenhoIrripump) {
+        // Desativa outros modos conflitantes para evitar comportamentos inesperados
+        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
+        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
+        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
+        if (AppState.modoEdicaoPivos) togglePivoEditing();
+        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
+        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
+
+        map.getContainer().style.cursor = 'crosshair'; // Cursor para indicar modo de desenho
+        mostrarMensagem(t('messages.info.draw_irripump_step1'), "info");
+    } else {
+        map.getContainer().style.cursor = ''; // Retorna cursor padrão
+        mostrarMensagem(t('messages.info.draw_irripump_off'), "sucesso");
     }
 }

@@ -155,21 +155,25 @@ function drawPivos(pivosData, useEdited = false) {
         const statusTexto = pivo.fora ? `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>` : `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`;
         marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, { permanent: false, direction: 'top', offset: [0, -15], className: 'tooltip-sinal' });
 
-        marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            if (AppState.modoEdicaoPivos) {
-                 marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
-            } else if (AppState.modoLoSPivotAPivot) {
-                if (typeof handleLoSPivotClick === 'function') handleLoSPivotClick(pivo, marker);
-            } else if (AppState.modoBuscaLocalRepetidora) {
-                if (typeof handlePivotSelectionForRepeaterSite === 'function') handlePivotSelectionForRepeaterSite(pivo, marker);
-            } else {
-                window.ultimoCliqueFoiSobrePivo = true; // Dado transitório
-                AppState.coordenadaClicada = e.latlng;
-                removePositioningMarker();
-                document.getElementById("painel-repetidora")?.classList.remove("hidden");
-            }
-        });
+marker.on('click', (e) => {
+    L.DomEvent.stopPropagation(e);
+    if (AppState.modoEdicaoPivos) {
+         marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
+    } 
+    // ✅ INÍCIO DA MODIFICAÇÃO: Chamar a nova função genérica
+    else if (AppState.modoLoSPivotAPivot) {
+        if (typeof handleLoSTargetClick === 'function') handleLoSTargetClick(pivo, marker);
+    } 
+    // ✅ FIM DA MODIFICAÇÃO
+    else if (AppState.modoBuscaLocalRepetidora) {
+        if (typeof handlePivotSelectionForRepeaterSite === 'function') handlePivotSelectionForRepeaterSite(pivo, marker);
+    } else {
+        window.ultimoCliqueFoiSobrePivo = true; // Dado transitório
+        AppState.coordenadaClicada = e.latlng;
+        removePositioningMarker();
+        document.getElementById("painel-repetidora")?.classList.remove("hidden");
+    }
+});
         
         AppState.marcadoresPivos.push(marker);
         AppState.pivotsMap[pivo.nome] = marker;
@@ -211,8 +215,53 @@ function drawBombas(bombasData) {
 
         const statusTexto = bomba.fora === false ? `<span style="color:#22c55e;">${t('tooltips.in_signal')}</span>` : `<span style="color:#ff4d4d;">${t('tooltips.out_of_signal')}</span>`;
         marcadorBomba.bindTooltip(`<div style="text-align: center;">${statusTexto}</div>`, { permanent: false, direction: 'top', offset: [0, -28], className: 'tooltip-sinal' });
-
+        
         const nomeBomba = `Irripump ${String(i + 1).padStart(2, '0')}`;
+        
+        marcadorBomba.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (AppState.modoLoSPivotAPivot) {
+                if (typeof handleLoSTargetClick === 'function') {
+                    // Monta um objeto de dados similar ao de um pivô para o handler
+                    const bombaDataForHandler = {
+                        nome: nomeBomba,
+                        fora: bomba.fora
+                    };
+                    handleLoSTargetClick(bombaDataForHandler, marcadorBomba);
+                }
+            }
+        });
+
+        marcadorBomba.on('contextmenu', (e) => {
+            L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
+
+            if (confirm(t('messages.confirm.remove_irripump', { name: nomeBomba }))) {
+                // Remove o marcador da bomba e a legenda do mapa
+                map.removeLayer(marcadorBomba);
+                const labelParaRemover = AppState.marcadoresLegenda.find(l => 
+                    l.getLatLng().equals(marcadorBomba.getLatLng()) && 
+                    l.options.labelType === 'bomba' && 
+                    l.options.icon.options.html.includes(nomeBomba)
+                );
+                if (labelParaRemover) {
+                    map.removeLayer(labelParaRemover);
+                    AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => l !== labelParaRemover);
+                }
+
+                // Remove a bomba do AppState.lastBombasDataDrawn
+                AppState.lastBombasDataDrawn = AppState.lastBombasDataDrawn.filter(b => 
+                    !(b.lat === bomba.lat && b.lon === bomba.lon) // Remove pela lat/lon para garantir unicidade
+                );
+
+                // Re-desenha as bombas para reajustar os índices e nomes se necessário
+                drawBombas(AppState.lastBombasDataDrawn); // Isso irá recriar os marcadores e labels com nomes atualizados
+
+                atualizarPainelDados();
+                reavaliarPivosViaAPI(); // Reavalia a cobertura após a remoção
+                mostrarMensagem(t('messages.success.irripump_removed', { name: nomeBomba }), 'sucesso');
+            }
+        });
+
         let finalHtml = nomeBomba;
         let hasDistancia = false;
         let labelWidth = (nomeBomba.length * 6.5) + 15;
@@ -380,39 +429,57 @@ function addAntenaAoPainel(antena) {
 
 function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPontoMaisAlto, nomeDiagnostico, distanciaFormatada = null) {
     if (!map || !AppState.visadaLayerGroup) return;
+
     const linha = drawVisadaComGradiente(latlonOrigem, latlonDestino);
-    let pontoParaMarcador = null;
-    let mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
-    let iconUrl = CHECK_ICON_PATH, iconSize = [22, 22];
+    
+    // Determine if the line of sight is blocked
+    const estaBloqueado = dadosBloqueioAPI?.diff > 0.1;
 
-    if (distanciaFormatada) mensagemTooltip += `<br>${t('ui.labels.pivo_distance_label')} ${distanciaFormatada}`;
+    let iconUrl;
+    let iconSize;
+    let mensagemTooltip;
+    let markerLatLng;
+    let tooltipColor; // Added for tooltip text color
 
-    if (dadosBloqueioAPI?.lat && typeof dadosBloqueioAPI.diff === 'number') {
-        pontoParaMarcador = dadosBloqueioAPI;
-        mensagemTooltip += `<br>${t('tooltips.blockage_point', { elevation: pontoParaMarcador.elev.toFixed(1) })}`;
-        if (dadosBloqueioAPI.diff > 0.1) {
-            iconUrl = ATTENTION_ICON_PATH; iconSize = [24, 24];
-            mensagemTooltip += `<br><span style="color: #FF9800;">${t('tooltips.blockage_present', { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
-        } else if (distanciaFormatada) {
-            mensagemTooltip += `<br><span style="color: #4CAF50;">${t('tooltips.los_clear_at_critical_point', { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
+    // If blocked, show the blockage point. Otherwise, show the highest point.
+    if (estaBloqueado) {
+        iconUrl = ATTENTION_ICON_PATH;
+        iconSize = [24, 24];
+        markerLatLng = [dadosBloqueioAPI.lat, dadosBloqueioAPI.lon];
+        mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
+        if (distanciaFormatada) {
+            mensagemTooltip += `<br>${t('ui.labels.pivo_distance_label')} ${distanciaFormatada}`;
         }
-    } else if (dadosPontoMaisAlto?.lat) {
-        pontoParaMarcador = dadosPontoMaisAlto;
-        iconUrl = MOUNTAIN_ICON_PATH; iconSize = [20, 20];
-        mensagemTooltip += `<br>${t('tooltips.highest_point', { elevation: pontoParaMarcador.elev.toFixed(1) })}`;
+        mensagemTooltip += `<br>${t('tooltips.blockage_point', { elevation: dadosBloqueioAPI.elev.toFixed(1) })}`;
+        tooltipColor = '#FF9800'; // Orange for blocked
+        mensagemTooltip += `<br><span style="color: ${tooltipColor};">${t('tooltips.blockage_present', { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
+    } else {
+        // Line of sight is clear, show the highest point
+        iconUrl = MOUNTAIN_ICON_PATH; // Reusing MOUNTAIN_ICON_PATH for highest point
+        iconSize = [22, 22]; 
+        markerLatLng = [dadosPontoMaisAlto.lat, dadosPontoMaisAlto.lon]; // Use the highest point's coordinates
+        mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
+        if (distanciaFormatada) {
+            mensagemTooltip += `<br>${t('ui.labels.pivo_distance_label')} ${distanciaFormatada}`;
+        }
+        // Simplified tooltip message for highest point, also in orange color
+        tooltipColor = '#FF9800'; // Orange for highest point when clear
+        mensagemTooltip += `<br><span style="color: ${tooltipColor};">${t('tooltips.highest_point_short', { elevation: dadosPontoMaisAlto.elev.toFixed(1) })}</span>`; // Use new key
     }
 
-    if (pontoParaMarcador && (distanciaFormatada ? !!dadosBloqueioAPI : true)) {
+    // Draw the single marker
+    if (markerLatLng && markerLatLng[0] && markerLatLng[1]) { // Ensure coordinates are valid
         const markerIcon = L.divIcon({
             className: 'label-bloqueio-dinamico',
             html: `<img src="${iconUrl}" style="width:${iconSize[0]}px; height:${iconSize[1]}px;">`,
             iconSize: iconSize, iconAnchor: [iconSize[0]/2, iconSize[1]/2]
         });
-        const marker = L.marker([pontoParaMarcador.lat, pontoParaMarcador.lon], { icon: markerIcon })
+        const marker = L.marker(markerLatLng, { icon: markerIcon })
             .addTo(AppState.visadaLayerGroup)
             .bindTooltip(mensagemTooltip, { permanent: false, direction: 'top', className: 'tooltip-sinal tooltip-visada-diagnostico', offset: [0, -(iconSize[1]/2 + 5)] });
         AppState.marcadoresBloqueio.push(marker);
     }
+    
     AppState.linhasDiagnostico.push(linha);
 }
 

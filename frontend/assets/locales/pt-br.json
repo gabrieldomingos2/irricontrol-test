@@ -15,6 +15,8 @@
             "undo_edit": "Desfazer Edição",
             "draw_pivot": "Desenhar Pivô Manualmente",
             "draw_sector_pivot": "Desenhar Pivô Setorial",
+            "draw_pacman_pivot": "Desenhar Pivô Pac-Man",
+            "draw_irripump": "Desenhar Irripump",
             "repeater_panel_setup": "📡 Configurar Repetidora",
             "search_coordinates": "Buscar Coordenadas"
         },
@@ -33,7 +35,7 @@
             "main_antenna_default": "Torre Principal",
             "receiver": "Receiver:",
             "total_repeaters": "Total Repetidoras:",
-            "pump_houses": "Casas de bomba:",
+            "pump_houses": "Irripumps:",
             "repeater": "Repetidora",
             "pivo_distance_label": "Dist. Pivô:",
             "powered_by": "Powered by Irricontrol"
@@ -58,11 +60,13 @@
         "blockage_present": "Bloqueio presente: {diff}m",
         "los_clear_at_critical_point": "Visada livre no ponto crítico (margem {diff}m)",
         "highest_point": "Ponto mais alto: {elevation}m",
+        "highest_point_short": "Ponto mais alto: {elevation}m",
         "los_ok": "Visada OK",
         "los_no": "Obstruído",
         "hide_legends": "Esconder Legendas",
         "show_legends": "Mostrar Legendas",
-        "run_diagnostic_from_source": "Rodar diagnóstico a partir desta fonte"
+        "run_diagnostic_from_source": "Rodar diagnóstico a partir desta fonte",
+        "los_clear_at_highest_point": "Visada livre (Ponto mais alto: {elevation}m)"
     },
     "messages": {
         "success": {
@@ -73,6 +77,8 @@
             "found_candidate_sites": "Encontrados {count} locais candidatos para a repetidora.",
             "pivot_created": "Novo pivô '{name}' criado com sucesso.",
             "sector_pivot_created": "Pivô setorial '{name}' criado com sucesso.",
+            "pacman_pivot_created": "Pivô Pac-Man '{name}' criado com sucesso.",
+            "irripump_created": "Irripump '{name}' criado com sucesso.",
             "app_reset": "Aplicação resetada. Nova sessão iniciada.",
             "los_diagnostic_complete": "Diagnóstico de visada concluído.",
             "kmz_export_preparing": "Preparando exportação KMZ...",
@@ -80,7 +86,9 @@
             "pivot_removed": "Pivô \"{name}\" removido com sucesso.",
             "tower_selected_for_simulation": "Torre '{name}' selecionada. Clique em 'Simular' no painel.",
             "repeater_suggestion_removed": "Sugestão de repetidora removida.",
-            "location_found": "Localização encontrada e marcada no mapa."
+            "location_found": "Localização encontrada e marcada no mapa.",
+            "action_undone_move": "Movimento do pivô '{pivot_name}' desfeito.",
+            "action_undone_delete": "Exclusão do pivô '{pivot_name}' desfeita."
         },
         "errors": {
             "session_start_fail": "Falha crítica ao iniciar nova sessão. Tente recarregar a página.",
@@ -134,7 +142,20 @@
             "draw_sector_pivot_off": "Modo de Desenho Setorial desativado.",
             "draw_sector_pivot_still_active": "Modo Setorial ainda ativo. Clique para desenhar um novo pivô.",
             "draw_sector_cancelled": "Desenho de pivô setorial cancelado. Clique para definir um novo centro.",
-            "analyzing_pivots_from_source": "Analisando visada para {count} pivôs a partir de '{source}'..."
+            "draw_pacman_step1": "Modo Pac-Man: Clique no mapa para definir o centro do pivô.",
+            "draw_pacman_step2": "Centro definido. Clique para definir o raio e o ângulo inicial.",
+            "draw_pacman_step3": "Raio e ângulo inicial definidos. Clique para definir o ângulo final.",
+            "draw_pacman_off": "Modo de Desenho Pac-Man desativado.",
+            "draw_pacman_still_active": "Modo Pac-Man ainda ativo. Clique para desenhar um novo pivô.",
+            "draw_pacman_cancelled": "Desenho de pivô Pac-Man cancelado. Clique para definir um novo centro.",
+            "draw_irripump_step1": "Modo Irripump: Clique no mapa para adicionar um Irripump.",
+            "draw_irripump_off": "Modo de Desenho de Irripump desativado.",
+            "draw_irripump_still_active": "Modo de Desenho de Irripump ainda ativo. Clique para adicionar outro.",
+            "draw_irripump_cancelled": "Desenho de Irripump cancelado.",
+            "analyzing_pivots_from_source": "Analisando visada para {count} pivôs a partir de '{source}'...",
+            "no_uncovered_pivots_in_radius": "Nenhum pivô sem cobertura encontrado no raio de {limit}.",
+            "pivots_ignored_by_distance": "({count} pivôs ignorados por estarem além do limite de {limit})",
+            "nothing_to_undo": "Nada para desfazer."
         },
         "confirm": {
             "remove_pivot": "Tem certeza que deseja remover o pivô \"{name}\"? O círculo associado também será removido.",

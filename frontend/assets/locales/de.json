@@ -31,7 +31,7 @@
             "main_antenna_default": "Hauptturm",
             "receiver": "Empfänger:",
             "total_repeaters": "Repeater gesamt:",
-            "pump_houses": "Pumpenhäuser:",
+            "pump_houses": "Irripumps:",
             "repeater": "Repeater",
             "pivo_distance_label": "Pivot-Entf:",
             "powered_by": "Powered by Irricontrol"

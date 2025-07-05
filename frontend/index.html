@@ -25,14 +25,6 @@
         <div class="flex items-center gap-2 ml-[20px]">
             <span class="text-white/70 text-sm font-medium mr-2" data-i18n="ui.labels.tools">Ferramentas</span>
 
-            <button id="toggle-painel" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.data_panel">
-                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/file-chart-column.svg); mask-image: url(assets/images/file-chart-column.svg);"></span>
-            </button>
-
-            <button id="toggle-repetidoras" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.repeater_panel">
-                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
-            </button>
-
             <button id="btn-visada" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.line_of_sight">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
             </button>
@@ -72,6 +64,11 @@
             <button id="btn-draw-pivot-pacman" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.draw_pacman_pivot">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/circle-dashed.svg); mask-image: url(assets/images/circle-dashed.svg);"></span>
             </button>
+
+            <button id="btn-draw-irripump" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.draw_irripump">
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/irripump.svg); mask-image: url(assets/images/irripump.svg);"></span>
+            </button>
+        </div>
 
        </div>
     </div>
@@ -149,27 +146,38 @@
 
     <div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
 
-    <div id="painel-dados" class="w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
-        <h2 class="text-sm font-semibold text-white/80 mb-3" data-i18n="ui.titles.data_panel">📊 Dados da Simulação</h2>
-        <div class="flex justify-between items-center mb-3">
-            <span id="template-info" class="font-medium text-sm text-green-300">🌐 Template: --</span>
-        </div>
-        <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots">Pivôs: --</p>
-        <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage">Fora da cobertura: --</p>
-        <p id="altura-antena-info" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.main_antenna">Antena principal: -- m</p>
-        <p id="altura-receiver-info" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.receiver">Receiver: -- m</p>
-        <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters">Total Repetidoras: --</p>
-        <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses">Casas de bomba: --</p>
-    </div>
-
-    <div id="painel-repetidoras" class="w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
-        <h2 class="text-sm font-semibold text-white/80 mb-2 px-2 flex-shrink-0" data-i18n="ui.titles.repeater_panel">📡 Repetidoras</h2>
-        
-        <div id="lista-repetidoras" class="space-y-1 text-sm overflow-y-auto max-h-[460px] px-2 pb-2">
+        <div id="painel-dados" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.data_panel">📊 Dados da Simulação</h2>
+                <button class="panel-toggle-btn text-white/60 hover:text-sky-300">
+                    <i data-lucide="chevron-up" class="w-5 h-5"></i>
+                </button>
             </div>
-    </div>
+            <div class="panel-content">
+                <div class="flex justify-between items-center mb-3">
+                    <span id="template-info" class="font-medium text-sm text-green-300">🌐 Template: --</span>
+                </div>
+                <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots">Pivôs: --</p>
+                <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage">Fora da cobertura: --</p>
+                <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters">Total Repetidoras: --</p>
+                <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses">Irripumps: --</p>
+            </div>
+        </div>
+
+        <div id="painel-repetidoras" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
+            <div class="flex justify-between items-center mb-2 px-2">
+                <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.repeater_panel">📡 Repetidoras</h2>
+                <button class="panel-toggle-btn text-white/60 hover:text-sky-300">
+                    <i data-lucide="chevron-up" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="panel-content">
+                <div id="lista-repetidoras" class="space-y-1 text-sm overflow-y-auto max-h-[460px] px-2 pb-2">
+                </div>
+            </div>
+        </div>
     
-</div>
+    </div>
 
     <div id="mensagem" class="hidden absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"></div>
     <div id="loader" class="hidden absolute inset-0 bg-[#060B10] bg-opacity-60 flex flex-col items-center justify-center z-[10001]">
@@ -180,10 +188,10 @@
         <span class="mt-4 text-lg font-bold text-green-300" data-i18n="ui.labels.processing">Processando...</span>
     </div>
 
-<div id="legend-container" class="absolute top-6 right-6 hidden">
-    <img id="legend-image" src="" alt="Legenda de Cores"
-         class="block max-w-[80px] h-auto rounded-md shadow-lg" />
-</div>
+    <div id="legend-container" class="absolute top-6 right-6 hidden">
+        <img id="legend-image" src="" alt="Legenda de Cores"
+             class="block max-w-[80px] h-auto rounded-md shadow-lg" />
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="assets/js/i18n.js"></script>

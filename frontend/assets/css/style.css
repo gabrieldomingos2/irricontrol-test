@@ -479,6 +479,56 @@ button, .glass-button, label[for="arquivo"] {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
+
+/* Estilos para o conteúdo sanfona dos painéis */
+.panel-content {
+  max-height: 600px; /* Altura máxima para garantir que todo o conteúdo apareça */
+  overflow: hidden;
+  transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, margin 0.5s ease-in-out;
+  opacity: 1;
+}
+
+/* Estilos para quando o painel está minimizado */
+.panel.minimized .panel-content {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0 !important; /* Remove margens para um colapso limpo */
+  margin-bottom: 0 !important;
+}
+
+/* Garante que o padding suma também quando minimizado */
+.panel.minimized .panel-content > * {
+    display: none;
+}
+
+
+/* ===================================== */
+/* ✨ EFEITO DE PAINEL TRANSPARENTE AO MINIMIZAR */
+/* ===================================== */
+
+/* Adiciona transições suaves ao corpo principal do painel para um efeito de fade */
+.panel {
+    transition: background-color 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Quando o painel está minimizado, ele se torna transparente */
+.panel.minimized {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+/* Adiciona uma transição suave para o título do painel */
+.panel h2 {
+    transition: opacity 0.3s ease;
+}
+
+/* Quando o painel está minimizado, o título desaparece */
+.panel.minimized h2 {
+    opacity: 0;
+}
+
 /* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */
 /* ============================ */

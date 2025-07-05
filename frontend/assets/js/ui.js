@@ -78,15 +78,12 @@ function updateLegendImage(templateName) {
 function atualizarPainelDados() {
     const totalPivos = AppState.lastPivosDataDrawn.length;
     const foraCobertura = AppState.lastPivosDataDrawn.filter(p => p.fora).length;
-    const antena = AppState.antenaGlobal || {};
     const totalRepetidoras = AppState.repetidoras.length + (AppState.antenaGlobal ? 1 : 0);
     const totalBombas = AppState.marcadoresBombas.length;
 
     document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${totalRepetidoras}`;
     document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${totalPivos}`;
     document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${foraCobertura}`;
-    document.getElementById("altura-antena-info").textContent = `${t('ui.labels.main_antenna')} ${antena.altura || '--'} m`;
-    document.getElementById("altura-receiver-info").textContent = `${t('ui.labels.receiver')} ${antena.altura_receiver || '--'} m`;
     document.getElementById("template-info").textContent = `🌐 Template: ${AppState.templateSelecionado || '--'}`;
     
     const bombasElemento = document.getElementById("total-bombas");
@@ -97,19 +94,19 @@ function atualizarPainelDados() {
 
 function reposicionarPaineisLaterais() {
     const paineis = [painelDadosDiv, painelRepetidorasDiv];
-    let topoAtual = 16;
+    let topoAtual = 16; // Corresponde a 'top-16' -> 4rem -> 64px. Assumindo que o container pai dos painéis tem top-16.
+    const espacamento = 16; // Corresponde a 'space-y-4'
+
     paineis.forEach(painel => {
-        if (painel && !painel.classList.contains("hidden")) {
+        if (painel) { // Processa mesmo que esteja escondido para manter a ordem
             painel.style.top = `${topoAtual}px`;
-            topoAtual += painel.offsetHeight + 16;
+            // A altura do painel minimizado é basicamente a altura do seu cabeçalho.
+            // A altura total (offsetHeight) reflete o estado atual (minimizado ou expandido).
+            topoAtual += painel.offsetHeight + espacamento;
         }
     });
 }
 
-function togglePainel(id) {
-    document.getElementById(id)?.classList.toggle("hidden");
-    setTimeout(reposicionarPaineisLaterais, 50);
-}
 
 // ==========================
 // 📂 UPLOAD E TEMPLATE
@@ -135,19 +132,24 @@ async function loadAndPopulateTemplates() {
 // 🧠 TOGGLES INTERATIVOS
 // ==========================
 function togglePivoEditing() {
-    // A lógica de estado agora é gerenciada em enable/disablePivoEditingMode em main.js
-    // Esta função agora apenas lida com a UI do botão.
-    const isEditing = !AppState.modoEdicaoPivos; // O novo estado será o oposto do atual
+    const isEditing = !AppState.modoEdicaoPivos; 
 
     const btn = document.getElementById("editar-pivos");
     const btnUndo = document.getElementById("desfazer-edicao");
 
+    // Usa os ícones da biblioteca Lucide
     btn.innerHTML = isEditing ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-    btn.title = isEditing ? t('ui.buttons.save_edit') : t('ui.titles.edit_pivots');
+    btn.title = isEditing ? t('ui.titles.save_edit') : t('ui.titles.edit_pivots');
     btn.classList.toggle('glass-button-active', isEditing);
     btnUndo.classList.toggle("hidden", !isEditing);
     
     if (isEditing) {
+        // ✅ INÍCIO DA CORREÇÃO: Desativa outros modos antes de ativar este
+        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
+        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
+        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
+        // ✅ FIM DA CORREÇÃO
+        
         enablePivoEditingMode();
     } else {
         disablePivoEditingMode();
@@ -160,9 +162,26 @@ function togglePivoEditing() {
 // 🛠️ SETUP DOS EVENTOS
 // ==========================
 function setupUIEventListeners() {
-    document.getElementById("toggle-painel").addEventListener("click", () => togglePainel("painel-dados"));
-    document.getElementById("toggle-repetidoras").addEventListener("click", () => togglePainel("painel-repetidoras"));
-    
+
+    document.querySelectorAll('.panel-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const panel = e.currentTarget.closest('.panel');
+            if (!panel) return;
+
+            panel.classList.toggle('minimized');
+            const icon = btn.querySelector('i');
+
+            if (panel.classList.contains('minimized')) {
+                icon.setAttribute('data-lucide', 'chevron-down');
+            } else {
+                icon.setAttribute('data-lucide', 'chevron-up');
+            }
+            lucide.createIcons();
+            
+            setTimeout(reposicionarPaineisLaterais, 500); 
+        });
+    });
+
     document.getElementById("toggle-legenda").addEventListener("click", () => {
         toggleLegendas(!AppState.legendasAtivas);
     });
@@ -184,8 +203,9 @@ function setupUIEventListeners() {
         removePositioningMarker();
     });
 
+
     document.getElementById("editar-pivos").addEventListener("click", togglePivoEditing);
-    document.getElementById("desfazer-edicao").addEventListener("click", undoPivoEdits);
+    document.getElementById("desfazer-edicao").addEventListener("click", desfazerUltimaAcao);
 
     document.querySelectorAll('[data-lang]').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -195,4 +215,27 @@ function setupUIEventListeners() {
     });
 
     lucide.createIcons();
+}
+
+/**
+ * Garante que todos os painéis laterais estejam expandidos.
+ */
+function expandAllPanels() {
+
+    document.querySelectorAll('.panel.minimized').forEach(panel => {
+ 
+        panel.classList.remove('minimized');
+
+        const toggleBtn = panel.querySelector('.panel-toggle-btn');
+        if (toggleBtn) {
+            const icon = toggleBtn.querySelector('i');
+            if (icon) {
+                icon.setAttribute('data-lucide', 'chevron-up');
+            }
+        }
+    });
+
+    lucide.createIcons();
+
+    setTimeout(reposicionarPaineisLaterais, 500);
 }
