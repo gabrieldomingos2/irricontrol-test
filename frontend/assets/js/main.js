@@ -719,24 +719,27 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 }
 
 function toggleModoDesenhoPivo() {
-    AppState.modoDesenhoPivo = !AppState.modoDesenhoPivo;
-    document.getElementById('btn-draw-pivot').classList.toggle('glass-button-active', AppState.modoDesenhoPivo);
+    const isActivating = !AppState.modoDesenhoPivo;
 
-    if (AppState.modoDesenhoPivo) {
-
+    // Antes de ativar este modo, desativa os outros para evitar conflitos.
+    if (isActivating) {
         if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
         if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
         if (AppState.modoEdicaoPivos) togglePivoEditing();
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump(); //
+    }
+    
+    AppState.modoDesenhoPivo = isActivating;
+    document.getElementById('btn-draw-pivot').classList.toggle('glass-button-active', AppState.modoDesenhoPivo);
 
+    if (AppState.modoDesenhoPivo) {
         map.getContainer().style.cursor = 'crosshair';
         mostrarMensagem(t('messages.info.draw_pivot_step1'), "info");
         
         map.on('click', handlePivotDrawClick);
         map.on('mousemove', handlePivotDrawMouseMove);
-
     } else {
         map.getContainer().style.cursor = '';
         AppState.centroPivoTemporario = null;
@@ -1226,13 +1229,33 @@ function enablePivoEditingMode() {
 }
 
 function disablePivoEditingMode() {
+    console.log("💾 Salvando e desativando modo de edição.");
+    
     AppState.modoEdicaoPivos = false;
-    Object.values(AppState.pivotsMap).forEach(editMarker => editMarker && map.hasLayer(editMarker) && map.removeLayer(editMarker));
+
+    Object.values(AppState.pivotsMap).forEach(editMarker => {
+        if (editMarker && map.hasLayer(editMarker)) {
+            map.removeLayer(editMarker);
+        }
+    });
+    
+
     AppState.pivotsMap = {};
     drawPivos(AppState.lastPivosDataDrawn, false);
     mostrarMensagem(t('messages.info.positions_updated_resimulate'), "sucesso");
     AppState.historyStack = [];
-    document.getElementById("desfazer-edicao").disabled = true;
+    const undoButton = document.getElementById("desfazer-edicao");
+    if (undoButton) {
+        undoButton.disabled = true;
+        undoButton.classList.add("hidden");
+    }
+    
+    const editButton = document.getElementById("editar-pivos");
+    if (editButton) {
+        editButton.classList.remove('glass-button-active');
+        editButton.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+        lucide.createIcons();
+    }
 }
 
 
@@ -1512,30 +1535,36 @@ function handleCoordinateSearch() {
 
 function getNextPivotNumber() {
     let maxNumber = 0;
+    const regex = new RegExp(`(?:${t('entity_names.pivot')}|Pivô|Pivot|Pivote)\\s+(\\d+)$`, 'i');
+
     AppState.lastPivosDataDrawn.forEach(pivo => {
-        const match = pivo.nome.match(/\d+/);
-        if (match) {
-            const currentNumber = parseInt(match[0], 10);
-            if (currentNumber > maxNumber) maxNumber = currentNumber;
+        const match = pivo.nome.match(regex);
+        if (match && match[1]) {
+            const currentNumber = parseInt(match[1], 10);
+            if (currentNumber > maxNumber) {
+                maxNumber = currentNumber;
+            }
         }
     });
     return maxNumber + 1;
 }
 
 function toggleModoDesenhoPivoSetorial() {
-    AppState.modoDesenhoPivoSetorial = !AppState.modoDesenhoPivoSetorial;
+    const isActivating = !AppState.modoDesenhoPivoSetorial;
+
+    if (isActivating) {
+        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
+        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
+        if (AppState.modoEdicaoPivos) togglePivoEditing();
+        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
+        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
+    }
+
+    AppState.modoDesenhoPivoSetorial = isActivating;
     document.getElementById('btn-draw-pivot-setorial').classList.toggle('glass-button-active', AppState.modoDesenhoPivoSetorial);
 
     if (AppState.modoDesenhoPivoSetorial) {
-        // ✅ INÍCIO DA CORREÇÃO: Desativa outros modos conflitantes
-        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
-        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
-        if (AppState.modoEdicaoPivos) togglePivoEditing();
-        // ✅ FIM DA CORREÇÃO
-        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
-        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
-
         map.getContainer().style.cursor = 'crosshair';
         map.on('click', handleSectorialPivotDrawClick);
         map.on('mousemove', handleSectorialDrawMouseMove);
@@ -1656,16 +1685,21 @@ function handleCancelCircularDraw(e) {
 }
 
 function toggleModoDesenhoPivoPacman() {
-    AppState.modoDesenhoPivoPacman = !AppState.modoDesenhoPivoPacman;
+    const isActivating = !AppState.modoDesenhoPivoPacman;
+
+    if (isActivating) {
+        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
+        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
+        if (AppState.modoEdicaoPivos) togglePivoEditing();
+        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
+        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
+    }
+    
+    AppState.modoDesenhoPivoPacman = isActivating;
     document.getElementById('btn-draw-pivot-pacman').classList.toggle('glass-button-active', AppState.modoDesenhoPivoPacman);
 
     if (AppState.modoDesenhoPivoPacman) {
-
-        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
-        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
-        if (AppState.modoEdicaoPivos) togglePivoEditing();
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
-        
         map.getContainer().style.cursor = 'crosshair';
         map.on('click', handlePacmanPivotDrawClick);
         map.on('mousemove', handlePacmanDrawMouseMove);
@@ -1771,22 +1805,25 @@ async function handlePacmanPivotDrawClick(e) {
 }
 
 function toggleModoDesenhoIrripump() {
-    AppState.modoDesenhoIrripump = !AppState.modoDesenhoIrripump;
-    document.getElementById('btn-draw-irripump').classList.toggle('glass-button-active', AppState.modoDesenhoIrripump);
+    const isActivating = !AppState.modoDesenhoIrripump;
 
-    if (AppState.modoDesenhoIrripump) {
-        // Desativa outros modos conflitantes para evitar comportamentos inesperados
+    if (isActivating) {
         if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
         if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
         if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
         if (AppState.modoEdicaoPivos) togglePivoEditing();
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
+    }
 
-        map.getContainer().style.cursor = 'crosshair'; // Cursor para indicar modo de desenho
+    AppState.modoDesenhoIrripump = isActivating;
+    document.getElementById('btn-draw-irripump').classList.toggle('glass-button-active', AppState.modoDesenhoIrripump);
+
+    if (AppState.modoDesenhoIrripump) {
+        map.getContainer().style.cursor = 'crosshair';
         mostrarMensagem(t('messages.info.draw_irripump_step1'), "info");
     } else {
-        map.getContainer().style.cursor = ''; // Retorna cursor padrão
+        map.getContainer().style.cursor = '';
         mostrarMensagem(t('messages.info.draw_irripump_off'), "sucesso");
     }
 }

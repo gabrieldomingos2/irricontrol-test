@@ -132,26 +132,27 @@ async function loadAndPopulateTemplates() {
 // 🧠 TOGGLES INTERATIVOS
 // ==========================
 function togglePivoEditing() {
-    const isEditing = !AppState.modoEdicaoPivos; 
+
+    const novoEstadoDeEdicao = !AppState.modoEdicaoPivos;
+
+    AppState.modoEdicaoPivos = novoEstadoDeEdicao;
 
     const btn = document.getElementById("editar-pivos");
     const btnUndo = document.getElementById("desfazer-edicao");
-
-    // Usa os ícones da biblioteca Lucide
-    btn.innerHTML = isEditing ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-    btn.title = isEditing ? t('ui.titles.save_edit') : t('ui.titles.edit_pivots');
-    btn.classList.toggle('glass-button-active', isEditing);
-    btnUndo.classList.toggle("hidden", !isEditing);
+    btn.innerHTML = novoEstadoDeEdicao ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+    btn.title = novoEstadoDeEdicao ? t('ui.titles.save_edit') : t('ui.titles.edit_pivots');
+    btn.classList.toggle('glass-button-active', novoEstadoDeEdicao);
+    btnUndo.classList.toggle("hidden", !novoEstadoDeEdicao);
     
-    if (isEditing) {
-        // ✅ INÍCIO DA CORREÇÃO: Desativa outros modos antes de ativar este
+    if (novoEstadoDeEdicao) {
         if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
         if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
         if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
-        // ✅ FIM DA CORREÇÃO
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
         
         enablePivoEditingMode();
     } else {
+
         disablePivoEditingMode();
     }
 
