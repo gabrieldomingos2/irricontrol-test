@@ -211,7 +211,8 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style, t: Callable):
     if bombas:
         f_bombas = doc.newfolder(name=t("kml.folders.pumps"))
         for i, b_data in enumerate(bombas):
-            f_bombas.newpoint(name=b_data.get("nome", t("kml.entities.pump", number=i+1)), coords=[(b_data["lon"], b_data["lat"])]).style = style
+            nome_padronizado = f'{t("entity_names.irripump")} {i+1}'
+            f_bombas.newpoint(name=nome_padronizado, coords=[(b_data["lon"], b_data["lat"])]).style = style
 
 
 def build_kml_document_and_get_image_list(doc, lang: str, pivos_data, ciclos_data, bombas_data, repetidoras_selecionadas_data, generated_images_dir, selected_template, antena_data, imagem_principal_nome_relativo, bounds_principal_data) -> List[Tuple[Path, str]]:
