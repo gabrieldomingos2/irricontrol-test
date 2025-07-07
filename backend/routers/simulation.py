@@ -113,9 +113,12 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
 
         overlay_info = {"imagem_path": imagem_path_servidor, "bounds": sim_result["bounds"]}
         
-        # ✅ CORREÇÃO: Usa a lista de pivôs e bombas do payload para análise, não do arquivo.
-        pivos_com_status = analysis_service.verificar_cobertura_pivos([p.model_dump() for p in payload.pivos_atuais], [overlay_info])
-        bombas_com_status = analysis_service.verificar_cobertura_bombas([b.model_dump() for b in payload.bombas_atuais], [overlay_info])
+        pivos_com_status = await analysis_service.verificar_cobertura_pivos(
+            [p.model_dump() for p in payload.pivos_atuais], [overlay_info]
+        )
+        bombas_com_status = await analysis_service.verificar_cobertura_bombas(
+            [b.model_dump() for b in payload.bombas_atuais], [overlay_info]
+        )
         
         logger.info(f"✅ Simulação principal para job {payload.job_id} concluída e analisada.")
         return {
@@ -125,11 +128,6 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
     except Exception as e:
         logger.error(f"❌ Erro Interno em /run_main: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro na simulação principal: {str(e)}")
-
-# (O resto do arquivo simulation.py permanece o mesmo e pode ser omitido para brevidade)
-# ... (run_manual, reevaluate, elevation_profile, find_repeater_sites) ...
-# O resto do seu arquivo simulation.py (run_manual, reevaluate, elevation_profile, find_repeater_sites)
-# não precisa de alterações, pois já parecem corretos e robustos.
 
 @router.post("/run_manual")
 async def run_manual_simulation_endpoint(payload: ManualSimPayload):
