@@ -1,10 +1,3 @@
-Sim, aqui está o código completo e corrigido para backend/services/kmz_parser.py, que remove as palavras-chave fixas e as substitui pela configuração multilíngue centralizada.
-
-A principal mudança é a remoção das listas ANTENA_KEYWORDS, PIVO_KEYWORDS e BOMBA_KEYWORDS do escopo global e a sua substituição pela importação e uso do objeto settings. Isso torna o parser mais flexível e fácil de manter.
-
-backend/services/kmz_parser.py (Versão Final Corrigida)
-Python
-
 # backend/services/kmz_parser.py
 import zipfile
 import re
