@@ -1,0 +1,215 @@
+{
+    "ui": {
+        "titles": {
+            "main": "Simulador de Señal - Irricontrol",
+            "data_panel": "Panel de Datos",
+            "repeater_panel": "Panel de Repetidores",
+            "line_of_sight": "Línea de Visión (Obstáculos)",
+            "los_pivots": "Diagnóstico de Visión Pivote a Pivote",
+            "find_repeater_locations": "Encontrar Ubicaciones para Repetidor",
+            "legend": "Leyendas",
+            "show_pivot_distances": "Mostrar Distancias de los Pivotes",
+            "hide_pivot_distances": "Ocultar Distancias de los Pivotes",
+            "edit_pivots": "Editar Posición de los Pivotes",
+            "save_edit": "Guardar Edición de Pivotes",
+            "undo_edit": "Deshacer Edición",
+            "draw_pivot": "Dibujar Pivote Central Circular",
+            "draw_sector_pivot": "Dibujar Pivote Sectorial",
+            "draw_pacman_pivot": "Dibujar Pivote Sectorial en Arco",
+            "draw_irripump": "Dibujar Irripump",
+            "repeater_panel_setup": "📡 Configurar Repetidor",
+            "search_coordinates": "Buscar Coordenadas"
+        },
+        "labels": {
+            "tools": "Herramientas",
+            "template": "🌐 Plantilla:",
+            "choose_kmz": "Elegir Archivo KMZ",
+            "processing": "Procesando...",
+            "antenna_height": "Altura de la Antena (m)",
+            "receiver_height": "Altura del Receptor (m)",
+            "antenna_height_tooltip": "Altura Tx: {height}m",
+            "receiver_height_tooltip": "Altura Rx: {height}m",
+            "total_pivots": "Pivotes:",
+            "out_of_coverage": "Fuera de cobertura:",
+            "main_antenna": "Antena principal:",
+            "main_antenna_default": "Torre Principal",
+            "receiver": "Receptor:",
+            "total_repeaters": "Total Repetidores:",
+            "pump_houses": "Irripumps:",
+            "repeater": "Repetidor",
+            "pivo_distance_label": "Dist. Objetivo:",
+            "powered_by": "Powered by Irricontrol"
+        },
+        "placeholders": {
+            "lat_lon_search": "Latitud, Longitud"
+        },
+        "buttons": {
+            "load_kmz": "Cargar KMZ",
+            "run_study": "Ejecutar Estudio de Señal",
+            "run_los_diagnostic": "Diagnóstico de Visión",
+            "export_kmz": "Exportar KMZ",
+            "reset": "Reiniciar",
+            "simulate": "Simular"
+        }
+    },
+    "tooltips": {
+        "out_of_signal": "Sin Señal",
+        "in_signal": "Con Señal",
+        "show_hide_coverage": "Mostrar/Ocultar Cobertura",
+        "blockage_point": "Punto de bloqueo: {elevation}m",
+        "blockage_present": "Bloqueo presente: {diff}m",
+        "los_clear_at_critical_point": "Línea de visión libre en punto crítico (margen {diff}m)",
+        "highest_point": "Punto más alto: {elevation}m",
+        "highest_point_short": "Punto más alto: {elevation}m",
+        "los_ok": "Visión OK",
+        "los_no": "Obstruido",
+        "hide_legends": "Ocultar Leyendas",
+        "show_legends": "Mostrar Leyendas",
+        "run_diagnostic_from_source": "Ejecutar diagnóstico desde esta fuente",
+        "los_clear_at_highest_point": "Línea de visión libre (Punto más alto: {elevation}m)"
+    },
+    "messages": {
+        "success": {
+            "new_session_started": "Nueva sesión iniciada. Listo para cargar un KMZ o dibujar en el mapa.",
+            "kmz_loaded_select_tower": "KMZ cargado. Seleccione una torre en el mapa para iniciar.",
+            "simulation_complete": "Simulación completada con éxito.",
+            "repeater_added": "Repetidor '{name}' añadido.",
+            "found_candidate_sites": "Se encontraron {count} ubicaciones candidatas para el repetidor.",
+            "pivot_created": "Nuevo pivote '{name}' creado con éxito.",
+            "sector_pivot_created": "Pivote sectorial '{name}' creado con éxito.",
+            "pacman_pivot_created": "Pivote Sectorial en Arco '{name}' creado con éxito.",
+            "irripump_created": "Irripump '{name}' creado con éxito.",
+            "app_reset": "Aplicación reiniciada. Nueva sesión iniciada.",
+            "los_diagnostic_complete": "Diagnóstico de línea de visión completado.",
+            "kmz_export_preparing": "Preparando exportación KMZ...",
+            "pivot_distances_toggled": "Distancias de los pivotes {status}.",
+            "pivot_removed": "Pivote \"{name}\" eliminado con éxito.",
+            "irripump_removed": "Irripump \"{name}\" eliminado con éxito.",
+            "tower_selected_for_simulation": "Torre '{name}' seleccionada. Haga clic en 'Simular' en el panel.",
+            "repeater_suggestion_removed": "Sugerencia de repetidor eliminada.",
+            "location_found": "Ubicación encontrada y marcada en el mapa.",
+            "action_undone_move": "Movimiento del pivote '{pivot_name}' deshecho.",
+            "action_undone_delete": "Eliminación del pivote '{pivot_name}' deshecha."
+        },
+        "errors": {
+            "session_start_fail": "Fallo crítico al iniciar nueva sesión. Intente recargar la página.",
+            "select_kmz": "Por favor, seleccione un archivo KMZ primero.",
+            "kmz_load_fail": "Fallo al cargar el archivo KMZ: {error}",
+            "invalid_data_or_session": "Datos inválidos o sesión no iniciada. Intente reiniciar.",
+            "simulation_fail": "Fallo en la simulación: {error}",
+            "run_study_first": "Necesita ejecutar un estudio primero.",
+            "select_uncovered_pivot": "Por favor, seleccione un pivote sin cobertura (rojo).",
+            "no_coverage_to_search": "No hay área de cobertura activa para buscar. Active la antena principal o un repetidor.",
+            "find_repeater_fail": "Fallo al buscar ubicaciones para repetidor: {error}",
+            "session_not_started_for_draw": "Sesión no iniciada. Reinicie la aplicación antes de dibujar.",
+            "session_not_started": "Sesión no iniciada. Cargue un KMZ o reinicie la aplicación.",
+            "nothing_to_export": "Nada para exportar. Ejecute una simulación con una antena o repetidor.",
+            "reevaluate_fail": "Fallo al reevaluar la cobertura: {error}",
+            "los_diagnostic_fail": "Fallo en diagnóstico de visión para el objetivo {name}.",
+            "los_source_must_have_signal": "ORIGEN: Seleccione un objetivo (pivote o irripump) CON SEÑAL.",
+            "coordinate_input_empty": "Por favor, ingrese coordenadas para buscar.",
+            "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ej: 19°26'S 44°29'W) o Decimal (ej: -19.44 -44.49).",
+            "draw_pivot_radius_too_small": "Radio muy pequeño. El dibujo fue cancelado. Haga clic para definir un nuevo centro.",
+            "generic_error": "Ocurrió un error inesperado. Por favor, inténtelo de nuevo."
+        },
+        "info": {
+            "no_towers_found": "No se encontraron torres en el KMZ. Puede añadir una antena manualmente haciendo clic en el mapa.",
+            "los_mode_on": "Modo 'Encontrar Ubicaciones para Repetidor' activado. Seleccione un pivote sin cobertura (rojo).",
+            "los_mode_off_find_repeater": "Modo 'Encontrar Ubicaciones para Repetidor' desactivado.",
+            "target_pivot_selected": "Pivote objetivo seleccionado: {name}. Buscando ubicaciones...",
+            "no_promising_sites_found": "No se encontraron sitios prometedores con los criterios actuales.",
+            "draw_pivot_step1": "Modo de Dibujo: Haga clic en el mapa para definir el centro del pivote.",
+            "draw_pivot_step2": "Centro definido. Haga clic de nuevo para definir el radio del pivote.",
+            "draw_pivot_off": "Modo de Dibujo de Pivote desactivado.",
+            "draw_pivot_still_active": "Modo de Dibujo todavía activo. Haga clic para dibujar un nuevo pivote.",
+            "draw_pivot_cancelled": "Dibujo de pivote cancelado.",
+            "no_uncovered_targets": "No hay objetivos sin cobertura para analizar.",
+            "analyzing_targets_from_source": "Analizando línea de visión para {count} objetivos desde '{source}'...",
+            "no_uncovered_targets_in_radius": "No se encontraron objetivos sin cobertura en el radio de {limit}.",
+            "targets_ignored_by_distance": "({count} objetivos ignorados por estar más allá del límite de {limit})",
+            "edit_mode_activated": "Modo de edición activado. Arrastre los pines para mover. Clic derecho para eliminar.",
+            "positions_updated_resimulate": "Posiciones actualizadas. Ejecute la simulación de nuevo para ver el impacto en la cobertura.",
+            "edits_undone": "Ediciones deshechas. Modo de edición finalizado.",
+            "los_mode_step1_source": "MODO DIAGNÓSTICO PIVOTE A PIVOTE: Seleccione el objetivo de ORIGEN (con señal).",
+            "los_mode_deactivated": "Modo 'Diagnóstico Pivote a Pivote' desactivado.",
+            "los_source_selected": "ORIGEN: {name} seleccionado. Ahora seleccione el objetivo de DESTINO (sin señal).",
+            "los_source_already_selected": "ORIGEN: {name} ya es el origen. Seleccione el objetivo de DESTINO.",
+            "los_source_changed": "ORIGEN CAMBIADO a: {name}. Seleccione el objetivo de DESTINO.",
+            "los_result_blocked": "Visión {source} → {target} (Dist: {distance}) ⛔ Bloqueada.",
+            "los_result_clear_critical": "Visión {source} → {target} (Dist: {distance}) ✅ Libre en punto crítico.",
+            "los_result_clear": "Visión {source} → {target} (Dist: {distance}) ✅ Libre.",
+            "los_result_error": "⚠️ Error al diagnosticar visión {source} → {target} (Dist: {distance}): {error}",
+            "los_new_source_prompt": "Seleccione un nuevo objetivo de ORIGEN (con señal) o desactive el modo.",
+            "draw_sector_pivot_step1": "Modo Sectorial: Haga clic en el mapa para definir el centro del pivote.",
+            "draw_sector_pivot_step2": "Centro definido. Mueva el ratón para ajustar radio/dirección y haga clic de nuevo para finalizar.",
+            "draw_sector_pivot_off": "Modo de Dibujo Sectorial desactivado.",
+            "draw_sector_pivot_still_active": "Modo Sectorial todavía activo. Haga clic para dibujar un nuevo pivote.",
+            "draw_sector_cancelled": "Dibujo de pivote sectorial cancelado. Haga clic para definir un nuevo centro.",
+            "draw_pacman_step1": "Modo Sectorial en Arco: Haga clic en el mapa para definir el centro del pivote.",
+            "draw_pacman_step2": "Centro definido. Haga clic para definir el radio y el ángulo inicial.",
+            "draw_pacman_step3": "Radio y ángulo inicial definidos. Haga clic para definir el ángulo final.",
+            "draw_pacman_off": "Modo de Dibujo Sectorial en Arco desactivado.",
+            "draw_pacman_still_active": "Modo Sectorial en Arco todavía activo. Haga clic para dibujar un nuevo pivote.",
+            "draw_pacman_cancelled": "Dibujo de pivote Sectorial en Arco cancelado. Haga clic para definir un nuevo centro.",
+            "draw_irripump_step1": "Modo Irripump: Haga clic en el mapa para añadir un Irripump.",
+            "draw_irripump_off": "Modo de Dibujo de Irripump desactivado.",
+            "draw_irripump_still_active": "Modo de Dibujo de Irripump todavía activo. Haga clic para añadir otro.",
+            "draw_irripump_cancelled": "Dibujo de Irripump cancelado.",
+            "nothing_to_undo": "Nada que deshacer."
+        },
+        "confirm": {
+            "remove_pivot": "¿Está seguro de que desea eliminar el pivote \"{name}\"? El área asociada también se eliminará.",
+            "remove_irripump": "¿Está seguro de que desea eliminar el Irripump \"{name}\"?",
+            "change_los_source": "Ya ha seleccionado {sourceName} como origen. ¿Desea cambiar el origen a {newName}? Las líneas de diagnóstico anteriores se eliminarán."
+        },
+        "labels": {
+            "shown": "visibles",
+            "hidden": "ocultas"
+        }
+    },
+    "entity_names": {
+        "pivot": "Pivote",
+        "irripump": "Irripump"
+    },
+    "kml": {
+        "folders": {
+            "main_antenna": "Antena Principal",
+            "pivots_markers": "Pivotes (Marcadores)",
+            "pivot_areas": "Áreas de Pivotes",
+            "pumps": "Bombas"
+        },
+        "areas": {
+            "pivot_area": "Área {name}"
+        },
+        "overlays": {
+            "coverage_for": "Cobertura {name}",
+            "coverage_freq": "Cobertura {freq}MHz"
+        },
+        "prefixes": {
+            "cycle": "Ciclo",
+            "area": "Área"
+        },
+        "entities": {
+            "pump": "Bomba {number}"
+        },
+        "repeaters": {
+            "solar_pivot_repeater": "Repetidor Solar Pivote - {height}m",
+            "solar_repeater": "Repetidor Solar - {height}m"
+        },
+        "table": {
+            "frequency": "Frecuencia",
+            "rf_power": "Potencia RF",
+            "tx_gain": "Ganancia Tx",
+            "tx_lat_lon": "Lat/Lon Tx",
+            "tx_height": "Altura Tx",
+            "tx_antenna": "Antena Tx",
+            "rx_height": "Altura Rx",
+            "rx_sensitivity": "Sensibilidad Rx",
+            "rx_gain": "Ganancia Rx",
+            "modulation": "Modulación",
+            "bandwidth": "Ancho de Banda",
+            "file_id": "ID de Archivo",
+            "color_key": "Clave de Color"
+        }
+    }
+}

@@ -37,7 +37,6 @@ const posicionamentoIcon = L.icon({
 });
 
 // As camadas agora são gerenciadas pelo AppState, mas a declaração da variável pode permanecer se for mais conveniente
-let antenaCandidatesLayerGroup = L.layerGroup();
 let tempSectorShape = null;
 let tempPacmanShape = null;
 
@@ -86,25 +85,36 @@ function findClosestSignalSource(targetLatLng) {
 // --- Funções de Desenho ---
 
 function drawAntenaCandidates(antenasList) {
-    if (!map) return;
-    antenaCandidatesLayerGroup.clearLayers();
-    if (!map.hasLayer(antenaCandidatesLayerGroup)) {
-        antenaCandidatesLayerGroup.addTo(map);
-    }
+    if (!map || !AppState.antenaCandidatesLayerGroup) return;
+
+    AppState.antenaCandidatesLayerGroup.clearLayers();
+    
     antenasList.forEach(antenaData => {
         const uniqueId = `candidate-${antenaData.nome}-${antenaData.lat}`;
-        const marker = L.marker([antenaData.lat, antenaData.lon], { icon: antenaIcon, customData: antenaData, customId: uniqueId }).addTo(antenaCandidatesLayerGroup);
+        
+        const marker = L.marker([antenaData.lat, antenaData.lon], { icon: antenaIcon, customData: antenaData, customId: uniqueId })
+            .addTo(AppState.antenaCandidatesLayerGroup);
+
         const nomeAntena = antenaData.nome;
         const label = L.marker([antenaData.lat, antenaData.lon], {
-            icon: L.divIcon({ className: 'label-pivo', html: nomeAntena, iconSize: [(nomeAntena.length * 7) + 10, 20], iconAnchor: [((nomeAntena.length * 7) + 10) / 2, 45] }),
-            interactive: false, customId: uniqueId
-        }).addTo(antenaCandidatesLayerGroup);
+            icon: L.divIcon({ 
+                className: 'label-pivo', 
+                html: nomeAntena, 
+                iconSize: [(nomeAntena.length * 7) + 10, 20], 
+                iconAnchor: [((nomeAntena.length * 7) + 10) / 2, 45] 
+            }),
+            interactive: false, 
+            customId: uniqueId,
+            labelType: 'antena_candidate'
+        }).addTo(AppState.antenaCandidatesLayerGroup);
         
+        AppState.marcadoresLegenda.push(label);
+
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
             const data = e.target.options.customData;
             AppState.coordenadaClicada = e.latlng;
-            window.clickedCandidateData = data; // Manter como window temporariamente por ser um dado de clique transitório
+            window.clickedCandidateData = data;
             const painelRepetidora = document.getElementById("painel-repetidora");
             const inputAltura = document.getElementById("altura-antena-rep");
             if (painelRepetidora && inputAltura) {
@@ -114,6 +124,8 @@ function drawAntenaCandidates(antenasList) {
             }
         });
     });
+
+    toggleLegendas(AppState.legendasAtivas);
 }
 
 function drawPivos(pivosData, useEdited = false) {
@@ -489,10 +501,11 @@ function clearMapLayers() {
     // Lista de todas as camadas a serem limpas/removidas
     const layersAndGroups = [
         AppState.marcadorAntena, 
-        antenaCandidatesLayerGroup, 
+        // ✅ CORREÇÃO CRÍTICA: Garante que a função de limpeza use a camada correta do AppState.
+        AppState.antenaCandidatesLayerGroup, 
         AppState.marcadorPosicionamento,
         AppState.visadaLayerGroup,
-        window.candidateRepeaterSitesLayerGroup, // Assumindo que este será migrado também
+        window.candidateRepeaterSitesLayerGroup,
         ...(AppState.marcadoresPivos || []),
         ...(AppState.circulosPivos || []),
         ...(AppState.marcadoresBombas || []),
@@ -502,6 +515,7 @@ function clearMapLayers() {
 
     layersAndGroups.forEach(layer => {
         if (!layer) return;
+        // Limpa grupos de camadas ou remove camadas individuais do mapa.
         if (typeof layer.clearLayers === 'function') {
             layer.clearLayers();
         } else if (map.hasLayer(layer)) {
@@ -509,6 +523,7 @@ function clearMapLayers() {
         }
     });
 
+    // Limpeza específica de repetidoras e overlay da antena principal
     AppState.repetidoras.forEach(r => {
         if (r.marker) map.removeLayer(r.marker);
         if (r.overlay) map.removeLayer(r.overlay);
@@ -516,7 +531,7 @@ function clearMapLayers() {
     });
     if (AppState.antenaGlobal?.overlay) map.removeLayer(AppState.antenaGlobal.overlay);
 
-    // O reset do estado já limpa os arrays, então não precisamos fazer aqui.
+
 }
 
 

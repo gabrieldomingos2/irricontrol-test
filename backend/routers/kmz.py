@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 import logging
 import uuid
+
 from backend.services import kmz_parser
 from backend.services import kmz_exporter 
 from backend.config import settings
@@ -63,18 +64,19 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         logger.info(f"  -> Dados parseados salvos para o job em: {parsed_data_path}")
         return {"job_id": job_id, "antenas": antenas, "pivos": pivos, "ciclos": ciclos, "bombas": bombas}
     except ValueError as ve:
-        # ✅ ALTERADO: Log mais genérico
         logger.error(f"❌ Erro de Validação de Arquivo (job: {job_id}): {ve}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"❌ Erro Interno em /kmz/processar (job: {job_id}): {e}", exc_info=True)
-        # ✅ ALTERADO: Mensagem de erro mais genérica
         raise HTTPException(status_code=500, detail=f"Erro interno ao processar o arquivo: {type(e).__name__} - {str(e)}")
 
-# (O restante do arquivo, incluindo /exportar, não precisa de alterações)
+
 class ExportPayload(BaseModel):
     job_id: str
     template_id: str
+    # ✅ NOVO CAMPO: Recebe o código do idioma do frontend (ex: 'en', 'es', 'de').
+    # O valor padrão 'pt-br' garante compatibilidade com versões antigas do frontend.
+    language: str = 'pt-br'
     antena_principal_data: Optional[Dict[str, Any]] = None
     imagem: Optional[str] = None
     bounds_file: Optional[str] = None
@@ -86,7 +88,7 @@ class ExportPayload(BaseModel):
 
 @router.post("/exportar")
 async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: BackgroundTasks):
-    logger.info(f"📦 Iniciando exportação KMZ via POST para o job: {payload.job_id}")
+    logger.info(f"📦 Iniciando exportação KMZ para o job: {payload.job_id} no idioma: '{payload.language}'")
 
     job_input_dir = settings.ARQUIVOS_DIR_PATH / payload.job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / payload.job_id
@@ -117,6 +119,7 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         
         arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
             doc=doc,
+            lang=payload.language,
             antena_data=payload.antena_principal_data,
             pivos_data=payload.pivos_data,
             ciclos_data=payload.ciclos_data,

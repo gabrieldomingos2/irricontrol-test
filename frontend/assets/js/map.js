@@ -1,11 +1,10 @@
 // map.js
 
 let map;
-// As variáveis visadaLayerGroup e visadaVisivel foram movidas para o AppState em main.js
 
 /**
  * Inicializa o mapa Leaflet, adiciona a camada de satélite
- * e o grupo de camadas para a visada.
+ * e inicializa as camadas de grupo gerenciadas pelo AppState.
  */
 function initMap() {
     map = L.map('map', {
@@ -17,24 +16,25 @@ function initMap() {
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map);
 
-    // Inicializa as camadas de grupo dentro do objeto de estado central
-    AppState.visadaLayerGroup = L.layerGroup().addTo(map); //
+    // Inicializa as camadas de grupo DENTRO do objeto de estado central
+    AppState.visadaLayerGroup = L.layerGroup().addTo(map);
+    
+    // ✅ CORREÇÃO CENTRAL: A camada de candidatas agora é parte do AppState.
+    AppState.antenaCandidatesLayerGroup = L.layerGroup().addTo(map);
 
     if (!window.candidateRepeaterSitesLayerGroup) {
-        // Esta camada parece ser usada de forma transitória e pode permanecer em 'window' por enquanto
-        // ou ser migrada para AppState se a lógica se tornar mais complexa.
-        window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map); //
-        console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa."); //
+        window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
+        console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa.");
     }
 
-    const btnVisada = document.getElementById("btn-visada"); //
+    const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
-        btnVisada.addEventListener("click", toggleVisada); //
+        btnVisada.addEventListener("click", toggleVisada);
     } else {
-        console.error("Botão #btn-visada não encontrado!"); //
+        console.error("Botão #btn-visada não encontrado!");
     }
 
-    setupCandidateRemovalListener(); //
+    setupCandidateRemovalListener();
 }
 
 /**

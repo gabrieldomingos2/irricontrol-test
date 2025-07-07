@@ -186,7 +186,6 @@ function setupMainActionListeners() {
 
 
 // --- Handlers de Ações Principais ---
-
 async function handleKmzFileSelect(event) {
     const fileInput = event.target;
     if (!fileInput.files || fileInput.files.length === 0) {
@@ -206,14 +205,14 @@ async function handleKmzFileSelect(event) {
     formData.append("file", file);
 
     try {
+        handleResetClick(false);
+
         const data = await processKmz(formData);
         console.log("✅ KMZ Processado:", data);
 
         if (!data.job_id) {
             throw new Error("A resposta do servidor não incluiu um ID de job.");
         }
-        
-        handleResetClick(false);
         
         AppState.setJobId(data.job_id);
         AppState.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
@@ -225,7 +224,6 @@ async function handleKmzFileSelect(event) {
                 if (pivoCorrespondente && ciclo.coordenadas.length > 0) {
                     const bounds = L.polygon(ciclo.coordenadas).getBounds();
                     const centro = bounds.getCenter();
-                    // Cálculo de raio mais preciso (distância do centro ao norte)
                     const pontoNorte = L.latLng(bounds.getNorth(), centro.lng);
                     pivoCorrespondente.raio = centro.distanceTo(pontoNorte);
                 }
@@ -234,6 +232,7 @@ async function handleKmzFileSelect(event) {
         
         AppState.antenaGlobal = null; 
         const antenasCandidatas = data.antenas || [];
+
         drawAntenaCandidates(antenasCandidatas);
 
         if (antenasCandidatas.length > 0) {
@@ -269,7 +268,6 @@ async function handleKmzFileSelect(event) {
         document.getElementById("painel-dados").classList.remove("hidden");
         document.getElementById("painel-repetidoras").classList.remove("hidden");
         reposicionarPaineisLaterais();
-
         expandAllPanels();
 
     } catch (error) {
@@ -309,14 +307,26 @@ async function startMainSimulation(antenaData) {
         const data = await simulateSignal(payload);
         console.log("✅ Simulação principal concluída:", data);
 
-        if (window.antenaCandidatesLayerGroup) {
+        if (AppState.antenaCandidatesLayerGroup) {
+
             const idParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
+            
             const camadasParaRemover = [];
-            window.antenaCandidatesLayerGroup.eachLayer(layer => {
-                if (layer.options.customId === idParaRemover) camadasParaRemover.push(layer);
+            AppState.antenaCandidatesLayerGroup.eachLayer(layer => {
+                if (layer.options.customId === idParaRemover) {
+                    camadasParaRemover.push(layer);
+                }
             });
-            camadasParaRemover.forEach(layer => window.antenaCandidatesLayerGroup.removeLayer(layer));
+
+            camadasParaRemover.forEach(layer => {
+                AppState.antenaCandidatesLayerGroup.removeLayer(layer);
+            });
         }
+        
+        const idLabelParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
+        AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => 
+            !(l.options.labelType === 'antena_candidate' && l.options.customId === idLabelParaRemover)
+        );
 
         AppState.antenaGlobal = {
             ...antenaData,
@@ -353,18 +363,14 @@ async function startMainSimulation(antenaData) {
             }),
             labelType: 'antena'
         }).addTo(map);
+        
         AppState.marcadoresLegenda.push(labelPrincipal);
-        
         AppState.antenaGlobal.label = labelPrincipal;
-        
         addAntenaAoPainel(AppState.antenaGlobal);
     
-        
         if (data.pivos) {
-
             AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.map(pivoAntigo => {
                 const pivoNovoDaAPI = data.pivos.find(p => p.nome.trim() === pivoAntigo.nome.trim());
-
                 return pivoNovoDaAPI ? { ...pivoAntigo, fora: pivoNovoDaAPI.fora } : pivoAntigo;
             });
             drawPivos(AppState.lastPivosDataDrawn, false);
@@ -1010,13 +1016,10 @@ async function handleExportClick() {
             const isVisible = !visibilityBtn || visibilityBtn.getAttribute('data-visible') === 'true';
 
             if (isVisible && rep.imagem_filename) {
-                // ✅ LÓGICA DE EXPORTAÇÃO CORRIGIDA
                 repetidorasSelecionadasParaExport.push({
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
                     sobre_pivo: rep.sobre_pivo,
-                    // Se for um placemark original do KMZ, envie seu nome.
-                    // Senão, não envie nome (null), para o backend criar "Repetidora Solar...".
                     nome: rep.is_from_kmz ? rep.nome : null
                 });
             }
@@ -1042,7 +1045,8 @@ async function handleExportClick() {
 
         const payload = {
             job_id: AppState.jobId,
-            template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,
+            template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,   
+            language: localStorage.getItem('preferredLanguage') || 'pt-br',         
             antena_principal_data: antenaDataParaExport,
             imagem: imagemPrincipal,
             bounds_file: boundsFilePrincipal,
@@ -1056,6 +1060,7 @@ async function handleExportClick() {
 
     } catch (error) {
         console.error("Erro no processo de exportação KMZ:", error);
+        mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
     } finally {
         mostrarLoader(false);
     }
