@@ -14,7 +14,8 @@
 
 <body class="bg-[#060B10] text-white h-screen w-screen overflow-hidden">
 
-    <div class="absolute top-0 left-0 right-0 h-14 bg-[#060B10] border-b-[2px] border-white/15 z-50 flex items-center justify-start gap-[120px] px-4">
+    <div class="absolute top-0 left-0 right-0 h-14 bg-[#060B10] border-b-[2px] border-white/15 z-50 flex items-center justify-start px-4">
+        
         <div class="flex items-center gap-3">
             <button data-lang="pt-br" class="hover:scale-110 transition" title="Português (BR)"> <img src="assets/images/br.svg" class="w-6 h-4" alt="Português"> </button>
             <button data-lang="es" class="hover:scale-110 transition" title="Español"> <img src="assets/images/es.svg" class="w-6 h-4" alt="Español"> </button>
@@ -22,60 +23,56 @@
             <button data-lang="en" class="hover:scale-110 transition" title="English"> <img src="assets/images/uk.svg" class="w-6 h-4" alt="English"> </button>
             <button data-lang="ru" class="hover:scale-110 transition" title="Русский"> <img src="assets/images/ru.svg" class="w-6 h-4" alt="Russian"> </button>
         </div>
-        <div class="flex items-center gap-2 ml-[20px]">
-            <span class="text-white/70 text-sm font-medium mr-2" data-i18n="ui.labels.tools">Ferramentas</span>
 
-            <button id="btn-visada" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.line_of_sight">
-                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
-            </button>
-
+        <div class="flex items-center gap-2 ml-24">
+            <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.tools"></span>
             <button id="btn-los-pivot-a-pivot" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.los_pivots">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio-tower.svg); mask-image: url(assets/images/radio-tower.svg);"></span>
             </button>
-
             <button id="btn-buscar-locais-repetidora" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.find_repeater_locations">
-                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/view.svg); mask-image: url(assets/images/view.svg);"></span> 
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/view.svg); mask-image: url(assets/images/view.svg);"></span>
             </button>
+        </div>
 
+        <div class="flex items-center gap-2 ml-[20px]">
+            <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.legends_group"></span>
+            <button id="btn-visada" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.line_of_sight">
+                <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
+            </button>
             <button id="toggle-legenda" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.legend">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/captions.svg); mask-image: url(assets/images/captions.svg);"></span>
             </button>
-
             <button id="toggle-distancias-pivos" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.show_pivot_distances">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/ruler-dimension-line.svg); mask-image: url(assets/images/ruler-dimension-line.svg);"></span> 
             </button>
+        </div>
 
+        <div class="flex items-center gap-2 ml-[20px]">
+            <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.editor_group"></span>
             <button id="editar-pivos" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.edit_pivots">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/pencil.svg); mask-image: url(assets/images/pencil.svg);"></span>
             </button>
-
             <button id="desfazer-edicao" class="glass-button p-2 hidden" data-i18n-attr="title" data-i18n="ui.titles.undo_edit">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/undo-2.svg); mask-image: url(assets/images/undo-2.svg);"></span>
             </button>
-
             <button id="btn-draw-pivot" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.draw_pivot">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/circle.svg); mask-image: url(assets/images/circle.svg);"></span>
             </button>
-
             <button id="btn-draw-pivot-setorial" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.draw_sector_pivot">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/half-circle.svg); mask-image: url(assets/images/half-circle.svg);"></span>
             </button>
-
             <button id="btn-draw-pivot-pacman" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.draw_pacman_pivot">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/circle-dashed.svg); mask-image: url(assets/images/circle-dashed.svg);"></span>
             </button>
-
             <button id="btn-draw-irripump" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.draw_irripump">
                 <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/irripump.svg); mask-image: url(assets/images/irripump.svg);"></span>
             </button>
         </div>
-
-       </div>
     </div>
 
     <div class="absolute top-14 bottom-14 left-0 w-[280px] bg-[#060B10] z-40 p-4 overflow-y-auto">
         <div class="mb-4 backdrop-blur bg-white/5 border border-white/15 px-3 py-[6px] rounded-lg shadow-sm flex items-center gap-2">
-            <label for="template-modelo" class="text-sm text-white/70 whitespace-nowrap" data-i18n="ui.labels.template">🌐 Template:</label>
+            <label for="template-modelo" class="text-sm text-white/70 whitespace-nowrap" data-i18n="ui.labels.template"></label>
             <select id="template-modelo" class="px-2 py-[3px] rounded-md bg-[#060B10]/70 border border-white/15 text-white/80 text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition w-full">
             </select>
         </div>
@@ -92,39 +89,39 @@
             <div class="flex flex-col gap-3">
                 <label for="arquivo" class="w-full h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
                     <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/file-up.svg); mask-image: url(assets/images/file-up.svg);"></span>
-                    <span id="nome-arquivo-label" class="text-sm font-medium truncate" data-i18n="ui.labels.choose_kmz">Escolher Arquivo KMZ</span>
+                    <span id="nome-arquivo-label" class="text-sm font-medium truncate" data-i18n="ui.labels.choose_kmz"></span>
                 </label>
                 <input type="file" id="arquivo" accept=".kmz" required class="hidden" />
             </div>
 
             <button id="simular-btn" class="w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition hidden px-2">
                 <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
-                <span class="text-sm font-medium" data-i18n="ui.buttons.run_study">Rodar Estudo de Sinal</span>
+                <span class="text-sm font-medium" data-i18n="ui.buttons.run_study"></span>
             </button>
 
             <button id="exportar-btn" class="w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
                 <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/download.svg); mask-image: url(assets/images/download.svg);"></span>
-                <span class="text-sm font-medium" data-i18n="ui.buttons.export_kmz">Exportar KMZ</span>
+                <span class="text-sm font-medium" data-i18n="ui.buttons.export_kmz"></span>
             </button>
 
             <button id="resetar-btn" class="w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 hover:bg-white/10 text-white/70 hover:text-sky-300 shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition px-2">
                 <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/undo-2.svg); mask-image: url(assets/images/undo-2.svg);"></span>
-                <span class="text-sm font-medium" data-i18n="ui.buttons.reset">Resetar</span>
+                <span class="text-sm font-medium" data-i18n="ui.buttons.reset"></span>
             </button>
         </div>
 
         <div id="painel-repetidora" class="mt-4 bg-white/5 border border-white/15 backdrop-blur-md rounded-xl shadow-lg w-60 p-2 hidden">
             <div class="flex justify-between items-center mb-3">
-                <h2 class="font-semibold text-sm text-white/80" data-i18n="ui.titles.repeater_panel_setup">📡 Configurar Repetidora</h2>
+                <h2 class="font-semibold text-sm text-white/80" data-i18n="ui.titles.repeater_panel_setup"></h2>
                 <button id="fechar-painel-rep" class="text-red-400 hover:text-red-500 font-bold text-lg">✖</button>
             </div>
-            <label class="text-xs text-white/60 mb-1 block" data-i18n="ui.labels.antenna_height">Altura da Antena (m)</label>
+            <label class="text-xs text-white/60 mb-1 block" data-i18n="ui.labels.antenna_height"></label>
             <input id="altura-antena-rep" type="number" value="5" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
-            <label class="text-xs text-white/60 mb-1 block" data-i18n="ui.labels.receiver_height">Altura do Receiver (m)</label>
+            <label class="text-xs text-white/60 mb-1 block" data-i18n="ui.labels.receiver_height"></label>
             <input id="altura-receiver-rep" type="number" value="3" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-white/30 transition mb-3" />
             <button id="confirmar-repetidora" class="w-full h-8 flex items-center justify-center gap-2 border border-white/15 rounded-lg bg-white/10 hover:bg-white/20 text-[#B0BEC5] hover:text-[#60A5FA] shadow-sm hover:shadow-[0_0_8px_rgba(255,255,255,0.3)] transition">
              <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
-             <span class="text-sm font-medium" data-i18n="ui.buttons.simulate">Simular</span>
+             <span class="text-sm font-medium" data-i18n="ui.buttons.simulate"></span>
              </button>
         </div>
     </div>
@@ -137,7 +134,7 @@
     </div>
 
     <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-        <span class="text-gray-500 text-xs">Powered by Irricontrol</span>
+        <span class="text-gray-500 text-xs" data-i18n="ui.labels.powered_by"></span>
     </div>
 
     <div class="absolute top-14 bottom-14 left-[280px] right-12 z-10">
@@ -148,25 +145,25 @@
 
         <div id="painel-dados" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
             <div class="flex justify-between items-center mb-3">
-                <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.data_panel">📊 Dados da Simulação</h2>
+                <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.data_panel"></h2>
                 <button class="panel-toggle-btn text-white/60 hover:text-sky-300">
                     <i data-lucide="chevron-up" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="panel-content">
                 <div class="flex justify-between items-center mb-3">
-                    <span id="template-info" class="font-medium text-sm text-green-300">🌐 Template: --</span>
+                    <span id="template-info" class="font-medium text-sm text-green-300"></span>
                 </div>
-                <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots">Pivôs: --</p>
-                <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage">Fora da cobertura: --</p>
-                <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters">Total Repetidoras: --</p>
-                <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses">Irripumps: --</p>
+                <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots"></p>
+                <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage"></p>
+                <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters"></p>
+                <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses"></p>
             </div>
         </div>
 
         <div id="painel-repetidoras" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
             <div class="flex justify-between items-center mb-2 px-2">
-                <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.repeater_panel">📡 Repetidoras</h2>
+                <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.repeater_panel"></h2>
                 <button class="panel-toggle-btn text-white/60 hover:text-sky-300">
                     <i data-lucide="chevron-up" class="w-5 h-5"></i>
                 </button>
@@ -179,13 +176,13 @@
     
     </div>
 
-    <div id="mensagem" class="hidden absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"></div>
+    <div id="mensagem" class="hidden fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"></div>
     <div id="loader" class="hidden absolute inset-0 bg-[#060B10] bg-opacity-60 flex flex-col items-center justify-center z-[10001]">
         <svg class="animate-spin h-12 w-12 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
         </svg>
-        <span class="mt-4 text-lg font-bold text-green-300" data-i18n="ui.labels.processing">Processando...</span>
+        <span class="mt-4 text-lg font-bold text-green-300" data-i18n="ui.labels.processing"></span>
     </div>
 
     <div id="legend-container" class="absolute top-6 right-6 hidden">
@@ -195,6 +192,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="assets/js/i18n.js"></script>
+    <script src="assets/js/StateManager.js"></script>
     <script src="assets/js/api.js"></script>
     <script src="assets/js/map.js"></script>
     <script src="assets/js/drawing.js"></script>

@@ -1,3 +1,5 @@
+// assets/js/ui.js
+
 // ==========================
 // 🔗 ELEMENTOS DA UI
 // ==========================
@@ -18,7 +20,8 @@ const legendImage = document.getElementById('legend-image');
 // ==========================
 function mostrarMensagem(texto, tipo = 'sucesso') {
     const mensagemDiv = document.getElementById('mensagem');
-    mensagemDiv.className = 'fixed bottom-16 left-1/2 transform -translate-x-1/2 flex items-center gap-x-3 text-white px-4 py-3 rounded-lg shadow-lg border-l-4 bg-gray-800/90 z-[10000]'; // Base classes
+    // A classe 'left-[calc(50%-180px)]' ajusta a posição mais para a esquerda
+    mensagemDiv.className = 'fixed bottom-16 left-[calc(50%-180px)] transform -translate-x-1/2 flex items-center gap-x-3 text-white px-4 py-3 rounded-lg shadow-lg border-l-4 bg-gray-800/90 z-[10000]'; // Base classes
 
     let iconeHtml = '';
     let borderClass = '';

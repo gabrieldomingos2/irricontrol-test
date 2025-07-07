@@ -645,7 +645,10 @@ function togglePivoDistances(show) {
     if (AppState.lastBombasDataDrawn?.length > 0) {
         drawBombas(AppState.lastBombasDataDrawn);
     }
-    mostrarMensagem(t('messages.success.pivot_distances_toggled', { status: show ? t('labels.shown') : t('labels.hidden') }), 'sucesso');
+    
+    // Lógica corrigida para exibir a mensagem
+    const messageKey = show ? 'messages.success.pivot_distances_shown' : 'messages.success.pivot_distances_hidden';
+    mostrarMensagem(t(messageKey), 'sucesso');
 }
 
 let tempCircle = null;
