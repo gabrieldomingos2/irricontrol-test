@@ -1,3 +1,10 @@
+Sim, aqui está o código completo e corrigido para backend/services/kmz_parser.py, que remove as palavras-chave fixas e as substitui pela configuração multilíngue centralizada.
+
+A principal mudança é a remoção das listas ANTENA_KEYWORDS, PIVO_KEYWORDS e BOMBA_KEYWORDS do escopo global e a sua substituição pela importação e uso do objeto settings. Isso torna o parser mais flexível e fácil de manter.
+
+backend/services/kmz_parser.py (Versão Final Corrigida)
+Python
+
 # backend/services/kmz_parser.py
 import zipfile
 import re
@@ -8,12 +15,17 @@ from pathlib import Path
 import logging
 from typing import List, Tuple, Dict, Optional, TypedDict, Union
 
+# Importa as configurações centralizadas que agora contêm as keywords
+from backend.config import settings
+
 logger = logging.getLogger("irricontrol")
 
 KML_NAMESPACE = {"kml": "http://www.opengis.net/kml/2.2"}
-ANTENA_KEYWORDS = ["central", "antena", "torre", "barracão", "galpão", "silo", "caixa", "repetidora"]
-PIVO_KEYWORDS = ["pivô", "pivo"]
-BOMBA_KEYWORDS = ["bomba", "irripump"]
+
+# As listas de keywords foram movidas para config.py para suportar múltiplos idiomas
+# e facilitar a manutenção.
+
+# Esta keyword é muito específica da lógica interna e pode ser mantida aqui.
 PONTA_RETA_KEYWORDS = ["ponta 1 reta", "ponta 2 reta"]
 DEFAULT_ANTENA_HEIGHT = 15
 DEFAULT_RECEIVER_HEIGHT = 3
@@ -42,11 +54,13 @@ class BombaData(CoordsDict):
     nome: str
     type: str
 
-# (Funções auxiliares como normalizar_nome, calcular_meio_reta, etc. permanecem inalteradas)
 def normalizar_nome(nome: str) -> str:
     if not nome: return ""
+    # Converte para minúsculas
     nome_lower = nome.lower()
+    # Remove caracteres especiais, mantendo letras acentuadas, números e espaços
     nome_sem_especiais = re.sub(r'[^a-z0-9\sÀ-ÖØ-öø-ÿ]', '', nome_lower)
+    # Substitui múltiplos espaços por um único espaço e remove espaços no início/fim
     return re.sub(r'\s+', ' ', nome_sem_especiais).strip()
 
 def calcular_meio_reta(p1: CoordsDict, p2: CoordsDict) -> Tuple[float, float]:
@@ -67,6 +81,7 @@ def ponto_central_da_reta_maior(coords_list: List[List[float]]) -> Tuple[float, 
 
 def eh_um_circulo(coords_list: List[List[float]], threshold: float = CIRCLE_CLOSENESS_THRESHOLD) -> bool:
     if len(coords_list) < 3: return False
+    # Compara a distância entre o primeiro e o último ponto
     return Point(coords_list[0][1], coords_list[0][0]).distance(Point(coords_list[-1][1], coords_list[-1][0])) < threshold
 
 
@@ -82,7 +97,6 @@ def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
     except zipfile.BadZipFile:
         raise ValueError(f"Arquivo KMZ '{caminho_kmz.name}' inválido ou corrompido.")
 
-# (As funções _parse_placemark_data, gerar_nome_pivo_sequencial_unico, _consolidate_pivos permanecem as mesmas)
 def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Union[str, List[List[float]]]]]:
     nome_tag = placemark_node.find("kml:name", KML_NAMESPACE)
     nome_original = nome_tag.text.strip() if nome_tag is not None and nome_tag.text else ""
@@ -167,15 +181,14 @@ def _consolidate_pivos(
             
     return final_pivos_list
 
-# ♻️ RENOMEADO: A função principal foi renomeada de parse_kmz para parse_gis_file
 def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
     """
-    Processa um arquivo KML ou KMZ, extrai os dados relevantes e os retorna.
+    Processa um arquivo KML ou KMZ, extrai os dados relevantes e os retorna,
+    usando as keywords multilíngues da configuração.
     """
     caminho_gis = Path(caminho_gis_str)
     pasta_extracao = Path(pasta_extracao_str)
     
-    # Listas para armazenar os dados extraídos
     antenas_list: List[AntenaData] = []
     pivos_de_pontos_list: List[PivoData] = []
     ciclos_list: List[CicloData] = []
@@ -185,8 +198,17 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
     caminho_kml_a_ser_lido: Optional[Path] = None
     kml_extraido_path_temp: Optional[Path] = None
 
+    # Pega as listas de keywords consolidadas da configuração
+    antena_kws = settings.ENTITY_KEYWORDS['ANTENA']
+    pivo_kws = settings.ENTITY_KEYWORDS['PIVO']
+    bomba_kws = settings.ENTITY_KEYWORDS['BOMBA']
+    
+    logger.info(f"Usando keywords para Antenas: {antena_kws}")
+    logger.info(f"Usando keywords para Pivôs: {pivo_kws}")
+    logger.info(f"Usando keywords para Bombas: {bomba_kws}")
+
     try:
-        # ✅ ALTERADO: Lógica para decidir como obter o arquivo KML
+        # Lógica para decidir como obter o arquivo KML
         if caminho_gis.suffix.lower() == ".kmz":
             logger.info(f"Processando arquivo KMZ: {caminho_gis.name}")
             kml_extraido_path_temp = _extract_kml_from_zip(caminho_gis, pasta_extracao)
@@ -197,7 +219,6 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
         else:
             raise ValueError("Formato de arquivo não suportado. Envie um arquivo .kml ou .kmz.")
 
-        # O restante da lógica de parsing do XML é o mesmo para ambos os casos
         tree = ET.parse(str(caminho_kml_a_ser_lido))
         root = tree.getroot()
 
@@ -205,21 +226,28 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
             parsed_data = _parse_placemark_data(placemark_node)
             if not parsed_data: continue
 
-            nome_original, nome_norm = parsed_data["nome_original"], normalizar_nome(parsed_data["nome_original"])
+            nome_original = parsed_data["nome_original"]
+            nome_norm = normalizar_nome(nome_original)
             coords, geo_type = parsed_data["coordenadas_lista"], parsed_data["geometry_type"] # type: ignore
 
             if geo_type == "Point" and coords:
                 lat, lon = coords[0][0], coords[0][1]
-                if any(kw in nome_norm for kw in ANTENA_KEYWORDS):
+                
+                # A lógica de verificação agora usa as listas da configuração
+                if any(kw in nome_norm for kw in antena_kws):
                     match = HEIGHT_REGEX.search(nome_norm)
                     altura = int(match.group(1)) if match else DEFAULT_ANTENA_HEIGHT
                     antenas_list.append({"lat": lat, "lon": lon, "altura": altura, "altura_receiver": DEFAULT_RECEIVER_HEIGHT, "nome": nome_original})
-                elif any(kw in nome_norm for kw in PIVO_KEYWORDS) or re.match(r"p\s?\d+", nome_norm):
+                
+                elif any(kw in nome_norm for kw in pivo_kws) or re.match(r"p\s?\d+", nome_norm):
                     pivos_de_pontos_list.append({"nome": nome_original, "lat": lat, "lon": lon, "type": "pivo"}) # type: ignore
-                elif any(kw in nome_norm for kw in BOMBA_KEYWORDS):
+                
+                elif any(kw in nome_norm for kw in bomba_kws):
                     bombas_list.append({"nome": nome_original, "lat": lat, "lon": lon, "type": "bomba"}) # type: ignore
+                
                 elif any(kw in nome_norm for kw in PONTA_RETA_KEYWORDS):
                     pontas_retas_map[nome_norm] = {"lat": lat, "lon": lon}
+                    
             elif geo_type in ["LineString", "Polygon"] and len(coords) >= 3: # type: ignore
                 if eh_um_circulo(coords) or geo_type == "Polygon": # type: ignore
                     ciclos_list.append({"nome_original_circulo": nome_original, "coordenadas": coords}) # type: ignore

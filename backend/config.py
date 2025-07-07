@@ -47,6 +47,34 @@ class TemplateSettings(BaseModel):
     receiver: ReceiverSettings
     antenna: AntennaSettings
 
+# --- Dicionário de Internacionalização (i18n) ---
+# Centraliza as palavras-chave para diferentes idiomas.
+# Adicione ou edite idiomas e palavras aqui para expandir o suporte do parser.
+I18N_KEYWORDS: Dict[str, Dict[str, List[str]]] = {
+    "ANTENA": {
+        "pt": ["antena", "torre", "central", "base", "repetidora", "barracão", "galpão", "silo", "caixa"],
+        "en": ["antenna", "tower", "base", "station", "repeater", "radio", "site"],
+        "es": ["antena", "torre", "base", "estación", "repetidora", "radio"],
+        "de": ["antenne", "turm", "basisstation", "repeater", "funkmast"],
+        "ru": ["антенна", "башня", "станция", "репитер", "радиостанция"]
+    },
+    "PIVO": {
+        "pt": ["pivô", "pivo"],
+        "en": ["pivot", "sprinkler"],
+        "es": ["pivote", "aspersor"],
+        "de": ["pivot", "drehpunkt", "beregnung"],
+        "ru": ["пивот", "ороситель", "спринклер"]
+    },
+    "BOMBA": {
+        "pt": ["bomba", "irripump", "pump"],
+        "en": ["pump", "pumping station", "irripump"],
+        "es": ["bomba", "estación de bombeo", "irripump"],
+        "de": ["pumpe", "pumpstation", "irripump"],
+        "ru": ["насос", "насосная станция", "irripump"]
+    }
+}
+
+
 # --- Classe Principal de Configurações ---
 class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -83,7 +111,7 @@ class AppSettings(BaseSettings):
     IMAGENS_DIR_NAME: str = "imagens"
     ARQUIVOS_DIR_NAME: str = "arquivos"
     
-    # 👇 1. DEFINIÇÃO DOS NOMES DOS DIRETÓRIOS DE CACHE
+    # Definição dos nomes dos diretórios de cache
     CACHE_DIR_NAME: str = "cache"
     SIMULATIONS_CACHE_DIR_NAME: str = "simulations"
     ELEVATION_CACHE_DIR_NAME: str = "elevation"
@@ -100,7 +128,7 @@ class AppSettings(BaseSettings):
     def ARQUIVOS_DIR_PATH(self) -> Path:
         return self.BACKEND_DIR / self.ARQUIVOS_DIR_NAME
 
-    # 👇 2. DEFINIÇÃO DAS PROPRIEDADES DE CAMINHO PARA O CACHE
+    # Definição das propriedades de caminho para o cache
     @property
     def SIMULATIONS_CACHE_PATH(self) -> Path:
         """Caminho para o cache de resultados de simulação da CloudRF."""
@@ -110,6 +138,22 @@ class AppSettings(BaseSettings):
     def ELEVATION_CACHE_PATH(self) -> Path:
         """Caminho para o cache de resultados de perfis de elevação."""
         return self.ARQUIVOS_DIR_PATH / self.CACHE_DIR_NAME / self.ELEVATION_CACHE_DIR_NAME
+        
+    # --- Propriedade para Keywords Consolidadas ---
+    @property
+    def ENTITY_KEYWORDS(self) -> Dict[str, List[str]]:
+        """
+        Consolida as keywords de todos os idiomas em listas únicas para cada tipo de entidade.
+        O parser usará esta propriedade para simplificar a verificação.
+        """
+        consolidated = {}
+        for entity, lang_map in I18N_KEYWORDS.items():
+            all_keywords = []
+            for lang, words in lang_map.items():
+                all_keywords.extend(words)
+            # Adiciona a lista consolidada e remove duplicatas
+            consolidated[entity] = list(set(all_keywords))
+        return consolidated
 
     # --- Configurações de API Externa (CloudRF) ---
     CLOUDRF_API_KEY: Optional[str] = Field(None, validation_alias="CLOUDRF_API_KEY")
@@ -147,7 +191,7 @@ class AppSettings(BaseSettings):
         print(f"INFO: Verificando/Criando diretório de arquivos em: {self.ARQUIVOS_DIR_PATH}")
         self.ARQUIVOS_DIR_PATH.mkdir(parents=True, exist_ok=True)
         
-        # 👇 3. GARANTIR QUE OS DIRETÓRIOS DE CACHE SEJAM CRIADOS
+        # Garantir que os diretórios de cache sejam criados
         print(f"INFO: Verificando/Criando diretório de cache de simulações em: {self.SIMULATIONS_CACHE_PATH}")
         self.SIMULATIONS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
         
@@ -161,7 +205,6 @@ class AppSettings(BaseSettings):
             print("⚠️ ALERTA DE CONFIGURAÇÃO: BACKEND_PUBLIC_URL não está definida! As URLs de imagem podem estar incorretas.")
 
     def obter_template(self, template_id: str) -> TemplateSettings:
-        #... (sem alterações nesta função)
         template_obj = next(
             (t_obj for t_obj in self.TEMPLATES_DISPONIVEIS if t_obj.id == template_id),
             None
@@ -172,7 +215,6 @@ class AppSettings(BaseSettings):
         return template_obj
 
     def listar_templates_ids(self) -> List[str]:
-        #... (sem alterações nesta função)
         return [t_obj.id for t_obj in self.TEMPLATES_DISPONIVEIS]
 
 # --- Instanciação Global ---
