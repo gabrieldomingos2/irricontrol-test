@@ -1,7 +1,5 @@
-# backend/routers/kmz.py
-
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse # ✅ ESTA LINHA CORRIGE O ERRO
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import zipfile
@@ -11,7 +9,6 @@ from datetime import datetime
 from pathlib import Path
 import logging
 import uuid
-
 from backend.services import kmz_parser
 from backend.services import kmz_exporter 
 from backend.config import settings
@@ -42,18 +39,23 @@ async def iniciar_job_vazio_endpoint():
 @router.post("/processar")
 async def processar_kmz_endpoint(file: UploadFile = File(...)):
     job_id = str(uuid.uuid4())
-    logger.info(f"🆕 Novo job de processamento com KMZ iniciado com ID: {job_id}")
+
+    logger.info(f"🆕 Novo job de processamento de arquivo GIS ({file.filename}) iniciado com ID: {job_id}")
     job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / job_id
     job_input_dir.mkdir(parents=True, exist_ok=True)
     job_images_dir.mkdir(parents=True, exist_ok=True)
-    input_kmz_path = job_input_dir / "entrada.kmz" 
+
+    input_file_path = job_input_dir / file.filename
+
     try:
         conteudo = await file.read()
-        with open(input_kmz_path, "wb") as f:
+        with open(input_file_path, "wb") as f:
             f.write(conteudo)
-        logger.info(f"  -> KMZ salvo em: {input_kmz_path}")
-        antenas, pivos, ciclos, bombas = kmz_parser.parse_kmz(str(input_kmz_path), str(job_input_dir))
+        logger.info(f"  -> Arquivo de entrada salvo em: {input_file_path}")
+
+        antenas, pivos, ciclos, bombas = kmz_parser.parse_gis_file(str(input_file_path), str(job_input_dir))
+        
         parsed_data_path = job_input_dir / "parsed_data.json"
         parsed_content = {"antenas": antenas, "pivos": pivos, "ciclos": ciclos, "bombas": bombas}
         with open(parsed_data_path, "w", encoding="utf-8") as f:
@@ -61,13 +63,15 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
         logger.info(f"  -> Dados parseados salvos para o job em: {parsed_data_path}")
         return {"job_id": job_id, "antenas": antenas, "pivos": pivos, "ciclos": ciclos, "bombas": bombas}
     except ValueError as ve:
-        logger.error(f"❌ Erro de Validação KMZ (job: {job_id}): {ve}", exc_info=True)
+        # ✅ ALTERADO: Log mais genérico
+        logger.error(f"❌ Erro de Validação de Arquivo (job: {job_id}): {ve}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"❌ Erro Interno em /kmz/processar (job: {job_id}): {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno ao processar KMZ: {type(e).__name__} - {str(e)}")
+        # ✅ ALTERADO: Mensagem de erro mais genérica
+        raise HTTPException(status_code=500, detail=f"Erro interno ao processar o arquivo: {type(e).__name__} - {str(e)}")
 
-
+# (O restante do arquivo, incluindo /exportar, não precisa de alterações)
 class ExportPayload(BaseModel):
     job_id: str
     template_id: str

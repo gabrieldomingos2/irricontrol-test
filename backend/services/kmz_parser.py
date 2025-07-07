@@ -32,7 +32,7 @@ class AntenaData(CoordsDict):
 
 class PivoData(CoordsDict):
     nome: str
-    type: str # Adicionado para consistência
+    type: str
 
 class CicloData(TypedDict):
     nome_original_circulo: str
@@ -40,8 +40,9 @@ class CicloData(TypedDict):
 
 class BombaData(CoordsDict):
     nome: str
-    type: str # Adicionado para consistência
+    type: str
 
+# (Funções auxiliares como normalizar_nome, calcular_meio_reta, etc. permanecem inalteradas)
 def normalizar_nome(nome: str) -> str:
     if not nome: return ""
     nome_lower = nome.lower()
@@ -68,6 +69,7 @@ def eh_um_circulo(coords_list: List[List[float]], threshold: float = CIRCLE_CLOS
     if len(coords_list) < 3: return False
     return Point(coords_list[0][1], coords_list[0][0]).distance(Point(coords_list[-1][1], coords_list[-1][0])) < threshold
 
+
 def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
     try:
         with zipfile.ZipFile(caminho_kmz, 'r') as kmz_file:
@@ -80,6 +82,7 @@ def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
     except zipfile.BadZipFile:
         raise ValueError(f"Arquivo KMZ '{caminho_kmz.name}' inválido ou corrompido.")
 
+# (As funções _parse_placemark_data, gerar_nome_pivo_sequencial_unico, _consolidate_pivos permanecem as mesmas)
 def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Union[str, List[List[float]]]]]:
     nome_tag = placemark_node.find("kml:name", KML_NAMESPACE)
     nome_original = nome_tag.text.strip() if nome_tag is not None and nome_tag.text else ""
@@ -159,25 +162,43 @@ def _consolidate_pivos(
             final_pivos_list.append({"nome": nome_pivo_gerado, "lat": centro_lat, "lon": centro_lon, "type": "pivo"}) # type: ignore
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
             
-            # ✅ CORREÇÃO APLICADA AQUI: Atualiza o nome do ciclo para corresponder ao novo pivô.
             ciclo_info['nome_original_circulo'] = f"Ciclo {nome_pivo_gerado}"
             logger.info(f"  -> 🛰️ Pivô de ciclo adicionado como '{nome_pivo_gerado}'. Nome do ciclo atualizado para '{ciclo_info['nome_original_circulo']}'.")
             
     return final_pivos_list
 
-def parse_kmz(caminho_kmz_str: str, pasta_extracao_str: str) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
-    caminho_kmz = Path(caminho_kmz_str)
+# ♻️ RENOMEADO: A função principal foi renomeada de parse_kmz para parse_gis_file
+def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
+    """
+    Processa um arquivo KML ou KMZ, extrai os dados relevantes e os retorna.
+    """
+    caminho_gis = Path(caminho_gis_str)
     pasta_extracao = Path(pasta_extracao_str)
+    
+    # Listas para armazenar os dados extraídos
     antenas_list: List[AntenaData] = []
     pivos_de_pontos_list: List[PivoData] = []
     ciclos_list: List[CicloData] = []
     bombas_list: List[BombaData] = []
     pontas_retas_map: Dict[str, CoordsDict] = {}
 
-    caminho_kml_extraido: Optional[Path] = None
+    caminho_kml_a_ser_lido: Optional[Path] = None
+    kml_extraido_path_temp: Optional[Path] = None
+
     try:
-        caminho_kml_extraido = _extract_kml_from_zip(caminho_kmz, pasta_extracao)
-        tree = ET.parse(str(caminho_kml_extraido))
+        # ✅ ALTERADO: Lógica para decidir como obter o arquivo KML
+        if caminho_gis.suffix.lower() == ".kmz":
+            logger.info(f"Processando arquivo KMZ: {caminho_gis.name}")
+            kml_extraido_path_temp = _extract_kml_from_zip(caminho_gis, pasta_extracao)
+            caminho_kml_a_ser_lido = kml_extraido_path_temp
+        elif caminho_gis.suffix.lower() == ".kml":
+            logger.info(f"Processando arquivo KML direto: {caminho_gis.name}")
+            caminho_kml_a_ser_lido = caminho_gis
+        else:
+            raise ValueError("Formato de arquivo não suportado. Envie um arquivo .kml ou .kmz.")
+
+        # O restante da lógica de parsing do XML é o mesmo para ambos os casos
+        tree = ET.parse(str(caminho_kml_a_ser_lido))
         root = tree.getroot()
 
         for placemark_node in root.findall(".//kml:Placemark", KML_NAMESPACE):
@@ -204,8 +225,9 @@ def parse_kmz(caminho_kmz_str: str, pasta_extracao_str: str) -> Tuple[List[Anten
                     ciclos_list.append({"nome_original_circulo": nome_original, "coordenadas": coords}) # type: ignore
         
         pivos_finais_list = _consolidate_pivos(pivos_de_pontos_list, ciclos_list, pontas_retas_map)
-        logger.info(f"✅ Processamento KMZ concluído: {len(antenas_list)} antenas, {len(pivos_finais_list)} pivôs, {len(bombas_list)} bombas.")
+        logger.info(f"✅ Processamento do arquivo concluído: {len(antenas_list)} antenas, {len(pivos_finais_list)} pivôs, {len(bombas_list)} bombas.")
         return antenas_list, pivos_finais_list, ciclos_list, bombas_list
     finally:
-        if caminho_kml_extraido and caminho_kml_extraido.exists():
-            caminho_kml_extraido.unlink(missing_ok=True)
+        # Garante que o KML extraído temporariamente seja excluído
+        if kml_extraido_path_temp and kml_extraido_path_temp.exists():
+            kml_extraido_path_temp.unlink(missing_ok=True)
