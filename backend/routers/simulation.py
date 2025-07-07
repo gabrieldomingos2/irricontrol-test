@@ -196,9 +196,14 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
         bombas_atualizadas = [{"nome": b.nome, "lat": b.lat, "lon": b.lon, "fora": True} for b in payload.bombas]
 
         if overlays_para_analise:
-            pivos_atualizados = analysis_service.verificar_cobertura_pivos([p.model_dump() for p in payload.pivos], overlays_para_analise)
+            pivos_atualizados = await analysis_service.verificar_cobertura_pivos(
+                [p.model_dump() for p in payload.pivos], overlays_para_analise
+            )
             if payload.bombas:
-                 bombas_atualizadas = analysis_service.verificar_cobertura_bombas([b.model_dump() for b in payload.bombas], overlays_para_analise)
+                 bombas_atualizadas = await analysis_service.verificar_cobertura_bombas(
+                    [b.model_dump() for b in payload.bombas], overlays_para_analise
+                 )
+            # 👆 FIM DA CORREÇÃO
 
         logger.info(f"✅ Pivôs e Bombas atualizados pela reavaliação para o job {payload.job_id}.")
         return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}
