@@ -1,4 +1,5 @@
 # backend/services/kmz_exporter.py
+import html
 import simplekml
 from pathlib import Path
 import logging
@@ -56,8 +57,6 @@ def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, 
 
 # --- Funções de Criação de Estrutura KML ---
 
-# ✅ ALTERAÇÃO: A função 't' de tradução foi removida desta função específica.
-# Os cabeçalhos da tabela agora são fixos em inglês.
 def _create_html_description_table(entity_data: dict, template: Any, file_id_info: str, colour_key_filename: str) -> str:
     txw, txg_dbi = template.transmitter.txw, template.antenna.txg
     tx_power_dbm = 10 * log10(txw * 1000)
@@ -67,6 +66,7 @@ def _create_html_description_table(entity_data: dict, template: Any, file_id_inf
     erp_w = (10**(erp_dbm / 10)) / 1000
     lat, lon = entity_data.get('lat'), entity_data.get('lon')
     lat_str, lon_str = (f"{lat:.6f}", f"{lon:.6f}") if isinstance(lat, float) else ("N/A", "N/A")
+    file_id_info_sanitized = html.escape(file_id_info)
     
     return f"""<div style="font-family: Arial, sans-serif; font-size: 12px;">
     <table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse; width: 350px;">
@@ -83,7 +83,7 @@ def _create_html_description_table(entity_data: dict, template: Any, file_id_inf
         <tr><td bgcolor="#f2f2f2"><b>Rx Gain</b></td><td>{template.receiver.rxg} dBi</td></tr>
         <tr><td bgcolor="#f2f2f2"><b>Modulation</b></td><td>CW</td></tr>
         <tr><td bgcolor="#f2f2f2"><b>Bandwidth</b></td><td>{template.transmitter.bwi} MHz</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>File ID</b></td><td>{file_id_info}</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>File ID</b></td><td>{file_id_info_sanitized}</td></tr>
         <tr><td bgcolor="#f2f2f2"><b>Colour Key</b></td><td><img src="{colour_key_filename}" alt="Legenda" style="max-width: 120px;"></td></tr>
         <tr><td colspan="2" style="text-align: center;"><img src="{LOGO_FILENAME}" alt="Logo" style="width: 200px;"></td></tr>
     </table></div>"""
@@ -93,14 +93,12 @@ def _create_kml_styles() -> Tuple[simplekml.Style, simplekml.Style]:
     default_point_style = simplekml.Style(iconstyle=simplekml.IconStyle(icon=simplekml.Icon(href=DEFAULT_ICON_URL)))
     return torre_style, default_point_style
 
-# ✅ ALTERAÇÃO: A função 't' ainda é passada aqui, mas apenas para o nome da pasta.
 def _setup_main_antenna_structure(doc, antena, style, details_name, template, file_id, legend_name, t: Callable) -> simplekml.Folder:
     folder_name = antena.get("nome", t("kml.folders.main_antenna"))
     folder = doc.newfolder(name=folder_name)
     folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
     subfolder = folder.newfolder(name=details_name)
     pnt = subfolder.newpoint(name=folder_name, coords=[(antena["lon"], antena["lat"])])
-    # ✅ ALTERAÇÃO: A chamada para a tabela agora não passa mais o 't'.
     pnt.description = _create_html_description_table(antena, template, file_id, legend_name)
     pnt.style = style
     return subfolder
@@ -120,7 +118,6 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         altura_repetidora = item.get('altura', 5)
         nome_from_frontend = item.get("nome")
 
-        # A lógica de tradução para os nomes das repetidoras continua funcionando.
         if nome_from_frontend:
             nome = nome_from_frontend
         else:
@@ -137,7 +134,6 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         lat, lon = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
         
         pnt = sub.newpoint(name=nome, coords=[(lon, lat)])
-        # ✅ ALTERAÇÃO: A chamada para a tabela agora não passa mais o 't'.
         pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": altura_repetidora}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name)
         pnt.style = style
         
@@ -155,7 +151,6 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
     return files
 
 def _add_secondary_folders(doc, pivos, ciclos, bombas, style, t: Callable):
-    # A lógica de tradução para os nomes das pastas secundárias continua funcionando.
     if pivos:
         f_pivos = doc.newfolder(name=t("kml.folders.pivots_markers"))
         for p_data in pivos:
