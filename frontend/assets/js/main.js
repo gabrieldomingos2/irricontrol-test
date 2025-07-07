@@ -435,7 +435,8 @@ async function handleIrripumpDrawClick(e) {
     mostrarLoader(true);
     try {
         const novoNumero = AppState.lastBombasDataDrawn.length + 1;
-        const novoNome = `Irripump ${String(novoNumero).padStart(2, '0')}`;
+        // ✅ ALTERADO: Usa a função t() para obter o nome base do Irripump no idioma selecionado.
+        const novoNome = `${t('entity_names.irripump')} ${String(novoNumero).padStart(2, '0')}`;
         
         const novaBomba = {
             nome: novoNome,
@@ -1579,7 +1580,9 @@ async function handleSectorialPivotDrawClick(e) {
         // Calcula a direção (azimute) do centro para o ponto final.
         const bearing = calculateBearing(AppState.centroPivoTemporario, finalPoint);
         const novoNumero = getNextPivotNumber();
-        const novoNome = `Pivô ${novoNumero}`;
+        
+        // ✅ ALTERADO: Usa a função t() para obter o nome base do pivô.
+        const novoNome = `${t('entity_names.pivot')} ${novoNumero}`;
         
         // Cria o objeto de dados para o novo pivô setorial.
         const novoPivo = {
@@ -1716,7 +1719,8 @@ async function handlePacmanPivotDrawClick(e) {
         const anguloFim = calculateBearing(centro, finalPoint);
         
         const novoNumero = getNextPivotNumber();
-        const novoNome = `Pivô ${novoNumero}`;
+        // ✅ ALTERADO: Usa a função t() para obter o nome base do pivô.
+        const novoNome = `${t('entity_names.pivot')} ${novoNumero}`;
 
         const novoPivo = {
             nome: novoNome,
