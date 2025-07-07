@@ -767,7 +767,7 @@ async function handlePivotDrawClick(e) {
 
     if (!AppState.centroPivoTemporario) {
         AppState.centroPivoTemporario = e.latlng;
-        mostrarMensagem(t('messages.info.draw_pivot_step2'), "info");
+        mostrarMensagem(t('messages.info.draw_pivot_step1'), "info");
         return; 
     }
 
@@ -778,7 +778,8 @@ async function handlePivotDrawClick(e) {
         const payload = {
             job_id: AppState.jobId,
             center: [AppState.centroPivoTemporario.lat, AppState.centroPivoTemporario.lng],
-            pivos_atuais: AppState.lastPivosDataDrawn
+            pivos_atuais: AppState.lastPivosDataDrawn,
+            language: localStorage.getItem('preferredLanguage') || 'pt-br'
         };
 
         const radiusInMeters = AppState.centroPivoTemporario.distanceTo(radiusPoint);
@@ -1554,14 +1555,12 @@ function toggleModoDesenhoPivoSetorial() {
  * @param {object} e - O evento de clique do Leaflet.
  */
 async function handleSectorialPivotDrawClick(e) {
-    // Garante que a função só execute se o modo de desenho setorial estiver ativo.
     if (!AppState.modoDesenhoPivoSetorial) return;
 
-    // Primeiro clique: Define o ponto central do pivô.
     if (!AppState.centroPivoTemporario) {
         AppState.centroPivoTemporario = e.latlng;
         mostrarMensagem(t('messages.info.draw_sector_pivot_step2'), "info");
-        return; // Aguarda o próximo clique.
+        return;
     }
 
     // Segundo clique: Define o ponto final, que determina o raio e a direção.
@@ -1582,24 +1581,23 @@ async function handleSectorialPivotDrawClick(e) {
 
     mostrarLoader(true);
     try {
-        // Calcula a direção (azimute) do centro para o ponto final.
-        const bearing = calculateBearing(AppState.centroPivoTemporario, finalPoint);
+        const bearing = calculateBearing(AppState.centroPivoTemporario, e.latlng);
         const novoNumero = getNextPivotNumber();
         
-        // ✅ ALTERADO: Usa a função t() para obter o nome base do pivô.
+        // ✅ CORREÇÃO: Garante que está usando a função 't' para o nome
         const novoNome = `${t('entity_names.pivot')} ${novoNumero}`;
         
-        // Cria o objeto de dados para o novo pivô setorial.
         const novoPivo = {
             nome: novoNome,
             lat: AppState.centroPivoTemporario.lat,
             lon: AppState.centroPivoTemporario.lng,
-            fora: true, // Começa como "fora da cobertura" até a reavaliação.
-            tipo: 'setorial', // Identificador crucial para o frontend e backend.
-            raio: radius,
-            angulo_central: bearing, // A direção do setor.
-            abertura_arco: 180       // A largura do arco (fixa em 180 graus neste caso).
+            fora: true,
+            tipo: 'setorial', 
+            raio: AppState.centroPivoTemporario.distanceTo(e.latlng),
+            angulo_central: bearing,
+            abertura_arco: 180
         };
+
         AppState.lastPivosDataDrawn.push(novoPivo);
 
         // Cria um "ciclo" correspondente com coordenadas vazias.

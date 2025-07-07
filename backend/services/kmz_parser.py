@@ -116,7 +116,7 @@ def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Unio
     data["coordenadas_lista"] = parsed_coords
     return data
 
-def gerar_nome_pivo_sequencial_unico(lista_de_nomes_existentes_normalizados: set[str], nome_base: str = "Pivô") -> str:
+def gerar_nome_pivo_sequencial_unico(lista_de_nomes_existentes_normalizados: set[str], nome_base: str = "Pivot") -> str:
     contador = 1
     while True:
         nome_candidato = f"{nome_base} {contador}"
@@ -165,7 +165,7 @@ def _consolidate_pivos(
                     centro_lat, centro_lon = mean([c[0] for c in coordenadas_ciclo]), mean([c[1] for c in coordenadas_ciclo])
 
         if centro_lat is not None and centro_lon is not None:
-            nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados, "Pivô")
+            nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados)
             final_pivos_list.append({"nome": nome_pivo_gerado, "lat": centro_lat, "lon": centro_lon, "type": "pivo"}) # type: ignore
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
             

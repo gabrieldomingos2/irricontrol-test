@@ -62,7 +62,10 @@ class FindRepeaterSitesPayload(BaseModel):
     pivot_polygons_coords: Optional[List[List[Tuple[float, float]]]] = None
 
 class GeneratePivotPayload(BaseModel):
-    job_id: str; center: Tuple[float, float]; pivos_atuais: List[PivoData]
+    job_id: str
+    center: Tuple[float, float]
+    pivos_atuais: List[PivoData]
+    language: str = 'pt-br'
 
 def _get_image_filepath_for_analysis(image_filename: str, job_id: str) -> Path:
     filename_only = Path(image_filename.split('?')[0]).name
@@ -77,8 +80,10 @@ async def get_templates_endpoint():
 async def generate_pivot_in_circle_endpoint(payload: GeneratePivotPayload):
     try:
         novo_pivo = analysis_service.generate_pivot_at_center(
-            center_lat=payload.center[0], center_lon=payload.center[1],
-            existing_pivos=[p.model_dump() for p in payload.pivos_atuais]
+            center_lat=payload.center[0], 
+            center_lon=payload.center[1],
+            existing_pivos=[p.model_dump() for p in payload.pivos_atuais],
+            lang=payload.language
         )
         return {"novo_pivo": novo_pivo}
     except Exception as e:

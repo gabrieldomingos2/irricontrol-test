@@ -502,12 +502,11 @@ def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
     Ex: Se "Pivô 3", "Pivô Teste 5" existem, retorna 6.
     """
     max_number = 0
-    # Regex para encontrar um ou mais dígitos no final do nome, opcionalmente precedido por espaço.
     regex = re.compile(r'(\d+)$') 
 
     for pivo in pivos:
-        nome_norm = normalizar_nome(pivo['nome'])
-        match = regex.search(nome_norm)
+        # Usa o nome original, não o normalizado, para a busca
+        match = regex.search(pivo['nome'])
         if match:
             number = int(match.group(1))
             if number > max_number:
@@ -518,29 +517,28 @@ def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
 def generate_pivot_at_center(
     center_lat: float, 
     center_lon: float, 
-    existing_pivos: List[PivoInputData]
+    existing_pivos: List[PivoInputData],
+    lang: str = 'pt-br'
 ) -> PivoInputData:
     """
-    Gera um novo pivô no ponto central com um nome sequencial único.
-
-    Retorna:
-        Um dicionário contendo os dados do novo pivô criado.
+    Gera um novo pivô no ponto central com um nome sequencial único e traduzido.
     """
-    logger.info(f"💡 Gerando novo pivô em ({center_lat:.6f}, {center_lon:.6f}).")
+    logger.info(f"💡 Gerando novo pivô em ({center_lat:.6f}, {center_lon:.6f}) no idioma '{lang}'.")
     
-    # 1. Encontrar o próximo número de pivô disponível
     next_num = _find_next_pivot_number(existing_pivos)
-    new_pivot_name = f"Pivô {next_num}"
+    
+    t = i18n_service.get_translator(lang)
+    pivot_base_name = t("entity_names.pivot")
+    new_pivot_name = f"{pivot_base_name} {next_num}"
 
     logger.info(f"  -> Nome do novo pivô determinado: '{new_pivot_name}'")
 
-    # 2. Criar o objeto do novo pivô
     new_pivot_data: PivoInputData = {
         "nome": new_pivot_name,
         "lat": center_lat,
         "lon": center_lon,
         "type": "pivo",
-        "fora": None # O status de cobertura será definido posteriormente
+        "fora": None 
     }
 
     return new_pivot_data
