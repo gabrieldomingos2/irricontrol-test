@@ -1,5 +1,6 @@
 import re
 from pydantic import BaseModel
+from backend.services.i18n_service import i18n_service
 from backend.services.kmz_parser import normalizar_nome
 from PIL import Image
 import httpx
@@ -8,8 +9,8 @@ from typing import List, Dict, Optional, Union, TypedDict, Tuple, Any
 from pathlib import Path
 import logging
 import asyncio
-import hashlib  # Adicionado para gerar o hash do cache
-import json     # Adicionado para serializar dados para a chave de cache
+import hashlib
+import json
 
 # Imports para DEM e processamento geoespacial
 import rasterio
@@ -20,8 +21,6 @@ import numpy as np
 from scipy.ndimage import maximum_filter
 from shapely.geometry import Point, Polygon
 
-# Opcional: import elevation
-
 from backend.config import settings
 from backend.services import cloudrf_service
 from fastapi.concurrency import run_in_threadpool
@@ -29,7 +28,7 @@ from fastapi.concurrency import run_in_threadpool
 # Configuração do Logger
 logger = logging.getLogger("irricontrol")
 
-# --- Tipos Personalizados (sem alterações) ---
+# --- Tipos Personalizados ---
 class PivoInputData(TypedDict):
     nome: str
     lat: float
@@ -67,14 +66,13 @@ class CandidateSite(TypedDict):
     ponto_bloqueio: Optional[Union[BlockageInfo, Dict[str, str]]]
     altura_necessaria_torre: Optional[float]
 
-# --- Análise de Cobertura (sem alterações) ---
+# --- Análise de Cobertura ---
 def verificar_cobertura_pivos(pivos: List[Dict[str, Any]], overlays_info: List[OverlayInputData]) -> List[Dict[str, Any]]:
     logger.info(f"🔎 Verificando cobertura para {len(pivos)} pivôs com {len(overlays_info)} overlays.")
     imagens_abertas_cache: Dict[Path, Image.Image] = {}
     pivos_atualizados: List[Dict[str, Any]] = []
 
     for pivo_data in pivos:
-        # Copia todos os dados originais do pivô
         pivo_data_atualizado = pivo_data.copy()
         lat, lon = pivo_data["lat"], pivo_data["lon"]
         coberto_por_algum_overlay = False
@@ -115,7 +113,6 @@ def verificar_cobertura_pivos(pivos: List[Dict[str, Any]], overlays_info: List[O
             except Exception as ex:
                 logger.error(f"  -> ❌ Erro ao analisar overlay para pivô '{pivo_data['nome']}': {ex}", exc_info=True)
         
-        # Apenas atualiza o status 'fora', preservando todo o resto
         pivo_data_atualizado["fora"] = not coberto_por_algum_overlay
         pivos_atualizados.append(pivo_data_atualizado)
 
@@ -125,12 +122,7 @@ def verificar_cobertura_pivos(pivos: List[Dict[str, Any]], overlays_info: List[O
     logger.info("  -> Verificação de cobertura concluída.")
     return pivos_atualizados
 
-# ✅ NOVA FUNÇÃO PARA VERIFICAR COBERTURA DAS BOMBAS
 def verificar_cobertura_bombas(bombas: List[Dict], overlays_info: List[OverlayInputData]) -> List[Dict]:
-    """
-    Verifica se as casas de bomba estão dentro da área de cobertura dos overlays.
-    Esta função é uma cópia adaptada da lógica dos pivôs.
-    """
     logger.info(f"🔎 Verificando cobertura para {len(bombas)} casas de bomba com {len(overlays_info)} overlays.")
     imagens_abertas_cache: Dict[Path, Image.Image] = {}
     bombas_atualizadas: List[Dict] = []
@@ -189,25 +181,18 @@ def verificar_cobertura_bombas(bombas: List[Dict], overlays_info: List[OverlayIn
 # --- Análise de Elevação com Cache ---
 
 async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, alt2: float) -> ElevationProfileResult:
-    """Obtém perfil de elevação entre dois pontos, usando cache para evitar requisições repetidas."""
     if len(pontos) != 2:
         raise ValueError("São necessários exatamente dois pontos para o perfil de elevação.")
 
-    # --- LÓGICA DE CACHE (VERIFICAÇÃO) ---
-    # 1. Criar chave única para os parâmetros. Usamos json.dumps para serializar a lista de pontos.
-    #    A ordenação 'sorted(pontos)' garante que a ordem dos pontos não afete a chave de cache.
     cache_key_string = f"points:{json.dumps(sorted(pontos))}-alt1:{alt1}-alt2:{alt2}"
     cache_hash = hashlib.sha256(cache_key_string.encode()).hexdigest()
     cache_file_path = settings.ELEVATION_CACHE_PATH / f"{cache_hash}.json"
 
-    # 2. Verificar se o resultado já existe no cache.
     if cache_file_path.exists():
         logger.info(f"CACHE HIT: Encontrado perfil de elevação em cache com hash: {cache_hash[:12]}")
         with open(cache_file_path, "r") as f:
             return json.load(f)
-    # --- FIM DA VERIFICAÇÃO DE CACHE ---
 
-    # CACHE MISS: Se não encontrou, executa a busca na API.
     num_passos = 50
     logger.info(f"CACHE MISS: Calculando perfil de elevação ({num_passos} passos) entre {pontos[0]} e {pontos[1]}.")
 
@@ -285,21 +270,17 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
         } for i in range(num_passos + 1)
     ]
 
-    # --- LÓGICA DE CACHE (SALVAR) ---
-    # 3. Salvar o resultado obtido no cache para uso futuro.
     final_result = {"perfil": perfil_final, "bloqueio": ponto_bloqueio, "ponto_mais_alto": ponto_mais_alto_terreno}
     with open(cache_file_path, "w") as f:
         json.dump(final_result, f, indent=4)
     logger.info(f" -> Perfil de elevação salvo no cache em: {cache_file_path.name}")
-    # --- FIM DO SALVAMENTO NO CACHE ---
 
     return final_result
 
 
-# --- Funções de Busca por Repetidora (sem alterações) ---
+# --- Funções de Busca por Repetidora ---
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    # (código da função sem alterações)
     R = 6371000
     phi1_rad, phi2_rad = radians(lat1), radians(lat2)
     delta_phi_rad = radians(lat2 - lat1)
@@ -309,7 +290,6 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * c
 
 def _download_and_clip_dem(bounds_dem_wgs84: Tuple[float,float,float,float], output_dem_path: Path) -> None:
-    # (código da função sem alterações)
     try:
         import elevation
     except ImportError:
@@ -324,7 +304,6 @@ async def obter_dem_para_area_geografica(
     lat_central: float, lon_central: float, raio_busca_km: float,
     resolucao_desejada_m: Optional[float] = 90
 ) -> Tuple[np.ndarray, rasterio.Affine, rasterio.crs.CRS, Optional[Any]]:
-    # (código da função sem alterações)
     logger.info(f"  -> (DEM) Obtendo DEM para ({lat_central:.4f}, {lon_central:.4f}), raio: {raio_busca_km:.1f}km")
     dem_cache_dir = settings.ARQUIVOS_DIR_PATH / "dem_cache"
     dem_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -367,7 +346,6 @@ async def encontrar_locais_altos_para_repetidora(
     active_overlays_data: List[OverlayInputData],
     pivot_polygons_coords_data: Optional[List[List[Tuple[float, float]]]] = None
 ) -> List[CandidateSite]:
-    # (Esta função usará o cache de 'obter_perfil_elevacao' automaticamente em seu loop)
     logger.info(f"🔎 Buscando locais de repetidora para pivô '{alvo_nome}' ({alvo_lat:.5f}, {alvo_lon:.5f})") 
     if not active_overlays_data:
         return []
@@ -497,16 +475,12 @@ async def encontrar_locais_altos_para_repetidora(
 
 
 def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
-    """
-    Analisa os nomes dos pivôs existentes e encontra o próximo número sequencial.
-    Ex: Se "Pivô 3", "Pivô Teste 5" existem, retorna 6.
-    """
     max_number = 0
     regex = re.compile(r'(\d+)$') 
 
     for pivo in pivos:
-        # Usa o nome original, não o normalizado, para a busca
-        match = regex.search(pivo['nome'])
+        nome_norm = normalizar_nome(pivo['nome'])
+        match = regex.search(nome_norm)
         if match:
             number = int(match.group(1))
             if number > max_number:
@@ -517,19 +491,12 @@ def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
 def generate_pivot_at_center(
     center_lat: float, 
     center_lon: float, 
-    existing_pivos: List[PivoInputData],
-    lang: str = 'pt-br'
+    existing_pivos: List[PivoInputData]
 ) -> PivoInputData:
-    """
-    Gera um novo pivô no ponto central com um nome sequencial único e traduzido.
-    """
-    logger.info(f"💡 Gerando novo pivô em ({center_lat:.6f}, {center_lon:.6f}) no idioma '{lang}'.")
+    logger.info(f"💡 Gerando novo pivô em ({center_lat:.6f}, {center_lon:.6f}).")
     
     next_num = _find_next_pivot_number(existing_pivos)
-    
-    t = i18n_service.get_translator(lang)
-    pivot_base_name = t("entity_names.pivot")
-    new_pivot_name = f"{pivot_base_name} {next_num}"
+    new_pivot_name = f"Pivô {next_num}"
 
     logger.info(f"  -> Nome do novo pivô determinado: '{new_pivot_name}'")
 
@@ -538,7 +505,7 @@ def generate_pivot_at_center(
         "lat": center_lat,
         "lon": center_lon,
         "type": "pivo",
-        "fora": None 
+        "fora": None
     }
 
     return new_pivot_data
