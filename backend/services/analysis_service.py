@@ -5,7 +5,7 @@ from backend.services.kmz_parser import normalizar_nome
 from PIL import Image
 import httpx
 from math import sqrt, radians, sin, cos, atan2, degrees
-from typing import List, Dict, Optional, Union, TypedDict, Tuple, Any
+from typing import List, Dict, Optional, Union, TypedDict, Tuple, Any, Callable
 from pathlib import Path
 import logging
 import asyncio
@@ -29,10 +29,12 @@ from fastapi.concurrency import run_in_threadpool
 logger = logging.getLogger("irricontrol")
 
 # --- Tipos Personalizados ---
-class PivoInputData(TypedDict):
+class PivoInputData(TypedDict, total=False):
     nome: str
     lat: float
     lon: float
+    type: str
+    fora: Optional[bool]
 
 class OverlayInputData(TypedDict):
     id: Optional[str]
@@ -479,8 +481,7 @@ def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
     regex = re.compile(r'(\d+)$') 
 
     for pivo in pivos:
-        nome_norm = normalizar_nome(pivo['nome'])
-        match = regex.search(nome_norm)
+        match = regex.search(pivo['nome'])
         if match:
             number = int(match.group(1))
             if number > max_number:
@@ -491,12 +492,19 @@ def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
 def generate_pivot_at_center(
     center_lat: float, 
     center_lon: float, 
-    existing_pivos: List[PivoInputData]
+    existing_pivos: List[PivoInputData],
+    lang: str = 'pt-br'
 ) -> PivoInputData:
-    logger.info(f"💡 Gerando novo pivô em ({center_lat:.6f}, {center_lon:.6f}).")
+    """
+    Gera um novo pivô no ponto central com um nome sequencial único e traduzido.
+    """
+    logger.info(f"💡 Gerando novo pivô em ({center_lat:.6f}, {center_lon:.6f}) no idioma '{lang}'.")
     
     next_num = _find_next_pivot_number(existing_pivos)
-    new_pivot_name = f"Pivô {next_num}"
+    
+    t = i18n_service.get_translator(lang)
+    pivot_base_name = t("entity_names.pivot")
+    new_pivot_name = f"{pivot_base_name} {next_num}"
 
     logger.info(f"  -> Nome do novo pivô determinado: '{new_pivot_name}'")
 
@@ -505,7 +513,7 @@ def generate_pivot_at_center(
         "lat": center_lat,
         "lon": center_lon,
         "type": "pivo",
-        "fora": None
+        "fora": None 
     }
 
     return new_pivot_data

@@ -786,6 +786,7 @@ async function handlePivotDrawClick(e) {
         const result = await generatePivotInCircle(payload);
         const novoPivo = { ...result.novo_pivo, fora: true, raio: radiusInMeters };
         const circleCoords = generateCircleCoords(AppState.centroPivoTemporario, radiusInMeters);
+        
         const novoCiclo = {
             nome_original_circulo: `Ciclo ${novoPivo.nome}`,
             coordenadas: circleCoords
