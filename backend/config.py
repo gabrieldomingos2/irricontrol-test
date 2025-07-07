@@ -1,23 +1,19 @@
 # backend/config.py
 
-# Importa 'os' para interações com o sistema operacional, embora não seja usado diretamente,
-# é comum em arquivos de configuração.
+# Importa 'os' e 'pathlib' para manipulação de caminhos
 import os
-# A importação de 'Path' da biblioteca 'pathlib' é fundamental aqui para criar caminhos de
-# arquivos e diretórios de forma robusta e independente de sistema operacional (Windows, Linux, etc.).
 from pathlib import Path
-# Importações de tipos do módulo 'typing' para anotações de tipo (type hinting),
-# o que melhora a legibilidade e permite a verificação estática de tipos.
-from typing import List, Optional, Dict, Any
 
-# Importações do Pydantic, a biblioteca central para esta configuração.
-# 'Field' permite adicionar metadados e validação a campos individuais.
-# 'HttpUrl' é um tipo especial que valida se uma string é uma URL HTTP válida.
-# 'BaseModel' é a classe base para criar modelos de dados estruturados.
+# 👇 PASSO 1: Importar a biblioteca de logging
+import logging
+
+# Importações de tipos e Pydantic
+from typing import List, Optional, Dict, Any
 from pydantic import Field, HttpUrl, BaseModel
-# 'BaseSettings' é a classe chave para gerenciar configurações que podem vir de variáveis
-# de ambiente ou de um arquivo .env. 'SettingsConfigDict' é usado para configurar seu comportamento.
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 👇 PASSO 2: Obter a instância do logger configurado na sua aplicação
+logger = logging.getLogger("irricontrol")
 
 
 # --- Modelos Pydantic para estruturas aninhadas nos templates ---
@@ -48,8 +44,6 @@ class TemplateSettings(BaseModel):
     antenna: AntennaSettings
 
 # --- Dicionário de Internacionalização (i18n) ---
-# Centraliza as palavras-chave para diferentes idiomas.
-# Adicione ou edite idiomas e palavras aqui para expandir o suporte do parser.
 I18N_KEYWORDS: Dict[str, Dict[str, List[str]]] = {
     "ANTENA": {
         "pt": ["antena", "torre", "central", "base", "repetidora", "barracão", "galpão", "silo", "caixa"],
@@ -106,12 +100,10 @@ class AppSettings(BaseSettings):
     BACKEND_DIR: Path = Path(__file__).resolve().parent
     PROJECT_ROOT_DIR: Path = BACKEND_DIR.parent
 
-    # Nomes dos diretórios para centralizar a nomenclatura.
     STATIC_DIR_NAME: str = "static"
     IMAGENS_DIR_NAME: str = "imagens"
     ARQUIVOS_DIR_NAME: str = "arquivos"
     
-    # Definição dos nomes dos diretórios de cache
     CACHE_DIR_NAME: str = "cache"
     SIMULATIONS_CACHE_DIR_NAME: str = "simulations"
     ELEVATION_CACHE_DIR_NAME: str = "elevation"
@@ -128,7 +120,6 @@ class AppSettings(BaseSettings):
     def ARQUIVOS_DIR_PATH(self) -> Path:
         return self.BACKEND_DIR / self.ARQUIVOS_DIR_NAME
 
-    # Definição das propriedades de caminho para o cache
     @property
     def SIMULATIONS_CACHE_PATH(self) -> Path:
         """Caminho para o cache de resultados de simulação da CloudRF."""
@@ -139,7 +130,6 @@ class AppSettings(BaseSettings):
         """Caminho para o cache de resultados de perfis de elevação."""
         return self.ARQUIVOS_DIR_PATH / self.CACHE_DIR_NAME / self.ELEVATION_CACHE_DIR_NAME
         
-    # --- Propriedade para Keywords Consolidadas ---
     @property
     def ENTITY_KEYWORDS(self) -> Dict[str, List[str]]:
         """
@@ -151,7 +141,6 @@ class AppSettings(BaseSettings):
             all_keywords = []
             for lang, words in lang_map.items():
                 all_keywords.extend(words)
-            # Adiciona a lista consolidada e remove duplicatas
             consolidated[entity] = list(set(all_keywords))
         return consolidated
 
@@ -163,6 +152,7 @@ class AppSettings(BaseSettings):
 
     # --- Templates de Simulação Pré-definidos ---
     TEMPLATES_DISPONIVEIS: List[TemplateSettings] = [
+        # ... (sem alteração aqui)
         {
             "id": "Brazil_V6", "nome": "🇧🇷 Brazil V6", "frq": 915,
             "col": "IRRICONTRO.dBm", "site": "Brazil_V6", "rxs": -90,
@@ -185,24 +175,24 @@ class AppSettings(BaseSettings):
         Garante que os diretórios necessários para a aplicação existam.
         Esta função é chamada no evento de startup do FastAPI.
         """
-        print(f"INFO: Verificando/Criando diretório de imagens em: {self.IMAGENS_DIR_PATH}")
+        # 👇 PASSO 3: Substituir todos os prints por chamadas ao logger
+        logger.info(f"Verificando/Criando diretório de imagens em: {self.IMAGENS_DIR_PATH}")
         self.IMAGENS_DIR_PATH.mkdir(parents=True, exist_ok=True)
         
-        print(f"INFO: Verificando/Criando diretório de arquivos em: {self.ARQUIVOS_DIR_PATH}")
+        logger.info(f"Verificando/Criando diretório de arquivos em: {self.ARQUIVOS_DIR_PATH}")
         self.ARQUIVOS_DIR_PATH.mkdir(parents=True, exist_ok=True)
         
-        # Garantir que os diretórios de cache sejam criados
-        print(f"INFO: Verificando/Criando diretório de cache de simulações em: {self.SIMULATIONS_CACHE_PATH}")
+        logger.info(f"Verificando/Criando diretório de cache de simulações em: {self.SIMULATIONS_CACHE_PATH}")
         self.SIMULATIONS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
         
-        print(f"INFO: Verificando/Criando diretório de cache de elevação em: {self.ELEVATION_CACHE_PATH}")
+        logger.info(f"Verificando/Criando diretório de cache de elevação em: {self.ELEVATION_CACHE_PATH}")
         self.ELEVATION_CACHE_PATH.mkdir(parents=True, exist_ok=True)
 
         # Verificações de sanidade
         if not self.CLOUDRF_API_KEY:
-            print("⚠️ ALERTA DE SEGURANÇA: CLOUDRF_API_KEY não está definida!")
+            logger.warning("ALERTA DE SEGURANÇA: CLOUDRF_API_KEY não está definida!")
         if not self.BACKEND_PUBLIC_URL:
-            print("⚠️ ALERTA DE CONFIGURAÇÃO: BACKEND_PUBLIC_URL não está definida! As URLs de imagem podem estar incorretas.")
+            logger.warning("ALERTA DE CONFIGURAÇÃO: BACKEND_PUBLIC_URL não está definida! As URLs de imagem podem estar incorretas.")
 
     def obter_template(self, template_id: str) -> TemplateSettings:
         template_obj = next(
@@ -210,7 +200,8 @@ class AppSettings(BaseSettings):
             None
         )
         if not template_obj:
-            print(f"⚠️ Template '{template_id}' não encontrado. Usando padrão '{self.TEMPLATES_DISPONIVEIS[0].id}'.")
+            # 👇 PASSO 3: Substituir print por logger.warning
+            logger.warning(f"Template '{template_id}' não encontrado. Usando padrão '{self.TEMPLATES_DISPONIVEIS[0].id}'.")
             return self.TEMPLATES_DISPONIVEIS[0]
         return template_obj
 
