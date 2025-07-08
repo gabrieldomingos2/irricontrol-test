@@ -834,12 +834,11 @@ async function handlePivotDrawClick(e) {
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
     clearMapLayers(); 
-    AppState.reset(); // Reseta todo o estado de DADOS primeiro.
+    AppState.reset();
     
     if (showMessage) {
       startNewSession();
     }
-
 
     const toggleableButtonsIds = [
         'editar-pivos',
@@ -847,11 +846,11 @@ function handleResetClick(showMessage = true) {
         'btn-buscar-locais-repetidora',
         'btn-draw-pivot',
         'btn-draw-pivot-setorial',
+        'btn-draw-pivot-pacman',
         'toggle-distancias-pivos',
         'toggle-legenda',
         'btn-draw-irripump'
     ];
-
 
     toggleableButtonsIds.forEach(id => {
         const btn = document.getElementById(id);
@@ -860,7 +859,6 @@ function handleResetClick(showMessage = true) {
         }
     });
     
-
     if (map) {
         map.getContainer().style.cursor = '';
         if (window.candidateRepeaterSitesLayerGroup) {
@@ -868,14 +866,12 @@ function handleResetClick(showMessage = true) {
         }
     }
     
-
     map.off('click', handlePivotDrawClick);
     map.off('mousemove', handlePivotDrawMouseMove);
     map.off('contextmenu', handleCancelCircularDraw);
     map.off('click', handleSectorialPivotDrawClick);
     map.off('mousemove', handleSectorialDrawMouseMove);
     
-
     document.getElementById("simular-btn")?.classList.add("hidden");
     document.getElementById("lista-repetidoras").innerHTML = "";
     
@@ -896,7 +892,7 @@ function handleResetClick(showMessage = true) {
     
     atualizarPainelDados();
     reposicionarPaineisLaterais();
-    toggleLegendas(true); // Garante que as legendas voltem a ser visíveis
+    toggleLegendas(true);
 
     if (showMessage) mostrarMensagem(t('messages.success.app_reset'), "sucesso");
 }
@@ -906,6 +902,9 @@ async function runTargetedDiagnostic(diagnosticoSource) {
         mostrarMensagem(t('messages.errors.run_study_first'), "erro");
         return;
     }
+
+    AppState.visadaVisivel = true;
+    document.getElementById("btn-visada")?.classList.remove("opacity-50");
 
     const sourceName = diagnosticoSource.nome || (diagnosticoSource.label?.options.icon.options.html) || t('ui.labels.main_antenna_default');
     const sourceLatLng = diagnosticoSource.marker ? diagnosticoSource.marker.getLatLng() : L.latLng(diagnosticoSource.lat, diagnosticoSource.lon);
@@ -921,7 +920,6 @@ async function runTargetedDiagnostic(diagnosticoSource) {
     const alvosParaAnalisar = [];
     const defaultReceiverHeight = (AppState.antenaGlobal?.altura_receiver) ?? 3;
 
-    // Adicionar pivôs sem cobertura
     AppState.lastPivosDataDrawn.filter(p => p.fora).forEach(pivoInfo => {
         const marcador = AppState.pivotsMap[pivoInfo.nome];
         if (marcador) {
@@ -933,7 +931,6 @@ async function runTargetedDiagnostic(diagnosticoSource) {
         }
     });
 
-    // Adicionar casas de bombas sem cobertura
     AppState.lastBombasDataDrawn.forEach((bomba, index) => {
         if (bomba.fora) {
             const marcadorBomba = AppState.marcadoresBombas[index];
@@ -947,7 +944,7 @@ async function runTargetedDiagnostic(diagnosticoSource) {
         }
     });
 
-    const LIMITE_DISTANCIA_KM = 4;
+    const LIMITE_DISTANCIA_KM = 4.5;
     const LIMITE_DISTANCIA_MTS = LIMITE_DISTANCIA_KM * 1000;
     const totalAlvosSemCobertura = alvosParaAnalisar.length;
 
@@ -1153,7 +1150,6 @@ function createEditablePivotMarker(pivoInfo) {
     const editMarker = L.marker(currentLatLng, { draggable: true, icon: editMarkerIcon }).addTo(map);
     AppState.pivotsMap[nome] = editMarker;
 
-    // Evento de arrastar (move)
     editMarker.on("dragend", (e) => {
         const novaPos = e.target.getLatLng();
         const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
@@ -1180,7 +1176,6 @@ function createEditablePivotMarker(pivoInfo) {
         }
     });
     
-    // Evento de clique direito (delete)
     editMarker.on("contextmenu", (e) => {
         L.DomEvent.stop(e);
         if (confirm(t('messages.confirm.remove_pivot', { name: nome }))) {
@@ -1218,7 +1213,6 @@ function enablePivoEditingMode() {
     const undoButton = document.getElementById("desfazer-edicao");
     if(undoButton) undoButton.disabled = true;
 
-    // Limpeza da UI
     AppState.marcadoresPivos.forEach(m => map.removeLayer(m));
     AppState.marcadoresPivos = [];
     AppState.marcadoresLegenda.filter(l => l.options.labelType === 'pivot').forEach(l => map.hasLayer(l) && map.removeLayer(l));
@@ -1226,7 +1220,6 @@ function enablePivoEditingMode() {
     Object.values(AppState.pivotsMap).forEach(marker => marker && map.hasLayer(marker) && map.removeLayer(marker));
     AppState.pivotsMap = {};
 
-    // Itera sobre os dados dos pivôs e chama a função auxiliar para criar cada marcador
     AppState.lastPivosDataDrawn.forEach(pivoInfo => {
         createEditablePivotMarker(pivoInfo);
     });
@@ -1274,7 +1267,6 @@ function desfazerUltimaAcao() {
     const lastAction = AppState.historyStack.pop();
     const undoButton = document.getElementById("desfazer-edicao");
 
-    // --- Desfazer MOVIMENTO ---
     if (lastAction.type === 'move') {
         const { pivotName, from } = lastAction;
         const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === pivotName);
@@ -1283,51 +1275,39 @@ function desfazerUltimaAcao() {
         if (pivoEmLastData && editMarker) {
             const posicaoOriginalLatLng = L.latLng(from.lat, from.lon);
 
-            // 1. Reverte os dados de lat/lon do pivô
             pivoEmLastData.lat = from.lat;
             pivoEmLastData.lon = from.lon;
 
-            // 2. Reverte a posição do marcador visual no mapa
             editMarker.setLatLng(posicaoOriginalLatLng);
 
-            // ✅ INÍCIO DA CORREÇÃO: Atualiza os dados do círculo antes de redesenhar
             const nomeCiclo = `Ciclo ${pivotName}`;
             const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
             
-            // Se o pivô for circular e tiver um raio, recalcula suas coordenadas
             if (cicloCorrespondente && pivoEmLastData.raio && typeof generateCircleCoords === 'function') {
                 const novasCoordenadas = generateCircleCoords(posicaoOriginalLatLng, pivoEmLastData.raio);
                 cicloCorrespondente.coordenadas = novasCoordenadas;
             }
-            // ✅ FIM DA CORREÇÃO
 
-            // 3. Agora, redesenha os círculos com os dados já corrigidos
             drawCirculos(AppState.ciclosGlobais);
             
             mostrarMensagem(t('messages.success.action_undone_move', { pivot_name: pivotName }), "sucesso");
         }
     }
-    // --- Desfazer EXCLUSÃO ---
+
     else if (lastAction.type === 'delete') {
         const { deletedPivot, deletedCiclo } = lastAction;
 
-        // Reinsere os dados nos arrays de estado
         AppState.lastPivosDataDrawn.push(deletedPivot);
         if (deletedCiclo) {
             AppState.ciclosGlobais.push(deletedCiclo);
         }
         
-        // Recria o marcador editável para o pivô restaurado
         createEditablePivotMarker(deletedPivot);
-        
-        // Redesenha todos os círculos para garantir que o círculo restaurado apareça
-        drawCirculos(AppState.ciclosGlobais);
-        
+        drawCirculos(AppState.ciclosGlobais);  
         atualizarPainelDados();
         mostrarMensagem(t('messages.success.action_undone_delete', { pivot_name: deletedPivot.nome }), "sucesso");
     }
 
-    // Atualiza o estado do botão de desfazer
     if (undoButton && AppState.historyStack.length === 0) {
         undoButton.disabled = true;
     }
@@ -1444,39 +1424,37 @@ function handleCancelDraw(e) {
     let drawCancelled = false;
     let messageKey = '';
 
-    // Lógica de cancelamento para Pivô Circular
     if (AppState.modoDesenhoPivo && AppState.centroPivoTemporario) {
         if (typeof removeTempCircle === 'function') removeTempCircle();
         messageKey = 'messages.info.draw_pivot_cancelled';
         drawCancelled = true;
     }
-    // Lógica de cancelamento para Pivô Setorial
+
     else if (AppState.modoDesenhoPivoSetorial && AppState.centroPivoTemporario) {
         if (typeof removeTempSector === 'function') removeTempSector();
         messageKey = 'messages.info.draw_sector_cancelled';
         drawCancelled = true;
     }
-    // Lógica de cancelamento para Pivô Pac-Man
+
     else if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
         if (typeof removeTempPacman === 'function') removeTempPacman();
         messageKey = 'messages.info.draw_pacman_cancelled';
         drawCancelled = true;
     }
-    // Lógica de cancelamento para Irripump
+
     else if (AppState.modoDesenhoIrripump) {
         toggleModoDesenhoIrripump();
         messageKey = 'messages.info.draw_irripump_cancelled';
         drawCancelled = true;
     }
 
-    // Se uma ação de desenho foi cancelada, reseta os estados e mostra a mensagem.
     if (drawCancelled) {
         L.DomEvent.preventDefault(e);
         L.DomEvent.stopPropagation(e);
 
         console.log("✏️ Ação de desenho cancelada pelo usuário.");
         AppState.centroPivoTemporario = null;
-        AppState.pontoRaioTemporario = null; // Reseta para todos os modos por segurança
+        AppState.pontoRaioTemporario = null;
         
         if (messageKey) {
             mostrarMensagem(t(messageKey), "info");
@@ -1599,18 +1577,15 @@ async function handleSectorialPivotDrawClick(e) {
         return;
     }
 
-    // Segundo clique: Define o ponto final, que determina o raio e a direção.
     const finalPoint = e.latlng;
     const radius = AppState.centroPivoTemporario.distanceTo(finalPoint);
 
-    // Limpa a forma de pré-visualização do mapa.
     if (typeof removeTempSector === 'function') {
         removeTempSector();
     }
 
-    // Validação para evitar pivôs muito pequenos ou cliques acidentais.
-    if (radius < 10) { // Raio mínimo de 10 metros.
-        AppState.centroPivoTemporario = null; // Reseta o desenho.
+    if (radius < 10) { 
+        AppState.centroPivoTemporario = null;
         mostrarMensagem(t('messages.errors.draw_pivot_radius_too_small'), "erro");
         return;
     }
@@ -1619,8 +1594,6 @@ async function handleSectorialPivotDrawClick(e) {
     try {
         const bearing = calculateBearing(AppState.centroPivoTemporario, e.latlng);
         const novoNumero = getNextPivotNumber();
-        
-        // ✅ CORREÇÃO: Garante que está usando a função 't' para o nome
         const novoNome = `${t('entity_names.pivot')} ${novoNumero}`;
         
         const novoPivo = {
@@ -1636,20 +1609,16 @@ async function handleSectorialPivotDrawClick(e) {
 
         AppState.lastPivosDataDrawn.push(novoPivo);
 
-        // Cria um "ciclo" correspondente com coordenadas vazias.
-        // Isso mantém a consistência da estrutura de dados para a exportação.
         const novoCiclo = {
             nome_original_circulo: `Ciclo ${novoPivo.nome}`,
             coordenadas: []
         };
         AppState.ciclosGlobais.push(novoCiclo);
 
-        // Atualiza a UI para refletir o novo pivô.
         atualizarPainelDados();
         if (typeof drawPivos === 'function') drawPivos(AppState.lastPivosDataDrawn, false);
         if (typeof drawCirculos === 'function') drawCirculos(AppState.ciclosGlobais);
         
-        // Chama a API para recalcular a cobertura de sinal com o novo pivô.
         await reavaliarPivosViaAPI();
         
         mostrarMensagem(t('messages.success.sector_pivot_created', { name: novoPivo.nome }), "sucesso");
@@ -1658,11 +1627,10 @@ async function handleSectorialPivotDrawClick(e) {
         console.error("Erro ao criar pivô setorial:", error);
         mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
     } finally {
-        // Reseta o estado do desenho para permitir a criação de um novo pivô.
+
         AppState.centroPivoTemporario = null;
         mostrarLoader(false);
         
-        // Informa ao usuário que ele pode continuar desenhando.
         setTimeout(() => {
             if (AppState.modoDesenhoPivoSetorial) {
                 mostrarMensagem(t('messages.info.draw_sector_pivot_still_active'), "info");
@@ -1724,7 +1692,6 @@ function toggleModoDesenhoPivoPacman() {
 function handlePacmanDrawMouseMove(e) {
     if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
         if (typeof drawTempPacman === 'function') {
-            // A função de desenho temporário saberá em que estágio estamos
             drawTempPacman(AppState.centroPivoTemporario, AppState.pontoRaioTemporario, e.latlng);
         }
     }
@@ -1733,21 +1700,18 @@ function handlePacmanDrawMouseMove(e) {
 async function handlePacmanPivotDrawClick(e) {
     if (!AppState.modoDesenhoPivoPacman) return;
 
-    // 1. Primeiro clique: Define o centro
     if (!AppState.centroPivoTemporario) {
         AppState.centroPivoTemporario = e.latlng;
         mostrarMensagem(t('messages.info.draw_pacman_step2'), "info");
         return;
     }
 
-    // 2. Segundo clique: Define o raio e o primeiro ângulo
     if (!AppState.pontoRaioTemporario) {
         AppState.pontoRaioTemporario = e.latlng;
         mostrarMensagem(t('messages.info.draw_pacman_step3'), "info");
         return;
     }
 
-    // 3. Terceiro clique: Define o ângulo final e cria o pivô
     const finalPoint = e.latlng;
     mostrarLoader(true);
 
@@ -1763,7 +1727,6 @@ async function handlePacmanPivotDrawClick(e) {
         const anguloFim = calculateBearing(centro, finalPoint);
         
         const novoNumero = getNextPivotNumber();
-        // ✅ ALTERADO: Usa a função t() para obter o nome base do pivô.
         const novoNome = `${t('entity_names.pivot')} ${novoNumero}`;
 
         const novoPivo = {
@@ -1781,7 +1744,7 @@ async function handlePacmanPivotDrawClick(e) {
 
         const novoCiclo = {
             nome_original_circulo: `Ciclo ${novoPivo.nome}`,
-            coordenadas: [] // Coordenadas vazias, pois a forma é gerada por parâmetros.
+            coordenadas: []
         };
         AppState.ciclosGlobais.push(novoCiclo);
 
@@ -1796,7 +1759,7 @@ async function handlePacmanPivotDrawClick(e) {
         console.error("Erro ao criar pivô Pac-Man:", error);
         mostrarMensagem(error.message, "erro");
     } finally {
-        // Reseta para o próximo desenho
+
         AppState.centroPivoTemporario = null;
         AppState.pontoRaioTemporario = null;
         if (typeof removeTempPacman === 'function') removeTempPacman();
