@@ -1,4 +1,5 @@
 # backend/routers/simulation.py
+import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Tuple, Literal
@@ -13,15 +14,13 @@ from backend.services import cloudrf_service, analysis_service
 logger = logging.getLogger("irricontrol")
 router = APIRouter(prefix="/simulation", tags=["Simulation & Analysis"])
 
-# --- Modelos Pydantic ---
+# --- Modelos Pydantic (sem alterações) ---
 class PivoData(BaseModel):
     nome: str
     lat: float
     lon: float
-    # Permite que 'tipo' seja qualquer string, mas o padrão é 'pivo'
     tipo: Optional[str] = 'pivo'
     fora: Optional[bool] = None
-    # Adiciona os outros campos como opcionais para não quebrar em outras partes
     raio: Optional[float] = None
     angulo_central: Optional[float] = None
     abertura_arco: Optional[float] = None
@@ -29,7 +28,6 @@ class PivoData(BaseModel):
     angulo_fim: Optional[float] = None
 
 class BombaData(BaseModel):
-    # (este modelo não precisa de alteração)
     nome: str; lat: float; lon: float
     type: Literal['bomba'] = 'bomba'; fora: Optional[bool] = None
 
@@ -71,7 +69,7 @@ def _get_image_filepath_for_analysis(image_filename: str, job_id: str) -> Path:
     filename_only = Path(image_filename.split('?')[0]).name
     return settings.IMAGENS_DIR_PATH / job_id / filename_only
 
-# --- Endpoints ---
+# --- Endpoints (sem alterações nos demais) ---
 @router.get("/templates")
 async def get_templates_endpoint():
     return settings.listar_templates_ids()
@@ -175,9 +173,14 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
 
 @router.post("/reevaluate")
 async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
+    """
+    Reavalia a cobertura de pivôs e bombas com base em uma lista de overlays (imagens de sinal).
+    Esta versão é robusta e executa as análises em paralelo para melhor desempenho.
+    """
     try:
         logger.info(f"🔄 Reavaliando cobertura para job {payload.job_id} com {len(payload.overlays)} overlays.")
 
+        # 1. Prepara a lista de overlays para análise, verificando se os arquivos existem
         overlays_para_analise = []
         if payload.overlays:
             for o_data in payload.overlays:
@@ -185,25 +188,43 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
                 if not imagem_path_servidor.is_file():
                     logger.warning(f"Arquivo de imagem '{o_data.imagem}' não encontrado para job '{payload.job_id}'. Pulando overlay.")
                     continue
-
                 overlays_para_analise.append({
                     "id": o_data.id or f"overlay_{Path(o_data.imagem).stem}",
                     "imagem_path": imagem_path_servidor,
                     "bounds": o_data.bounds
                 })
 
-        pivos_atualizados = [{"nome": p.nome, "lat": p.lat, "lon": p.lon, "fora": True} for p in payload.pivos]
-        bombas_atualizadas = [{"nome": b.nome, "lat": b.lat, "lon": b.lon, "fora": True} for b in payload.bombas]
+        # 2. Prepara as listas de entidades que serão retornadas
+        pivos_atualizados = [p.model_dump() for p in payload.pivos]
+        bombas_atualizadas = [b.model_dump() for b in payload.bombas]
 
-        if overlays_para_analise:
-            pivos_atualizados = await analysis_service.verificar_cobertura_pivos(
-                [p.model_dump() for p in payload.pivos], overlays_para_analise
-            )
-            if payload.bombas:
-                 bombas_atualizadas = await analysis_service.verificar_cobertura_bombas(
-                    [b.model_dump() for b in payload.bombas], overlays_para_analise
-                 )
-            # 👆 FIM DA CORREÇÃO
+        # 3. Se não houver overlays para analisar, marca tudo como "fora" e retorna
+        if not overlays_para_analise:
+            for pivo in pivos_atualizados:
+                pivo['fora'] = True
+            for bomba in bombas_atualizadas:
+                bomba['fora'] = True
+            logger.info("Nenhum overlay ativo para análise. Todas as entidades marcadas como 'fora'.")
+            return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}
+
+        # 4. Cria tarefas para análise em paralelo, se houver entidades
+        tasks = []
+        if pivos_atualizados:
+            tasks.append(analysis_service.verificar_cobertura_pivos(pivos_atualizados, overlays_para_analise))
+        
+        if bombas_atualizadas:
+            tasks.append(analysis_service.verificar_cobertura_bombas(bombas_atualizadas, overlays_para_analise))
+
+        # 5. Executa as tarefas e atribui os resultados corretamente
+        if tasks:
+            results = await asyncio.gather(*tasks)
+            
+            result_index = 0
+            if pivos_atualizados:
+                pivos_atualizados = results[result_index]
+                result_index += 1
+            if bombas_atualizadas:
+                bombas_atualizadas = results[result_index]
 
         logger.info(f"✅ Pivôs e Bombas atualizados pela reavaliação para o job {payload.job_id}.")
         return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}

@@ -1075,7 +1075,9 @@ async function handleExportClick() {
 }
 
 async function reavaliarPivosViaAPI() {
-    if (!AppState.jobId || !AppState.lastPivosDataDrawn || AppState.lastPivosDataDrawn.length === 0) return;
+    if (!AppState.jobId || (AppState.lastPivosDataDrawn.length === 0 && AppState.lastBombasDataDrawn.length === 0)) {
+        return;
+    }
 
     const pivosParaReavaliar = AppState.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' }));
     const bombasParaReavaliar = (AppState.lastBombasDataDrawn || []).map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' }));
@@ -1119,6 +1121,7 @@ async function reavaliarPivosViaAPI() {
         atualizarPainelDados();
 
     } catch (error) {
+
         console.error("❌ Erro ao reavaliar cobertura via API:", error);
         mostrarMensagem(t('messages.errors.reevaluate_fail', { error: error.message }), "erro");
     }
