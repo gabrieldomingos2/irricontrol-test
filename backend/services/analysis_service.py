@@ -74,7 +74,6 @@ class CandidateSite(TypedDict, total=False):
 def _check_coverage_sync(entities: List[Dict[str, Any]], overlays_info: List[OverlayInputData]) -> List[Dict[str, Any]]:
     """
     Função síncrona que realiza a verificação de cobertura pixel a pixel.
-    É projetada para ser executada em um threadpool para não bloquear o event loop.
     """
     logger.info(f"🔎 (Thread) Verificando cobertura para {len(entities)} entidades.")
     imagens_abertas_cache: Dict[Path, Image.Image] = {}
@@ -154,7 +153,6 @@ async def verificar_cobertura_bombas(bombas: List[Dict], overlays_info: List[Ove
     return bombas_atualizadas
 
 
-# --- Análise de Elevação com Cache
 async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, alt2: float) -> ElevationProfileResult:
     if len(pontos) != 2:
         raise ValueError("São necessários exatamente dois pontos para o perfil de elevação.")
@@ -224,13 +222,7 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
                     "dist": i / num_passos
                 }
 
-    elev_max_terreno_val = -float('inf')
-    idx_elev_max_terreno = 0
-    for i, elev_val in enumerate(elevacoes_terreno):
-        if elev_val > elev_max_terreno_val:
-            elev_max_terreno_val = elev_val
-            idx_elev_max_terreno = i
-            
+    idx_elev_max_terreno = np.argmax(elevacoes_terreno)
     ponto_mais_alto_terreno: Dict[str, Optional[float]] = {
         "lat": pontos_amostrados[idx_elev_max_terreno][0],
         "lon": pontos_amostrados[idx_elev_max_terreno][1],
@@ -255,7 +247,6 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
     return final_result
 
 
-# --- Funções de Busca por Repetidora ---
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000
     phi1_rad, phi2_rad = radians(lat1), radians(lat2)
@@ -291,8 +282,7 @@ async def obter_dem_para_area_geografica(
         lon_central - offset_lon_graus, lat_central - offset_lat_graus,
         lon_central + offset_lon_graus, lat_central + offset_lat_graus
     )
-    nome_arquivo_dem = f"dem_clip_lat{lat_central:.4f}_lon{lon_central:.4f}_r{int(raio_busca_m)}m.tif"
-    nome_arquivo_dem = nome_arquivo_dem.replace(".", "_").replace("-", "m")
+    nome_arquivo_dem = f"dem_clip_lat{lat_central:.4f}_lon{lon_central:.4f}_r{int(raio_busca_m)}m.tif".replace(".", "_").replace("-", "m")
     path_arquivo_dem_local = dem_cache_dir / nome_arquivo_dem
     try:
         if not path_arquivo_dem_local.exists():
@@ -328,7 +318,7 @@ async def _obter_elevacao_para_pontos(pontos: List[Dict[str, Any]]) -> List[floa
                 return [res.get("elevation") or 0 for res in dados_api["results"]]
         except Exception as e:
             logger.error(f"Falha ao buscar elevação em lote: {e}")
-            return [0] * len(pontos) # Retorna 0 em caso de erro para não quebrar o fluxo
+            return [0] * len(pontos)
     return [0] * len(pontos)
 
 
@@ -336,7 +326,8 @@ async def encontrar_locais_altos_para_repetidora(
     alvo_lat: float, alvo_lon: float, alvo_nome: str,
     altura_antena_repetidora_proposta: float, altura_receptor_pivo: float,
     active_overlays_data: List[OverlayInputData],
-    pivos_vizinhos: List[PivoInputData],
+    # <--- CORREÇÃO 1: Parâmetro 'pivos_vizinhos' agora é opcional para evitar o erro.
+    pivos_vizinhos: Optional[List[PivoInputData]] = None,
     pivot_polygons_coords_data: Optional[List[List[Tuple[float, float]]]] = None
 ) -> List[CandidateSite]:
 
@@ -344,12 +335,12 @@ async def encontrar_locais_altos_para_repetidora(
     if not active_overlays_data:
         return []
 
-    # --- Lógica para obter DEM e polígonos (sem alterações) ---
     shapely_pivot_polygons: List[Polygon] = []
     if pivot_polygons_coords_data:
         for i, poly_coords_list in enumerate(pivot_polygons_coords_data):
             if len(poly_coords_list) >= 3:
                 try:
+                    # Corrigido para usar as coordenadas diretamente se já forem tuplas (lon, lat)
                     shapely_pivot_polygons.append(Polygon(poly_coords_list))
                 except Exception as e_shapely:
                     logger.warning(f"  -> ⚠️ Erro ao criar polígono Shapely para o ciclo {i+1}: {e_shapely}.")
@@ -379,7 +370,10 @@ async def encontrar_locais_altos_para_repetidora(
     TAMANHO_FILTRO_PICO_LOCAL = 5
 
     try:
-        # --- ETAPA 1: Encontrar picos de elevação (lógica original) ---
+        # <--- CORREÇÃO 2: Adicionando o cache de imagens para a verificação da "área verde".
+        imagens_overlay_pil_cache: Dict[Path, Image.Image] = {}
+
+        # ETAPA 1: Encontrar picos de elevação
         dem_para_picos = dem_array.copy().astype(np.float32)
         if dem_nodata_val is not None:
             dem_para_picos[dem_array == dem_nodata_val] = np.nan
@@ -393,7 +387,35 @@ async def encontrar_locais_altos_para_repetidora(
         
         peak_candidates_to_process = []
         for idx, (peak_lon_wgs84, peak_lat_wgs84) in enumerate(zip(coords_x_mapa_picos, coords_y_mapa_picos)):
-            elevacao_pico_atual = dem_para_picos[indices_y_picos[idx], indices_x_picos[idx]]
+            # <--- CORREÇÃO 3: Verificação da "área verde" para picos de elevação.
+            esta_na_area_verde = False
+            for ov_data in active_overlays_data:
+                try:
+                    overlay_path = Path(ov_data['imagem_path'])
+                    if not overlay_path.is_file(): continue
+                    if overlay_path not in imagens_overlay_pil_cache:
+                        imagens_overlay_pil_cache[overlay_path] = Image.open(overlay_path).convert("RGBA")
+                    
+                    pil_img = imagens_overlay_pil_cache[overlay_path]
+                    ov_w, ov_h = pil_img.size
+                    s, w, n, e = ov_data['bounds']
+                    if s > n: s, n = n, s
+                    if w > e: w, e = e, w
+                    ov_delta_lon, ov_delta_lat = e - w, n - s
+                    if ov_delta_lon == 0 or ov_delta_lat == 0: continue
+                    
+                    px = int(((peak_lon_wgs84 - w) / ov_delta_lon) * ov_w)
+                    py = int(((n - peak_lat_wgs84) / ov_delta_lat) * ov_h)
+
+                    if 0 <= px < ov_w and 0 <= py < ov_h and pil_img.getpixel((px, py))[3] > 50:
+                        esta_na_area_verde = True
+                        break
+                except Exception as e_img_check:
+                    logger.warning(f"  -> ❌ Erro ao verificar cobertura de pico no overlay {overlay_path.name}: {e_img_check}")
+            
+            if not esta_na_area_verde:
+                continue
+            
             distancia_pico_alvo_m = haversine(alvo_lat, alvo_lon, peak_lat_wgs84, peak_lon_wgs84)
             if distancia_pico_alvo_m > MAX_DIST_REPETIDORA_ALVO_M:
                 continue
@@ -402,6 +424,7 @@ async def encontrar_locais_altos_para_repetidora(
             if any(piv_poly.contains(ponto_candidato_shapely) for piv_poly in shapely_pivot_polygons):
                 continue
             
+            elevacao_pico_atual = dem_para_picos[indices_y_picos[idx], indices_x_picos[idx]]
             peak_candidates_to_process.append({
                 "lat": float(peak_lat_wgs84), "lon": float(peak_lon_wgs84),
                 "elevation": float(elevacao_pico_atual),
@@ -409,7 +432,7 @@ async def encontrar_locais_altos_para_repetidora(
                 "type": "peak"
             })
 
-        # --- ETAPA 2: Adicionar pivôs vizinhos como candidatos ---
+        # ETAPA 2: Adicionar pivôs vizinhos como candidatos
         pivot_candidates_to_process = []
         if pivos_vizinhos:
             logger.info(f" -> Verificando {len(pivos_vizinhos)} pivôs vizinhos como potenciais locais.")
@@ -436,7 +459,7 @@ async def encontrar_locais_altos_para_repetidora(
                         "type": "pivot_center"
                     })
         
-        # --- ETAPA 3: Unir candidatos e processar a Linha de Visada (LoS) ---
+        # ETAPA 3: Unir candidatos e processar a Linha de Visada (LoS)
         all_candidate_points_data = list(chain(peak_candidates_to_process, pivot_candidates_to_process))
         logger.info(f" -> Total de locais candidatos: {len(all_candidate_points_data)} ({len(peak_candidates_to_process)} picos, {len(pivot_candidates_to_process)} pivôs).")
 
@@ -474,8 +497,12 @@ async def encontrar_locais_altos_para_repetidora(
                 
     except Exception as e_proc_picos:
         logger.error(f"  -> ❌ Erro durante o processamento dos picos ou LoS: {e_proc_picos}", exc_info=True)
-    
-    # --- Ordenação Aprimorada ---
+    finally:
+        # <--- CORREÇÃO 4: Garantir que os arquivos de imagem sejam fechados.
+        for img_pil in imagens_overlay_pil_cache.values():
+            img_pil.close()
+
+    # Ordenação Aprimorada
     candidate_sites_list.sort(key=lambda s: (
         not s["has_los"],                             # 1. Prioriza os que têm LoS
         s.get("altura_necessaria_torre", float('inf')), # 2. Entre os obstruídos, o que precisa de menor torre

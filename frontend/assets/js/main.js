@@ -130,6 +130,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof toggleLegendas === 'function') {
         toggleLegendas(AppState.legendasAtivas);
     }
+
+    document.getElementById('painel-dados').classList.remove('hidden');
+    document.getElementById('painel-repetidoras').classList.remove('hidden');
+    atualizarPainelDados();
+    reposicionarPaineisLaterais();
+
 });
 
 /**
