@@ -494,75 +494,72 @@ async function handleConfirmRepetidoraClick() {
     document.getElementById('painel-repetidora').classList.add('hidden');
     mostrarLoader(true);
 
-    let repetidoraObj;
-    let nomeRep;
-    let id;
-    let isFromKmz = false;
+    try {
+        let repetidoraObj;
+        let nomeRep;
+        let id;
+        let isFromKmz = false;
 
-    if (window.clickedCandidateData) {
-        const candidateData = { ...window.clickedCandidateData };
-        window.clickedCandidateData = null;
-        isFromKmz = true;
-
-        if (!AppState.antenaGlobal) {
+        if (!AppState.antenaGlobal && window.clickedCandidateData) {
+            const candidateData = { ...window.clickedCandidateData };
+            window.clickedCandidateData = null;
             await startMainSimulation({ ...candidateData, altura: alturaAntena || candidateData.altura });
-            mostrarLoader(false);
             return;
-        } 
-        else {
-            if (antenaCandidatesLayerGroup) {
+        }
+
+        removePositioningMarker();
+        
+        id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
+
+        if (window.clickedCandidateData) {
+            const candidateData = { ...window.clickedCandidateData };
+            window.clickedCandidateData = null;
+            isFromKmz = true;
+            
+            if (AppState.antenaCandidatesLayerGroup) {
                 const idToRemove = `candidate-${candidateData.nome}-${candidateData.lat}`;
                 const camadasParaRemover = [];
-                antenaCandidatesLayerGroup.eachLayer(layer => {
+                AppState.antenaCandidatesLayerGroup.eachLayer(layer => {
                     if (layer.options.customId === idToRemove) camadasParaRemover.push(layer);
                 });
-                camadasParaRemover.forEach(layer => antenaCandidatesLayerGroup.removeLayer(layer));
+                camadasParaRemover.forEach(layer => AppState.antenaCandidatesLayerGroup.removeLayer(layer));
             }
-            id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
             nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
+        } else {
+            nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
+            isFromKmz = false;
         }
-    } 
-    else {
-        removePositioningMarker();
-        id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
-        nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
-        isFromKmz = false;
-    }
-    
-    const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
-    const labelRepetidora = L.marker(AppState.coordenadaClicada, {
-        icon: L.divIcon({
-            className: 'label-pivo', html: nomeRep,
-            iconSize: [(nomeRep.length * 7) + 10, 20],
-            iconAnchor: [((nomeRep.length * 7) + 10) / 2, 45]
-        }),
-        labelType: 'repetidora'
-    }).addTo(map);
-    AppState.marcadoresLegenda.push(labelRepetidora);
+        
+        const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
+        const labelRepetidora = L.marker(AppState.coordenadaClicada, {
+            icon: L.divIcon({
+                className: 'label-pivo', html: nomeRep,
+                iconSize: [(nomeRep.length * 7) + 10, 20],
+                iconAnchor: [((nomeRep.length * 7) + 10) / 2, 45]
+            }),
+            labelType: 'repetidora'
+        }).addTo(map);
+        AppState.marcadoresLegenda.push(labelRepetidora);
 
-    const tooltipRepetidoraContent = `
-        <div style="text-align: center;">
-            ${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}
-            <br>
-            ${t('ui.labels.receiver_height_tooltip', { height: alturaReceiver })}
-        </div>
-    `;
-    novaRepetidoraMarker.bindTooltip(tooltipRepetidoraContent, {
-        permanent: false,
-        direction: 'top',
-        offset: [0, -40],
-        className: 'tooltip-sinal'
-    });
-    
-    repetidoraObj = {
-        id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
-        altura: alturaAntena, altura_receiver: alturaReceiver,
-        lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
-        imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false, nome: nomeRep,
-        is_from_kmz: isFromKmz
-    };
-
-    if (repetidoraObj) {
+        const tooltipRepetidoraContent = `
+            <div style="text-align: center;">
+                ${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}
+                <br>
+                ${t('ui.labels.receiver_height_tooltip', { height: alturaReceiver })}
+            </div>
+        `;
+        novaRepetidoraMarker.bindTooltip(tooltipRepetidoraContent, {
+            permanent: false, direction: 'top', offset: [0, -40], className: 'tooltip-sinal'
+        });
+        
+        repetidoraObj = {
+            id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
+            altura: alturaAntena, altura_receiver: alturaReceiver,
+            lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
+            imagem_filename: null, sobre_pivo: window.ultimoCliqueFoiSobrePivo || false, nome: nomeRep,
+            is_from_kmz: isFromKmz
+        };
+        
         AppState.repetidoras.push(repetidoraObj);
         
         const payload = {
@@ -571,26 +568,28 @@ async function handleConfirmRepetidoraClick() {
             pivos_atuais: AppState.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon })),
             template: AppState.templateSelecionado
         };
-        try {
-            const data = await simulateManual(payload);
-            repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0);
-            repetidoraObj.imagem_filename = data.imagem_filename.split('/').pop();
-            addRepetidoraNoPainel(repetidoraObj);
-            await reavaliarPivosViaAPI();
-            mostrarMensagem(t('messages.success.repeater_added', { name: repetidoraObj.nome }), "sucesso");
-        } catch(error) {
-             mostrarMensagem(t('messages.errors.simulation_fail', { error: error.message }), "erro");
-             map.removeLayer(repetidoraObj.marker);
-             if (repetidoraObj.label) map.removeLayer(repetidoraObj.label);
-             AppState.repetidoras = AppState.repetidoras.filter(r => r.id !== repetidoraObj.id);
-             AppState.idsDisponiveis.push(repetidoraObj.id);
-        }
-    }
 
-    mostrarLoader(false);
-    AppState.coordenadaClicada = null;
-    atualizarPainelDados();
-    reposicionarPaineisLaterais();
+        const data = await simulateManual(payload);
+        repetidoraObj.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0);
+        repetidoraObj.imagem_filename = data.imagem_filename.split('/').pop();
+        addRepetidoraNoPainel(repetidoraObj);
+        await reavaliarPivosViaAPI();
+        mostrarMensagem(t('messages.success.repeater_added', { name: repetidoraObj.nome }), "sucesso");
+        
+    } catch (error) {
+        mostrarMensagem(t('messages.errors.simulation_fail', { error: error.message }), "erro");
+        const failedRep = AppState.repetidoras.pop();
+        if (failedRep) {
+            if (failedRep.marker) map.removeLayer(failedRep.marker);
+            if (failedRep.label) map.removeLayer(failedRep.label);
+            AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => l !== failedRep.label);
+        }
+    } finally {
+        mostrarLoader(false);
+        AppState.coordenadaClicada = null;
+        atualizarPainelDados();
+        reposicionarPaineisLaterais();
+    }
 }
 
 function handleBuscarLocaisRepetidoraActivation() {
@@ -1081,28 +1080,45 @@ async function reavaliarPivosViaAPI() {
 
     const pivosParaReavaliar = AppState.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' }));
     const bombasParaReavaliar = (AppState.lastBombasDataDrawn || []).map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' }));
-    
     const overlays = [];
+    const signal_sources = [];
     const antenaVisBtn = document.querySelector("#antena-item button[data-visible]");
-    const isAntenaActive = !antenaVisBtn || antenaVisBtn.getAttribute('data-visible') === 'true';
+    const isAntenaActiveAndVisible = !antenaVisBtn || antenaVisBtn.getAttribute('data-visible') === 'true';
 
-    if (AppState.antenaGlobal?.overlay && map.hasLayer(AppState.antenaGlobal.overlay) && isAntenaActive && AppState.antenaGlobal.imagem_filename) {
-        const b = AppState.antenaGlobal.overlay.getBounds();
-        overlays.push({ id: 'antena_principal', imagem: AppState.antenaGlobal.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
+    if (AppState.antenaGlobal && isAntenaActiveAndVisible) {
+
+        signal_sources.push({ lat: AppState.antenaGlobal.lat, lon: AppState.antenaGlobal.lon });
+        
+        if (AppState.antenaGlobal.overlay && map.hasLayer(AppState.antenaGlobal.overlay) && AppState.antenaGlobal.imagem_filename) {
+            const b = AppState.antenaGlobal.overlay.getBounds();
+            overlays.push({ id: 'antena_principal', imagem: AppState.antenaGlobal.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
+        }
     }
 
     AppState.repetidoras.forEach(rep => {
         const repVisBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
-        const isRepActive = !repVisBtn || repVisBtn.getAttribute('data-visible') === 'true';
+        const isRepActiveAndVisible = !repVisBtn || repVisBtn.getAttribute('data-visible') === 'true';
 
-        if (rep.overlay && map.hasLayer(rep.overlay) && isRepActive && rep.imagem_filename) {
-            const b = rep.overlay.getBounds();
-            overlays.push({ id: `repetidora_${rep.id}`, imagem: rep.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
+        if (isRepActiveAndVisible) {
+
+            signal_sources.push({ lat: rep.lat, lon: rep.lon });
+            
+            if (rep.overlay && map.hasLayer(rep.overlay) && rep.imagem_filename) {
+                const b = rep.overlay.getBounds();
+                overlays.push({ id: `repetidora_${rep.id}`, imagem: rep.imagem_filename, bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()] });
+            }
         }
     });
 
     try {
-        const payload = { job_id: AppState.jobId, pivos: pivosParaReavaliar, bombas: bombasParaReavaliar, overlays };
+
+        const payload = { 
+            job_id: AppState.jobId, 
+            pivos: pivosParaReavaliar, 
+            bombas: bombasParaReavaliar, 
+            overlays,
+            signal_sources
+        };
         const data = await reevaluatePivots(payload);
 
         if (data.pivos) {
@@ -1121,7 +1137,6 @@ async function reavaliarPivosViaAPI() {
         atualizarPainelDados();
 
     } catch (error) {
-
         console.error("❌ Erro ao reavaliar cobertura via API:", error);
         mostrarMensagem(t('messages.errors.reevaluate_fail', { error: error.message }), "erro");
     }

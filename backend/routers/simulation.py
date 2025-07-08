@@ -14,7 +14,7 @@ from backend.services import cloudrf_service, analysis_service
 logger = logging.getLogger("irricontrol")
 router = APIRouter(prefix="/simulation", tags=["Simulation & Analysis"])
 
-# --- Modelos Pydantic (sem alterações) ---
+# --- Modelos Pydantic ---
 class PivoData(BaseModel):
     nome: str
     lat: float
@@ -38,7 +38,7 @@ class AntenaSimPayload(BaseModel):
     nome: Optional[str] = "Antena Principal"
     template: str
     pivos_atuais: List[PivoData]
-    bombas_atuais: List[BombaData] 
+    bombas_atuais: List[BombaData]
 
 class ManualSimPayload(BaseModel):
     job_id: str; lat: float; lon: float; altura: float; altura_receiver: float
@@ -48,7 +48,11 @@ class OverlayData(BaseModel):
     id: Optional[str] = None; imagem: str; bounds: Tuple[float, float, float, float]
 
 class ReavaliarPayload(BaseModel):
-    job_id: str; pivos: List[PivoData]; bombas: List[BombaData]; overlays: List[OverlayData]
+    job_id: str
+    pivos: List[PivoData]
+    bombas: List[BombaData]
+    overlays: List[OverlayData]
+    signal_sources: Optional[List[Dict[str, float]]] = None
 
 class PerfilPayload(BaseModel):
     pontos: List[Tuple[float, float]]; altura_antena: float; altura_receiver: float
@@ -69,7 +73,7 @@ def _get_image_filepath_for_analysis(image_filename: str, job_id: str) -> Path:
     filename_only = Path(image_filename.split('?')[0]).name
     return settings.IMAGENS_DIR_PATH / job_id / filename_only
 
-# --- Endpoints (sem alterações nos demais) ---
+# --- Endpoints ---
 @router.get("/templates")
 async def get_templates_endpoint():
     return settings.listar_templates_ids()
@@ -78,7 +82,7 @@ async def get_templates_endpoint():
 async def generate_pivot_in_circle_endpoint(payload: GeneratePivotPayload):
     try:
         novo_pivo = analysis_service.generate_pivot_at_center(
-            center_lat=payload.center[0], 
+            center_lat=payload.center[0],
             center_lon=payload.center[1],
             existing_pivos=[p.model_dump() for p in payload.pivos_atuais],
             lang=payload.language
@@ -111,11 +115,13 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
 
         overlay_info = {"imagem_path": imagem_path_servidor, "bounds": sim_result["bounds"]}
         
+        signal_sources = [{'lat': payload.lat, 'lon': payload.lon}]
+        
         pivos_com_status = await analysis_service.verificar_cobertura_pivos(
-            [p.model_dump() for p in payload.pivos_atuais], [overlay_info]
+            [p.model_dump() for p in payload.pivos_atuais], [overlay_info], signal_sources
         )
         bombas_com_status = await analysis_service.verificar_cobertura_bombas(
-            [b.model_dump() for b in payload.bombas_atuais], [overlay_info]
+            [b.model_dump() for b in payload.bombas_atuais], [overlay_info], signal_sources
         )
         
         logger.info(f"✅ Simulação principal para job {payload.job_id} concluída e analisada.")
@@ -180,7 +186,6 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
     try:
         logger.info(f"🔄 Reavaliando cobertura para job {payload.job_id} com {len(payload.overlays)} overlays.")
 
-        # 1. Prepara a lista de overlays para análise, verificando se os arquivos existem
         overlays_para_analise = []
         if payload.overlays:
             for o_data in payload.overlays:
@@ -194,31 +199,25 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
                     "bounds": o_data.bounds
                 })
 
-        # 2. Prepara as listas de entidades que serão retornadas
         pivos_atualizados = [p.model_dump() for p in payload.pivos]
         bombas_atualizadas = [b.model_dump() for b in payload.bombas]
 
-        # 3. Se não houver overlays para analisar, marca tudo como "fora" e retorna
-        if not overlays_para_analise:
-            for pivo in pivos_atualizados:
-                pivo['fora'] = True
-            for bomba in bombas_atualizadas:
-                bomba['fora'] = True
-            logger.info("Nenhum overlay ativo para análise. Todas as entidades marcadas como 'fora'.")
+        if not overlays_para_analise and not payload.signal_sources:
+            for pivo in pivos_atualizados: pivo['fora'] = True
+            for bomba in bombas_atualizadas: bomba['fora'] = True
             return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}
 
-        # 4. Cria tarefas para análise em paralelo, se houver entidades
         tasks = []
+        signal_sources = payload.signal_sources or []
+        
         if pivos_atualizados:
-            tasks.append(analysis_service.verificar_cobertura_pivos(pivos_atualizados, overlays_para_analise))
+            tasks.append(analysis_service.verificar_cobertura_pivos(pivos_atualizados, overlays_para_analise, signal_sources))
         
         if bombas_atualizadas:
-            tasks.append(analysis_service.verificar_cobertura_bombas(bombas_atualizadas, overlays_para_analise))
+            tasks.append(analysis_service.verificar_cobertura_bombas(bombas_atualizadas, overlays_para_analise, signal_sources))
 
-        # 5. Executa as tarefas e atribui os resultados corretamente
         if tasks:
             results = await asyncio.gather(*tasks)
-            
             result_index = 0
             if pivos_atualizados:
                 pivos_atualizados = results[result_index]

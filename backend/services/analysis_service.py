@@ -23,7 +23,7 @@ from shapely.geometry import Point, Polygon
 
 from backend.config import settings
 from backend.services import cloudrf_service
-from fastapi.concurrency import run_in_threadpool # 👈 PASSO 1: Importar run_in_threadpool
+from fastapi.concurrency import run_in_threadpool
 
 # Configuração do Logger
 logger = logging.getLogger("irricontrol")
@@ -68,22 +68,50 @@ class CandidateSite(TypedDict):
     ponto_bloqueio: Optional[Union[BlockageInfo, Dict[str, str]]]
     altura_necessaria_torre: Optional[float]
 
+# --- Funções Auxiliares ---
+
+def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calcula a distância em metros entre dois pontos geográficos."""
+    R = 6371000  # Raio da Terra em metros
+    phi1, phi2 = radians(lat1), radians(lat2)
+    delta_phi = radians(lat2 - lat1)
+    delta_lambda = radians(lon2 - lon1)
+    a = sin(delta_phi / 2)**2 + cos(phi1) * cos(phi2) * sin(delta_lambda / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
 
 
-def _check_coverage_sync(entities: List[Dict[str, Any]], overlays_info: List[OverlayInputData]) -> List[Dict[str, Any]]:
+def _check_coverage_sync(
+    entities: List[Dict[str, Any]], 
+    overlays_info: List[OverlayInputData],
+    signal_sources: List[Dict[str, float]]
+) -> List[Dict[str, Any]]:
     """
-    Função síncrona que realiza a verificação de cobertura pixel a pixel.
-    É projetada para ser executada em um threadpool para não bloquear o event loop.
+    Função síncrona que realiza a verificação de cobertura, agora com a "zona de segurança".
     """
-    logger.info(f"🔎 (Thread) Verificando cobertura para {len(entities)} entidades.")
+    logger.info(f"🔎 (Thread) Verificando cobertura para {len(entities)} entidades com {len(signal_sources)} fontes de sinal.")
     imagens_abertas_cache: Dict[Path, Image.Image] = {}
     entities_atualizadas: List[Dict[str, Any]] = []
+    
+    PROXIMITY_THRESHOLD_METERS = 20.0
 
     try: 
         for entity_data in entities:
             entity_data_atualizado = entity_data.copy()
             lat, lon = entity_data["lat"], entity_data["lon"]
             coberto_por_algum_overlay = False
+
+            for source in signal_sources:
+                distance = haversine(lat, lon, source['lat'], source['lon'])
+                if distance < PROXIMITY_THRESHOLD_METERS:
+                    coberto_por_algum_overlay = True
+                    logger.info(f"  -> 🎯 '{entity_data['nome']}' está na zona de segurança da fonte em ({source['lat']:.4f}, {source['lon']:.4f}). Cobertura garantida.")
+                    break
+            
+            if coberto_por_algum_overlay:
+                entity_data_atualizado["fora"] = False
+                entities_atualizadas.append(entity_data_atualizado)
+                continue
 
             for overlay_data in overlays_info:
                 bounds = overlay_data["bounds"]
@@ -131,29 +159,35 @@ def _check_coverage_sync(entities: List[Dict[str, Any]], overlays_info: List[Ove
     return entities_atualizadas
 
 
-async def verificar_cobertura_pivos(pivos: List[Dict[str, Any]], overlays_info: List[OverlayInputData]) -> List[Dict[str, Any]]:
+async def verificar_cobertura_pivos(
+    pivos: List[Dict[str, Any]], 
+    overlays_info: List[OverlayInputData],
+    signal_sources: List[Dict[str, float]]
+) -> List[Dict[str, Any]]:
     """
     Verifica a cobertura dos pivôs, delegando o trabalho síncrono para um threadpool.
     """
     logger.info(f"Delegando verificação de cobertura para {len(pivos)} pivôs para o threadpool.")
     pivos_atualizados = await run_in_threadpool(
-        _check_coverage_sync, entities=pivos, overlays_info=overlays_info
+        _check_coverage_sync, entities=pivos, overlays_info=overlays_info, signal_sources=signal_sources
     )
     return pivos_atualizados
 
-async def verificar_cobertura_bombas(bombas: List[Dict], overlays_info: List[OverlayInputData]) -> List[Dict]:
+async def verificar_cobertura_bombas(
+    bombas: List[Dict], 
+    overlays_info: List[OverlayInputData],
+    signal_sources: List[Dict[str, float]]
+) -> List[Dict]:
     """
     Verifica a cobertura das bombas, delegando o trabalho síncrono para um threadpool.
     """
     logger.info(f"Delegando verificação de cobertura para {len(bombas)} bombas para o threadpool.")
     bombas_atualizadas = await run_in_threadpool(
-        _check_coverage_sync, entities=bombas, overlays_info=overlays_info
+        _check_coverage_sync, entities=bombas, overlays_info=overlays_info, signal_sources=signal_sources
     )
     return bombas_atualizadas
 
 
-
-# --- Análise de Elevação com Cache
 async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, alt2: float) -> ElevationProfileResult:
     if len(pontos) != 2:
         raise ValueError("São necessários exatamente dois pontos para o perfil de elevação.")
@@ -251,16 +285,6 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
 
     return final_result
 
-
-# --- Funções de Busca por Repetidora (sem alterações) ---
-def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    R = 6371000
-    phi1_rad, phi2_rad = radians(lat1), radians(lat2)
-    delta_phi_rad = radians(lat2 - lat1)
-    delta_lambda_rad = radians(lon2 - lon1)
-    a = sin(delta_phi_rad / 2)**2 + cos(phi1_rad) * cos(phi2_rad) * sin(delta_lambda_rad / 2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    return R * c
 
 def _download_and_clip_dem(bounds_dem_wgs84: Tuple[float,float,float,float], output_dem_path: Path) -> None:
     try:
@@ -460,7 +484,6 @@ async def encontrar_locais_altos_para_repetidora(
     ))
     MAX_SITES_PARA_RETORNAR = 25
     return candidate_sites_list[:MAX_SITES_PARA_RETORNAR]
-
 
 
 def _find_next_pivot_number(pivos: List[PivoInputData]) -> int:
