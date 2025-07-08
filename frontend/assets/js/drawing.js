@@ -36,7 +36,6 @@ const posicionamentoIcon = L.icon({
   popupAnchor: [0, -30]
 });
 
-// As camadas agora são gerenciadas pelo AppState, mas a declaração da variável pode permanecer se for mais conveniente
 let tempSectorShape = null;
 let tempPacmanShape = null;
 
@@ -167,25 +166,23 @@ function drawPivos(pivosData, useEdited = false) {
         const statusTexto = pivo.fora ? `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>` : `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`;
         marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, { permanent: false, direction: 'top', offset: [0, -15], className: 'tooltip-sinal' });
 
-marker.on('click', (e) => {
-    L.DomEvent.stopPropagation(e);
-    if (AppState.modoEdicaoPivos) {
-         marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
-    } 
-    // ✅ INÍCIO DA MODIFICAÇÃO: Chamar a nova função genérica
-    else if (AppState.modoLoSPivotAPivot) {
-        if (typeof handleLoSTargetClick === 'function') handleLoSTargetClick(pivo, marker);
-    } 
-    // ✅ FIM DA MODIFICAÇÃO
-    else if (AppState.modoBuscaLocalRepetidora) {
-        if (typeof handlePivotSelectionForRepeaterSite === 'function') handlePivotSelectionForRepeaterSite(pivo, marker);
-    } else {
-        window.ultimoCliqueFoiSobrePivo = true; // Dado transitório
-        AppState.coordenadaClicada = e.latlng;
-        removePositioningMarker();
-        document.getElementById("painel-repetidora")?.classList.remove("hidden");
-    }
-});
+        marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (AppState.modoEdicaoPivos) {
+                 marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
+            } 
+            else if (AppState.modoLoSPivotAPivot) {
+                if (typeof handleLoSTargetClick === 'function') handleLoSTargetClick(pivo, marker);
+            } 
+            else if (AppState.modoBuscaLocalRepetidora) {
+                if (typeof handlePivotSelectionForRepeaterSite === 'function') handlePivotSelectionForRepeaterSite(pivo, marker);
+            } else {
+                window.ultimoCliqueFoiSobrePivo = true;
+                AppState.coordenadaClicada = e.latlng;
+                removePositioningMarker();
+                document.getElementById("painel-repetidora")?.classList.remove("hidden");
+            }
+        });
         
         AppState.marcadoresPivos.push(marker);
         AppState.pivotsMap[pivo.nome] = marker;
@@ -234,7 +231,6 @@ function drawBombas(bombasData) {
             L.DomEvent.stopPropagation(e);
             if (AppState.modoLoSPivotAPivot) {
                 if (typeof handleLoSTargetClick === 'function') {
-                    // Monta um objeto de dados similar ao de um pivô para o handler
                     const bombaDataForHandler = {
                         nome: nomeBomba,
                         fora: bomba.fora
@@ -245,10 +241,8 @@ function drawBombas(bombasData) {
         });
 
         marcadorBomba.on('contextmenu', (e) => {
-            L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
-
+            L.DomEvent.stop(e); 
             if (confirm(t('messages.confirm.remove_irripump', { name: nomeBomba }))) {
-                // Remove o marcador da bomba e a legenda do mapa
                 map.removeLayer(marcadorBomba);
                 const labelParaRemover = AppState.marcadoresLegenda.find(l => 
                     l.getLatLng().equals(marcadorBomba.getLatLng()) && 
@@ -260,16 +254,12 @@ function drawBombas(bombasData) {
                     AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => l !== labelParaRemover);
                 }
 
-                // Remove a bomba do AppState.lastBombasDataDrawn
                 AppState.lastBombasDataDrawn = AppState.lastBombasDataDrawn.filter(b => 
-                    !(b.lat === bomba.lat && b.lon === bomba.lon) // Remove pela lat/lon para garantir unicidade
+                    !(b.lat === bomba.lat && b.lon === bomba.lon)
                 );
-
-                // Re-desenha as bombas para reajustar os índices e nomes se necessário
-                drawBombas(AppState.lastBombasDataDrawn); // Isso irá recriar os marcadores e labels com nomes atualizados
-
+                drawBombas(AppState.lastBombasDataDrawn); 
                 atualizarPainelDados();
-                reavaliarPivosViaAPI(); // Reavalia a cobertura após a remoção
+                reavaliarPivosViaAPI(); 
                 mostrarMensagem(t('messages.success.irripump_removed', { name: nomeBomba }), 'sucesso');
             }
         });
@@ -344,11 +334,9 @@ function addRepetidoraNoPainel(repetidora) {
     item.className = "flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `rep-item-${repetidora.id}`;
     
-    // ✅ INÍCIO DA CORREÇÃO DO ÍCONE
     const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-id="${repetidora.id}" data-action="diagnostico">
         <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
     </button>`;
-    // ✅ FIM DA CORREÇÃO DO ÍCONE
 
     item.innerHTML = `
         <span class="text-white/80 text-sm">${repetidora.label.options.icon.options.html}</span>
@@ -387,8 +375,7 @@ function addRepetidoraNoPainel(repetidora) {
         visibilityBtn.setAttribute('data-visible', String(newState));
         const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
         
-        if (repetidora.marker) repetidora.marker.setOpacity(newState ? 1 : 0);
-        if (repetidora.label?.getElement()) repetidora.label.getElement().style.display = (newState && AppState.legendasAtivas) ? '' : 'none';
+        // Apenas a visibilidade do overlay é alterada. O ícone e a legenda permanecem.
         if (repetidora.overlay) repetidora.overlay.setOpacity(newState ? opacityValue : 0);
         
         visibilityBtn.innerHTML = newState ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>` : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
@@ -404,11 +391,9 @@ function addAntenaAoPainel(antena) {
     item.className = "flex justify-between items-center bg-gray-700/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `antena-item`;
 
-    // ✅ INÍCIO DA CORREÇÃO DO ÍCONE
     const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-action="diagnostico">
         <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
     </button>`;
-    // ✅ FIM DA CORREÇÃO DO ÍCONE
 
     item.innerHTML = `
         <span class="text-white/90 font-semibold text-sm">${antena.nome || t('ui.labels.main_antenna_default')}</span>
@@ -423,6 +408,7 @@ function addAntenaAoPainel(antena) {
     lucide.createIcons();
 
     item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(antena));
+    
     const visibilityBtn = item.querySelector('[data-action="toggle-visibility"]');
     visibilityBtn.addEventListener('click', () => {
         const isVisible = visibilityBtn.getAttribute('data-visible') === 'true';
@@ -430,8 +416,8 @@ function addAntenaAoPainel(antena) {
         visibilityBtn.setAttribute('data-visible', String(newState));
         
         const opacityValue = parseFloat(rangeOpacidade.value);
+        // Apenas a visibilidade do overlay é alterada. O ícone e a legenda permanecem.
         if (antena?.overlay) antena.overlay.setOpacity(newState ? opacityValue : 0);
-        if (AppState.marcadorAntena) AppState.marcadorAntena.setOpacity(newState ? 1 : 0);
         
         visibilityBtn.innerHTML = newState ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>` : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
         lucide.createIcons();
@@ -444,16 +430,14 @@ function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPon
 
     const linha = drawVisadaComGradiente(latlonOrigem, latlonDestino);
     
-    // Determine if the line of sight is blocked
     const estaBloqueado = dadosBloqueioAPI?.diff > 0.1;
 
     let iconUrl;
     let iconSize;
     let mensagemTooltip;
     let markerLatLng;
-    let tooltipColor; // Added for tooltip text color
+    let tooltipColor; 
 
-    // If blocked, show the blockage point. Otherwise, show the highest point.
     if (estaBloqueado) {
         iconUrl = ATTENTION_ICON_PATH;
         iconSize = [24, 24];
@@ -463,24 +447,21 @@ function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPon
             mensagemTooltip += `<br>${t('ui.labels.pivo_distance_label')} ${distanciaFormatada}`;
         }
         mensagemTooltip += `<br>${t('tooltips.blockage_point', { elevation: dadosBloqueioAPI.elev.toFixed(1) })}`;
-        tooltipColor = '#FF9800'; // Orange for blocked
+        tooltipColor = '#FF9800'; 
         mensagemTooltip += `<br><span style="color: ${tooltipColor};">${t('tooltips.blockage_present', { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
     } else {
-        // Line of sight is clear, show the highest point
-        iconUrl = MOUNTAIN_ICON_PATH; // Reusing MOUNTAIN_ICON_PATH for highest point
+        iconUrl = MOUNTAIN_ICON_PATH;
         iconSize = [22, 22]; 
-        markerLatLng = [dadosPontoMaisAlto.lat, dadosPontoMaisAlto.lon]; // Use the highest point's coordinates
+        markerLatLng = [dadosPontoMaisAlto.lat, dadosPontoMaisAlto.lon];
         mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
         if (distanciaFormatada) {
             mensagemTooltip += `<br>${t('ui.labels.pivo_distance_label')} ${distanciaFormatada}`;
         }
-        // Simplified tooltip message for highest point, also in orange color
-        tooltipColor = '#FF9800'; // Orange for highest point when clear
-        mensagemTooltip += `<br><span style="color: ${tooltipColor};">${t('tooltips.highest_point_short', { elevation: dadosPontoMaisAlto.elev.toFixed(1) })}</span>`; // Use new key
+        tooltipColor = '#FF9800'; 
+        mensagemTooltip += `<br><span style="color: ${tooltipColor};">${t('tooltips.highest_point_short', { elevation: dadosPontoMaisAlto.elev.toFixed(1) })}</span>`; 
     }
 
-    // Draw the single marker
-    if (markerLatLng && markerLatLng[0] && markerLatLng[1]) { // Ensure coordinates are valid
+    if (markerLatLng && markerLatLng[0] && markerLatLng[1]) {
         const markerIcon = L.divIcon({
             className: 'label-bloqueio-dinamico',
             html: `<img src="${iconUrl}" style="width:${iconSize[0]}px; height:${iconSize[1]}px;">`,
@@ -498,10 +479,8 @@ function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPon
 function clearMapLayers() {
     if (!map) return;
     
-    // Lista de todas as camadas a serem limpas/removidas
     const layersAndGroups = [
         AppState.marcadorAntena, 
-        // ✅ CORREÇÃO CRÍTICA: Garante que a função de limpeza use a camada correta do AppState.
         AppState.antenaCandidatesLayerGroup, 
         AppState.marcadorPosicionamento,
         AppState.visadaLayerGroup,
@@ -515,7 +494,6 @@ function clearMapLayers() {
 
     layersAndGroups.forEach(layer => {
         if (!layer) return;
-        // Limpa grupos de camadas ou remove camadas individuais do mapa.
         if (typeof layer.clearLayers === 'function') {
             layer.clearLayers();
         } else if (map.hasLayer(layer)) {
@@ -523,7 +501,6 @@ function clearMapLayers() {
         }
     });
 
-    // Limpeza específica de repetidoras e overlay da antena principal
     AppState.repetidoras.forEach(r => {
         if (r.marker) map.removeLayer(r.marker);
         if (r.overlay) map.removeLayer(r.overlay);
@@ -578,7 +555,6 @@ function criarGradienteVisada(id = 'gradient-visada') {
     const svgPane = map.getPane('overlayPane');
     let svg = svgPane.querySelector('svg');
     if (!svg) {
-        // Truque para forçar a criação do SVG do Leaflet
         const tempLayer = L.polyline([[0,0],[0,0]]).addTo(map);
         svg = svgPane.querySelector('svg');
         map.removeLayer(tempLayer);
@@ -645,8 +621,6 @@ function togglePivoDistances(show) {
     if (AppState.lastBombasDataDrawn?.length > 0) {
         drawBombas(AppState.lastBombasDataDrawn);
     }
-    
-    // Lógica corrigida para exibir a mensagem
     const messageKey = show ? 'messages.success.pivot_distances_shown' : 'messages.success.pivot_distances_hidden';
     mostrarMensagem(t(messageKey), 'sucesso');
 }
@@ -743,20 +717,10 @@ if (!L.LatLng.prototype.destination) {
     };
 }
 
-/**
- * Gera as coordenadas para um polígono em forma de Pac-Man (setor invertido).
- * @param {L.LatLng} center - O ponto central.
- * @param {number} radius - O raio em metros.
- * @param {number} startAngle - O ângulo que inicia a boca (0-360).
- * @param {number} endAngle - O ângulo que termina a boca (0-360).
- * @param {number} points - A quantidade de pontos para formar o arco.
- * @returns {Array<Array<number>>} - As coordenadas para L.polygon.
- */
 function generatePacmanCoords(center, radius, startAngle, endAngle, points = 80) {
     let anguloInicioNormalizado = startAngle;
     let anguloFimNormalizado = endAngle;
 
-    // Garante que o arco seja desenhado no caminho mais longo
     if (anguloFimNormalizado <= anguloInicioNormalizado) {
         anguloFimNormalizado += 360;
     }
@@ -765,14 +729,12 @@ function generatePacmanCoords(center, radius, startAngle, endAngle, points = 80)
     const arcAngle = anguloFimNormalizado - anguloInicioNormalizado;
     const irrigatedAngle = 360 - arcAngle;
 
-    // Desenha o arco principal (a parte "comestível" do Pac-Man)
     for (let i = 0; i <= points; i++) {
         const angle = anguloFimNormalizado + (i * irrigatedAngle / points);
         const point = center.destination(radius, angle);
         vertices.push([point.lat, point.lng]);
     }
     
-    // Fecha o polígono voltando ao centro
     vertices.push([center.lat, center.lng]);
 
     return vertices;
@@ -784,17 +746,15 @@ function drawTempPacman(center, radiusPoint, currentMousePoint) {
         tempPacmanShape = null;
     }
 
-    // Estágio 1: Desenhando o raio inicial (pré-visualização com círculo)
     if (!radiusPoint) {
         const radius = center.distanceTo(currentMousePoint);
-        if (radius > 5) { // Evita criar círculos muito pequenos
+        if (radius > 5) {
             tempPacmanShape = L.circle(center, {
                 radius: radius, color: '#3B82F6', weight: 2, dashArray: '5, 5',
                 fillColor: '#3B82F6', fillOpacity: 0.1, interactive: false
             }).addTo(map);
         }
     } 
-    // Estágio 2: Desenhando a forma Pac-Man final
     else {
         const radius = center.distanceTo(radiusPoint);
         const startAngle = calculateBearing(center, radiusPoint);
