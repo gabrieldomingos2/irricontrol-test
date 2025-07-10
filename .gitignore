@@ -42,4 +42,7 @@ backend/static/arquivos/*
 # Bats
 start-servidor.bat
 
+# Bc
+irricontrol_app.log
+
 

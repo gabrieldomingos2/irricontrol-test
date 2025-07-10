@@ -1,8 +1,3 @@
-// assets/js/ui.js
-
-// ==========================
-// 🔗 ELEMENTOS DA UI
-// ==========================
 const mensagemDiv = document.getElementById('mensagem');
 const loaderDiv = document.getElementById('loader');
 const painelDadosDiv = document.getElementById('painel-dados');
@@ -15,13 +10,9 @@ const nomeArquivoLabel = document.getElementById('nome-arquivo-label');
 const legendContainer = document.getElementById('legend-container');
 const legendImage = document.getElementById('legend-image'); 
 
-// ==========================
-// 🔥 FUNÇÕES DE MENSAGEM E LOADER
-// ==========================
 function mostrarMensagem(texto, tipo = 'sucesso') {
     const mensagemDiv = document.getElementById('mensagem');
-    // A classe 'left-[calc(50%-180px)]' ajusta a posição mais para a esquerda
-    mensagemDiv.className = 'fixed bottom-16 left-[calc(50%-180px)] transform -translate-x-1/2 flex items-center gap-x-3 text-white px-4 py-3 rounded-lg shadow-lg border-l-4 bg-gray-800/90 z-[10000]'; // Base classes
+    mensagemDiv.className = 'fixed bottom-16 left-[calc(50%-180px)] transform -translate-x-1/2 flex items-center gap-x-3 text-white px-4 py-3 rounded-lg shadow-lg border-l-4 bg-gray-800/90 z-[10000]';
 
     let iconeHtml = '';
     let borderClass = '';
@@ -32,7 +23,7 @@ function mostrarMensagem(texto, tipo = 'sucesso') {
     } else if (tipo === 'erro') {
         iconeHtml = `<i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>`;
         borderClass = 'border-red-500';
-    } else { // 'info' ou 'aviso'
+    } else {
         iconeHtml = `<i data-lucide="info" class="w-5 h-5 text-yellow-400"></i>`;
         borderClass = 'border-yellow-400';
     }
@@ -44,15 +35,18 @@ function mostrarMensagem(texto, tipo = 'sucesso') {
     setTimeout(() => mensagemDiv.classList.add('hidden'), 4000);
 }
 
-
-function mostrarLoader(ativo) {
+function mostrarLoader(ativo, textoAdicional = '') {
     loaderDiv.classList.toggle('hidden', !ativo);
+    const processingTextSpan = loaderDiv.querySelector('span[data-i18n="ui.labels.processing"]');
+    if (processingTextSpan) {
+        if (ativo && textoAdicional) {
+            processingTextSpan.textContent = textoAdicional;
+        } else {
+            processingTextSpan.textContent = t('ui.labels.processing');
+        }
+    }
 }
 
-/**
- * ATUALIZA A IMAGEM DA LEGENDA DE CORES COM BASE NO TEMPLATE SELECIONADO
- * @param {string} templateName - O nome do template (ex: "Brazil_v6").
- */
 function updateLegendImage(templateName) {
     if (!legendContainer || !legendImage) return;
 
@@ -62,7 +56,6 @@ function updateLegendImage(templateName) {
     if (normalizedName.includes("brazil_v6")) {
         imagePath = "assets/images/IRRICONTRO.dBm.key.png";
     } else if (normalizedName.includes("europe") && normalizedName.includes("v6")) {
-        // Captura "Europe_v6", "europe v6", etc.
         imagePath = "assets/images/IRRIEUROPE.dBm.key.png";
     }
 
@@ -74,10 +67,6 @@ function updateLegendImage(templateName) {
     }
 }
 
-
-// ==========================
-// 📊 ATUALIZAÇÕES DE PAINÉIS
-// ==========================
 function atualizarPainelDados() {
     const totalPivos = AppState.lastPivosDataDrawn.length;
     const foraCobertura = AppState.lastPivosDataDrawn.filter(p => p.fora).length;
@@ -94,26 +83,19 @@ function atualizarPainelDados() {
     bombasElemento.classList.toggle("hidden", totalBombas === 0);
 }
 
-
 function reposicionarPaineisLaterais() {
     const paineis = [painelDadosDiv, painelRepetidorasDiv];
-    let topoAtual = 16; // Corresponde a 'top-16' -> 4rem -> 64px. Assumindo que o container pai dos painéis tem top-16.
-    const espacamento = 16; // Corresponde a 'space-y-4'
+    let topoAtual = 16;
+    const espacamento = 16;
 
     paineis.forEach(painel => {
-        if (painel) { // Processa mesmo que esteja escondido para manter a ordem
+        if (painel) {
             painel.style.top = `${topoAtual}px`;
-            // A altura do painel minimizado é basicamente a altura do seu cabeçalho.
-            // A altura total (offsetHeight) reflete o estado atual (minimizado ou expandido).
             topoAtual += painel.offsetHeight + espacamento;
         }
     });
 }
 
-
-// ==========================
-// 📂 UPLOAD E TEMPLATE
-// ==========================
 async function loadAndPopulateTemplates() {
     try {
         const templates = await getTemplates();
@@ -131,13 +113,8 @@ async function loadAndPopulateTemplates() {
     }
 }
 
-// ==========================
-// 🧠 TOGGLES INTERATIVOS
-// ==========================
 function togglePivoEditing() {
-
     const novoEstadoDeEdicao = !AppState.modoEdicaoPivos;
-
     AppState.modoEdicaoPivos = novoEstadoDeEdicao;
 
     const btn = document.getElementById("editar-pivos");
@@ -155,18 +132,13 @@ function togglePivoEditing() {
         
         enablePivoEditingMode();
     } else {
-
         disablePivoEditingMode();
     }
 
     lucide.createIcons();
 }
 
-// ==========================
-// 🛠️ SETUP DOS EVENTOS
-// ==========================
 function setupUIEventListeners() {
-
     document.querySelectorAll('.panel-toggle-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const panel = e.currentTarget.closest('.panel');
@@ -186,9 +158,39 @@ function setupUIEventListeners() {
         });
     });
 
+    // --- LÓGICA CORRIGIDA E SEPARADA PARA OS BOTÕES DE LEGENDA ---
+    
+    // Botão que controla legendas de PIVÔS e BOMBAS
     document.getElementById("toggle-legenda").addEventListener("click", () => {
-        toggleLegendas(!AppState.legendasAtivas);
+        AppState.legendasAtivas = !AppState.legendasAtivas;
+        const btn = document.getElementById("toggle-legenda");
+        btn.classList.toggle("glass-button-active", !AppState.legendasAtivas);
+
+        const icon = btn.querySelector('.sidebar-icon');
+        const iconPath = AppState.legendasAtivas ? 'assets/images/captions.svg' : 'assets/images/captions-off.svg';
+        if(icon) {
+            icon.style.webkitMaskImage = `url(${iconPath})`;
+            icon.style.maskImage = `url(${iconPath})`;
+        }
+        
+        updateLegendsVisibility();
     });
+
+    document.getElementById("toggle-antenas-legendas").addEventListener("click", () => {
+    AppState.antenaLegendasAtivas = !AppState.antenaLegendasAtivas;
+    const btn = document.getElementById("toggle-antenas-legendas");
+    btn.classList.toggle("glass-button-active", !AppState.antenaLegendasAtivas);
+    
+    const icon = btn.querySelector('.sidebar-icon');
+    
+    if(icon) {
+        icon.style.webkitMaskImage = `url('assets/images/radio.svg')`;
+        icon.style.maskImage = `url('assets/images/radio.svg')`;
+        icon.style.opacity = AppState.antenaLegendasAtivas ? '1' : '0.5';
+    }
+
+    updateLegendsVisibility();
+});
 
     rangeOpacidade.addEventListener("input", () => {
         updateOverlaysOpacity(parseFloat(rangeOpacidade.value));
@@ -207,7 +209,6 @@ function setupUIEventListeners() {
         removePositioningMarker();
     });
 
-
     document.getElementById("editar-pivos").addEventListener("click", togglePivoEditing);
     document.getElementById("desfazer-edicao").addEventListener("click", desfazerUltimaAcao);
 
@@ -221,13 +222,8 @@ function setupUIEventListeners() {
     lucide.createIcons();
 }
 
-/**
- * Garante que todos os painéis laterais estejam expandidos.
- */
 function expandAllPanels() {
-
     document.querySelectorAll('.panel.minimized').forEach(panel => {
- 
         panel.classList.remove('minimized');
 
         const toggleBtn = panel.querySelector('.panel-toggle-btn');
@@ -240,6 +236,5 @@ function expandAllPanels() {
     });
 
     lucide.createIcons();
-
     setTimeout(reposicionarPaineisLaterais, 500);
 }

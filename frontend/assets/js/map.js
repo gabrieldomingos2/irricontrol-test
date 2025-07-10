@@ -35,6 +35,8 @@ function initMap() {
     }
 
     setupCandidateRemovalListener();
+
+    map.on('zoomend', updatePivotIcons);
 }
 
 /**

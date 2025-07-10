@@ -3,11 +3,11 @@
         "titles": {
             "main": "Simulador de Sinal - Irricontrol",
             "data_panel": "Painel de Dados",
-            "repeater_panel": "Gerenciamento de Repetidoras",
-            "line_of_sight": "Linha de Visada (Obstáculos)",
+            "repeater_panel": "Painel de Repetidoras",
+            "line_of_sight": "Ocultar Linha de Visada",
             "los_pivots": "Diagnóstico de Visada Pivô-a-Pivô",
             "find_repeater_locations": "Análise de Local para Repetidora",
-            "legend": "Legendas",
+            "legend": "Ocultar Legendas",
             "show_pivot_distances": "Exibir Distâncias Entre Pivôs",
             "hide_pivot_distances": "Ocultar Distâncias Entre Pivôs",
             "edit_pivots": "Reconfigurar Pivôs",
@@ -18,14 +18,15 @@
             "draw_pacman_pivot": "Adicionar Pivô Setorial com Arco Direcional",
             "draw_irripump": "Adicionar Estação de Bomba (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidora",
-            "search_coordinates": "Buscar Coordenadas"
+            "search_coordinates": "Buscar Coordenadas",
+            "toggle_antenna_legends": "Ocultar Legendas das Antenas"
         },
         "labels": {
             "tools": "Ferramentas",
             "legends_group": "Legendas",
             "editor_group": "Desenhar",
             "template": "🌐 Template",
-            "choose_kmz": "Escolher Arquivo KMZ",
+            "choose_kmz": "Importar Arquivo KMZ",
             "processing": "Processando...",
             "antenna_height": "Altura do Transmissor (Tx) (m)",
             "receiver_height": "Altura do Receptor (Rx) (m)",
@@ -114,7 +115,8 @@
             "coordinate_input_empty": "Insira uma coordenada para buscar.",
             "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ex.: 19°26'S 44°29'W) ou Decimal (ex.: -19.44 -44.49).",
             "draw_pivot_radius_too_small": "Raio muito pequeno. Desenho cancelado. Clique para novo centro.",
-            "generic_error": "Erro inesperado. Tente novamente."
+            "generic_error": "Erro inesperado. Tente novamente.",
+            "template_load_fail": "Falha ao buscar templates. Verifique sua conexão."
         },
         "info": {
             "no_towers_found": "Nenhuma antena encontrada no KMZ. Adicione manualmente clicando no mapa.",
@@ -159,7 +161,8 @@
             "draw_irripump_off": "Modo de Adição de Irripump desativado.",
             "draw_irripump_still_active": "Modo de Irripump ainda ativo. Clique para outro.",
             "draw_irripump_cancelled": "Adição de Irripump cancelada.",
-            "nothing_to_undo": "Nada a desfazer."
+            "nothing_to_undo": "Nada a desfazer.",
+            "find_repeater_long_process_warning": "A busca por locais de repetidora pode levar um minuto ou mais. Por favor, aguarde."
         },
         "confirm": {
             "remove_pivot": "Confirma a exclusão do pivô \"{name}\" e suas áreas associadas?",

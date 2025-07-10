@@ -1,5 +1,3 @@
-// assets/js/drawing.js
-
 // --- Definições de Ícones ---
 const TORRE_ICON_PATH = '/assets/images/cloudrf.png';
 const BOMBA_ICON_AZUL_PATH = '/assets/images/homegardenbusiness.png';
@@ -9,7 +7,6 @@ const CHECK_ICON_PATH = '/assets/images/circle-check-big.svg';
 const MOUNTAIN_ICON_PATH = '/assets/images/attention-icon-original.svg';
 const CAPTIONS_ON_ICON_PATH = '/assets/images/captions.svg';
 const CAPTIONS_OFF_ICON_PATH = '/assets/images/captions-off.svg';
-
 
 const antenaIcon = L.icon({
   iconUrl: TORRE_ICON_PATH,
@@ -39,6 +36,66 @@ const posicionamentoIcon = L.icon({
 let tempSectorShape = null;
 let tempPacmanShape = null;
 
+// --- FUNÇÕES DE LÓGICA DE DESENHO DINÂMICO ---
+
+/**
+ * Calcula o tamanho do ícone do pivô com base no nível de zoom atual.
+ * @param {number} zoom - O nível de zoom do mapa.
+ * @returns {number} - O tamanho (diâmetro) do ícone em pixels.
+ */
+function getDynamicIconSize(zoom) {
+    const minZoom = 10; // Zoom mínimo em que o ícone começa a diminuir
+    const maxZoom = 17; // Zoom em que o ícone atinge o tamanho máximo
+    const minSize = 4;  // Tamanho mínimo do ícone em pixels
+    const maxSize = 16; // Tamanho máximo do ícone em pixels
+
+    if (zoom <= minZoom) {
+        return minSize;
+    }
+    if (zoom >= maxZoom) {
+        return maxSize;
+    }
+
+    // Interpolação linear para calcular o tamanho nos zooms intermediários
+    const zoomRange = maxZoom - minZoom;
+    const sizeRange = maxSize - minSize;
+    const size = ((zoom - minZoom) / zoomRange) * sizeRange + minSize;
+    
+    return Math.round(size);
+}
+
+/**
+ * Atualiza o tamanho de todos os ícones de pivô no mapa.
+ * Esta função será chamada toda vez que o zoom do mapa mudar.
+ */
+function updatePivotIcons() {
+    if (!map || !AppState.lastPivosDataDrawn) return;
+    if (AppState.modoEdicaoPivos) {
+        return;
+    }
+
+    const newSize = getDynamicIconSize(map.getZoom());
+
+    AppState.lastPivosDataDrawn.forEach(pivo => {
+        const marker = AppState.pivotsMap[pivo.nome];
+        if (marker) {
+            const cor = pivo.fora ? 'red' : 'green';
+
+            let iconClasses = 'pivo-marker-container';
+
+            if (AppState.selectedPivoMarker === marker) {
+                iconClasses += ' pivo-marker-container-selected';
+            }
+
+            const newIcon = L.divIcon({
+                className: iconClasses,
+                iconSize: [newSize, newSize],
+                html: `<div class="pivo-marker-dot" style="background-color: ${cor};"></div>`
+            });
+            marker.setIcon(newIcon);
+        }
+    });
+}
 
 // --- FUNÇÃO AUXILIAR PARA MEDIÇÃO DINÂMICA ---
 function findClosestSignalSource(targetLatLng) {
@@ -124,12 +181,13 @@ function drawAntenaCandidates(antenasList) {
         });
     });
 
-    toggleLegendas(AppState.legendasAtivas);
+    updateLegendsVisibility()
 }
 
 function drawPivos(pivosData, useEdited = false) {
     if (!map || !pivosData) return;
 
+    // Limpa marcadores e legenda de pivôs antigos
     AppState.marcadoresPivos.forEach(m => map.removeLayer(m));
     AppState.marcadoresPivos = [];
     AppState.pivotsMap = {};
@@ -140,8 +198,17 @@ function drawPivos(pivosData, useEdited = false) {
     pivosData.forEach(pivo => {
         const cor = pivo.fora ? 'red' : 'green';
         const pos = useEdited && AppState.posicoesEditadas[pivo.nome] ? L.latLng(AppState.posicoesEditadas[pivo.nome].lat, AppState.posicoesEditadas[pivo.nome].lng) : L.latLng(pivo.lat, pivo.lon);
-        const marker = L.circleMarker(pos, { radius: 8, color: cor, fillColor: cor, fillOpacity: 0.7, weight: 2 }).addTo(map);
+        
+        const initialSize = getDynamicIconSize(map.getZoom());
+        const pivoIcon = L.divIcon({
+    className: 'pivo-marker-container',
+    iconSize: [initialSize, initialSize],
+    html: `<div class="pivo-marker-dot" style="background-color: ${cor};"></div>`
+});
 
+        const marker = L.marker(pos, { icon: pivoIcon }).addTo(map);
+
+        // Lógica para criar o label com nome e distância
         let finalHtml = pivo.nome;
         let hasDistancia = false;
         let labelWidth = (pivo.nome.length * 6.5) + 15;
@@ -164,10 +231,31 @@ function drawPivos(pivosData, useEdited = false) {
         AppState.marcadoresLegenda.push(label);
         
         const statusTexto = pivo.fora ? `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>` : `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`;
-        marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, { permanent: false, direction: 'top', offset: [0, -15], className: 'tooltip-sinal' });
+        marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, { permanent: false, direction: 'top', offset: [0, -10], className: 'tooltip-sinal' });
 
+        // Manipulador de clique com toda a lógica
         marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
+            L.DomEvent.stopPropagation(e); 
+
+            // Lógica de seleção visual
+            const pivoElement = marker.getElement();
+            if (pivoElement) {
+                if (AppState.selectedPivoMarker === marker) {
+                    pivoElement.classList.remove('pivo-marker-container-selected');
+                    AppState.selectedPivoMarker = null;
+                } else {
+                    if (AppState.selectedPivoMarker) {
+                        const oldSelectedElement = AppState.selectedPivoMarker.getElement();
+                        if (oldSelectedElement) {
+                            oldSelectedElement.classList.remove('pivo-marker-container-selected');
+                        }
+                    }
+                    pivoElement.classList.add('pivo-marker-container-selected');
+                    AppState.selectedPivoMarker = marker;
+                }
+            }
+
+            // Lógica dos diferentes modos de operação
             if (AppState.modoEdicaoPivos) {
                  marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
             } 
@@ -187,6 +275,7 @@ function drawPivos(pivosData, useEdited = false) {
         AppState.marcadoresPivos.push(marker);
         AppState.pivotsMap[pivo.nome] = marker;
 
+        // Manipulador de clique com botão direito
         marker.on('contextmenu', (e) => {
             L.DomEvent.stop(e);
             if (AppState.modoEdicaoPivos) return;
@@ -204,7 +293,7 @@ function drawPivos(pivosData, useEdited = false) {
             }
         });
     });
-    toggleLegendas(AppState.legendasAtivas);
+    updateLegendsVisibility();
 }
 
 
@@ -285,7 +374,7 @@ function drawBombas(bombasData) {
         }).addTo(map);
         AppState.marcadoresLegenda.push(labelBomba);
     });
-    toggleLegendas(AppState.legendasAtivas);
+    updateLegendsVisibility()
 }
 
 
@@ -375,7 +464,6 @@ function addRepetidoraNoPainel(repetidora) {
         visibilityBtn.setAttribute('data-visible', String(newState));
         const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
         
-        // Apenas a visibilidade do overlay é alterada. O ícone e a legenda permanecem.
         if (repetidora.overlay) repetidora.overlay.setOpacity(newState ? opacityValue : 0);
         
         visibilityBtn.innerHTML = newState ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>` : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
@@ -416,7 +504,6 @@ function addAntenaAoPainel(antena) {
         visibilityBtn.setAttribute('data-visible', String(newState));
         
         const opacityValue = parseFloat(rangeOpacidade.value);
-        // Apenas a visibilidade do overlay é alterada. O ícone e a legenda permanecem.
         if (antena?.overlay) antena.overlay.setOpacity(newState ? opacityValue : 0);
         
         visibilityBtn.innerHTML = newState ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>` : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
@@ -512,23 +599,23 @@ function clearMapLayers() {
 }
 
 
-function toggleLegendas(show) {
-    AppState.legendasAtivas = show;
-    const toggleBtn = document.getElementById("toggle-legenda");
-    if (!toggleBtn) return;
+function updateLegendsVisibility() {
+    if (!AppState.marcadoresLegenda) return;
 
-    toggleBtn.classList.toggle("glass-button-active", !show);
-    toggleBtn.title = show ? t('tooltips.hide_legends') : t('tooltips.show_legends');
-    const iconSpan = toggleBtn.querySelector('.sidebar-icon');
-    if (iconSpan) {
-        const iconPath = show ? CAPTIONS_ON_ICON_PATH : CAPTIONS_OFF_ICON_PATH;
-        iconSpan.style.webkitMaskImage = `url(${iconPath})`;
-        iconSpan.style.maskImage = `url(${iconPath})`;
-    }
+    AppState.marcadoresLegenda.forEach(marker => {
+        const el = marker.getElement?.();
+        if (!el) return;
 
-    AppState.marcadoresLegenda.forEach(m => {
-        const el = m.getElement?.();
-        if (el) el.style.display = show ? '' : 'none';
+        const type = marker.options.labelType;
+        let shouldBeVisible = false;
+
+        if (type === 'pivot' || type === 'bomba') {
+            shouldBeVisible = AppState.legendasAtivas;
+        } else if (type === 'antena' || type === 'repetidora' || type === 'antena_candidate') {
+            shouldBeVisible = AppState.antenaLegendasAtivas;
+        }
+
+        el.style.display = shouldBeVisible ? '' : 'none';
     });
 }
 
@@ -646,7 +733,7 @@ function removeTempCircle() {
     }
 }
 
-function generateCircleCoords(center, radius, points = 60) {
+function generateCircleCoords(center, radius, points = 240) { // <-- Aumentado de 60 para 240
     const coords = [];
     const earthRadius = 6378137;
     const lat = center.lat * (Math.PI / 180);
@@ -657,7 +744,7 @@ function generateCircleCoords(center, radius, points = 60) {
         const newLon = lon + Math.atan2(Math.sin(bearing) * Math.sin(radius / earthRadius) * Math.cos(lat), Math.cos(radius / earthRadius) - Math.sin(lat) * Math.sin(newLat));
         coords.push([newLat * (180 / Math.PI), newLon * (180 / Math.PI)]);
     }
-    coords.push(coords[0]);
+    coords.push(coords[0]); // Fecha o círculo
     return coords;
 }
 

@@ -34,9 +34,9 @@ html, body {
 
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #7DD3FC; /* Cor do Tailwind sky-300 */
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3); /* Sutil brilho no hover */
+  border-color: rgba(34, 197, 94, 0.4); /* Borda com leve tom de verde */
+  color: #22c55e; /* <- Cor do ícone e texto alterada para verde */
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); /* <- Sombra com brilho verde */
 }
 
 .glass-button.hidden {
@@ -44,10 +44,24 @@ html, body {
 }
 
 .glass-button-active {
-  background-color: rgba(96, 165, 250, 0.2); /* Fundo azul mais sutil quando ativo */
-  border-color: rgba(96, 165, 250, 0.6); /* Borda azul mais pronunciada */
-  color: #7DD3FC; /* Mantém a cor azul */
-  box-shadow: 0 0 10px rgba(96, 165, 250, 0.5); /* Sombra azul mais forte para indicar atividade */
+  background-color: rgba(34, 197, 94, 0.2); /* Fundo verde sutil quando ativo */
+  border-color: rgba(34, 197, 94, 0.6); /* Borda verde mais pronunciada */
+  color: #22c55e; /* Mantém a cor verde */
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5); /* Sombra verde mais forte */
+}
+
+/* ======================================= */
+/* 🟩 ESTILO DOS BOTÕES DA BARRA LATERAL   */
+/* ======================================= */
+
+.sidebar-button {
+  transition: all 0.3s ease;
+}
+
+.sidebar-button:hover {
+  color: #22c55e;
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
 }
 
 /* ========================= */
@@ -60,7 +74,7 @@ html, body {
 }
 
 #confirmar-repetidora:hover {
-  color: #7DD3FC; /* Cor no hover (sky-300) */
+  color: #22c55e; /* Cor alterada para o verde padrão */
 }
 
 /* ========================= */
@@ -124,6 +138,27 @@ html, body {
 /* ========================== */
 /* 🏷️ LABEL FIXA DOS PIVÔS */
 /* ========================== */
+
+/* NOVO: Estilos para o marcador do pivô (o ponto central) */
+.pivo-marker-dot {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  opacity: 0.8;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s;
+}
+
+/* Estilo do pivô selecionado com o EFEITO DE BRILHO BRANCO */
+.pivo-marker-container-selected .pivo-marker-dot {
+  transform: scale(1.1); /* Aumenta um pouco para dar destaque */
+  opacity: 1; /* Deixa o ponto totalmente opaco */
+
+  /* A mágica do brilho acontece aqui com box-shadow */
+  box-shadow: 0 0 8px 3px rgba(255, 255, 255, 0.9);
+}
+
 .label-pivo {
   background-color: transparent !important; /* Garante que não haja fundo do Leaflet */
   border: none !important; /* Garante que não haja borda do Leaflet */
@@ -262,15 +297,14 @@ input[type="file"].hidden { /* Garante que o input original fique escondido */
 .range-slider-custom::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;  /* Largura do polegar */
-  height: 14px; /* Altura do polegar */
-  background-color: #3B82F6; /* Cor do polegar (azul) */
-  border-radius: 9999px; /* Polegar circular */
+  width: 14px;
+  height: 14px;
+  background-color: #22c55e; /* <- Cor alterada para verde */
+  border-radius: 9999px;
   cursor: pointer;
-  border: none; /* Sem borda no polegar */
-  /* margin-top: 0px;  Não é necessário se a altura da trilha for pequena */
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.7); /* Sombra sutil no polegar */
-  transition: transform 0.2s; /* Transição para o efeito de escala */
+  border: none;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7); /* <- Sombra alterada para verde */
+  transition: transform 0.2s;
 }
 
 /* Efeito de escala no polegar quando ativo/arrastando */
@@ -282,11 +316,11 @@ input[type="file"].hidden { /* Garante que o input original fique escondido */
 .range-slider-custom::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background-color: #3B82F6;
+  background-color: #22c55e; /* <- Cor alterada para verde */
   border-radius: 50%;
   cursor: pointer;
   border: none;
-  box-shadow: 0 0 6px rgba(59, 130, 246, 0.7);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7); /* <- Sombra alterada para verde */
   transition: transform 0.2s;
 }
 
@@ -527,6 +561,72 @@ button, .glass-button, label[for="arquivo"] {
 /* Quando o painel está minimizado, o título desaparece */
 .panel.minimized h2 {
     opacity: 0;
+}
+
+/* ======================================= */
+/* ⏳ LOADER PERSONALIZADO COM LOGO E SPINNER */
+/* ======================================= */
+
+/* Container que posiciona a logo e o spinner um sobre o outro */
+.loading-logo-container {
+    position: relative; 
+    width: 90px; /* <- Valor menor */
+    height: 90px; /* <- Valor menor */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Estilo da sua logo */
+.loading-logo {
+    width: 120px; /* Tamanho da logo */
+    height: auto;
+    opacity: 0.9;
+}
+
+/* O círculo que gira (spinner) */
+.loading-spinner {
+    position: absolute; /* Fica sobre a logo */
+    top: 0;
+    left: 0;
+    width: 100%; /* Ocupa todo o espaço do container */
+    height: 100%; /* Ocupa todo o espaço do container */
+
+    /* A mágica do círculo: uma borda fina e transparente com o topo colorido */
+    border: 4px solid transparent; 
+    border-top-color: #22c55e; /* Cor verde, combine com sua identidade */
+
+    border-radius: 50%; /* Transforma o quadrado em um círculo perfeito */
+
+    /* Aplica a animação de rotação */
+    animation: spin 1.5s linear infinite;
+}
+
+/* Animação que faz o elemento girar 360 graus infinitamente */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+/* ============================ */
+/* 🔗 LOGO DO RODAPÉ (LINK)      */
+/* ============================ */
+
+#footer-logo-link {
+  opacity: 0.7; /* Opacidade inicial, um pouco sutil */
+  transition: opacity 0.3s ease, filter 0.3s ease; /* Transição suave */
+}
+
+#footer-logo-link:hover {
+  opacity: 1; /* Opacidade total no hover */
+
+  /* Este filtro mágico "pinta" a imagem de verde */
+  filter: brightness(0) saturate(100%) invert(58%) sepia(85%) saturate(548%) hue-rotate(95deg) brightness(95%) contrast(90%);
 }
 
 /* ============================ */

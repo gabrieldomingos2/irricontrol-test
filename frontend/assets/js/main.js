@@ -1,7 +1,3 @@
-// =================================================================
-// ✅ ARQUITETURA DE ESTADO CENTRALIZADA
-// =================================================================
-
 const AppState = {
     // --- Estado da Sessão e Dados ---
     jobId: null,
@@ -23,6 +19,7 @@ const AppState = {
     pontoRaioTemporario: null,
     distanciasPivosVisiveis: false,
     legendasAtivas: true,
+    antenaLegendasAtivas: true,
 
     // --- Variáveis de Apoio e Temporárias ---
     coordenadaClicada: null,
@@ -37,6 +34,7 @@ const AppState = {
     isDrawingSector: false,
     
     // --- Referências a Camadas do Mapa (Leaflet) ---
+    selectedPivoMarker: null,
     marcadorAntena: null,
     marcadoresPivos: [],
     circulosPivos: [],
@@ -50,19 +48,11 @@ const AppState = {
     linhasDiagnostico: [],
     marcadoresBloqueio: [],
 
-    /**
-     * Define o ID do Job de forma controlada.
-     * @param {string} id - O ID da sessão retornado pela API.
-     */
     setJobId(id) {
         this.jobId = id;
         console.log(`SESSION_INFO: Novo Job ID definido: ${this.jobId}`);
     },
 
-    /**
-     * Reseta todo o estado da aplicação para os valores iniciais.
-     * Chamado pela função handleResetClick.
-     */
     reset() {
         console.log("🔄 Resetando o estado da aplicação...");
         this.jobId = null;
@@ -79,6 +69,7 @@ const AppState = {
         this.modoDesenhoPivoSetorial = false;
         this.distanciasPivosVisiveis = false;
         this.legendasAtivas = true;
+        this.antenaLegendasAtivas = true;
         this.coordenadaClicada = null;
         this.marcadorPosicionamento = null;
         this.backupPosicoesPivos = {};
@@ -104,6 +95,7 @@ const AppState = {
         this.modoDesenhoPivoPacman = false;
         this.modoDesenhoIrripump = false;
         this.pontoRaioTemporario = null;
+        this.selectedPivoMarker = null;
     }
 };
 
@@ -120,28 +112,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupUIEventListeners();
     setupMainActionListeners();
     loadAndPopulateTemplates();
-    reposicionarPaineisLaterais();
     lucide.createIcons();
     
     await startNewSession();
 
     console.log("Aplicação Pronta.");
 
-    if (typeof toggleLegendas === 'function') {
-        toggleLegendas(AppState.legendasAtivas);
+    const painelDados = document.getElementById('painel-dados');
+    const painelRepetidoras = document.getElementById('painel-repetidoras');
+
+    if (painelDados) painelDados.classList.remove('hidden');
+    if (painelRepetidoras) painelRepetidoras.classList.remove('hidden');
+    if (typeof atualizarPainelDados === 'function') {
+        atualizarPainelDados();
     }
 
-    document.getElementById('painel-dados').classList.remove('hidden');
-    document.getElementById('painel-repetidoras').classList.remove('hidden');
-    atualizarPainelDados();
-    reposicionarPaineisLaterais();
-
+    if (typeof reposicionarPaineisLaterais === 'function') {
+        reposicionarPaineisLaterais();
+    }
 });
 
-/**
- * Inicia uma nova sessão de trabalho (job) no backend.
- * Esta função destrava a aplicação para uso imediato.
- */
 async function startNewSession() {
     mostrarLoader(true);
     try {
@@ -167,7 +157,7 @@ async function startNewSession() {
 
 function setupMainActionListeners() {
     document.getElementById('arquivo').addEventListener('change', handleKmzFileSelect);
-    document.getElementById('resetar-btn').addEventListener('click', handleResetClick);
+    document.getElementById('resetar-btn').addEventListener('click', () => handleResetClick(true));
     document.getElementById('exportar-btn').addEventListener('click', handleExportClick);
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
@@ -176,11 +166,9 @@ function setupMainActionListeners() {
     document.getElementById('btn-draw-pivot-pacman').addEventListener('click', toggleModoDesenhoPivoPacman);
     document.getElementById('btn-draw-irripump').addEventListener('click', toggleModoDesenhoIrripump);
     
-    // Listeners do mapa
     map.on("click", handleMapClick); 
     map.on("contextmenu", handleCancelDraw);
 
-    // Listeners de botões da UI
     document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
     document.getElementById('btn-draw-pivot-setorial').addEventListener('click', toggleModoDesenhoPivoSetorial);
 
@@ -232,6 +220,10 @@ async function handleKmzFileSelect(event) {
                     const centro = bounds.getCenter();
                     const pontoNorte = L.latLng(bounds.getNorth(), centro.lng);
                     pivoCorrespondente.raio = centro.distanceTo(pontoNorte);
+
+                    if (typeof generateCircleCoords === 'function') {
+                        ciclo.coordenadas = generateCircleCoords(centro, pivoCorrespondente.raio, 360);
+                    }
                 }
             });
         }
@@ -268,6 +260,7 @@ async function handleKmzFileSelect(event) {
             if (boundsToFit.length > 0) {
                map.fitBounds(boundsToFit, { padding: [50, 50] });
             }
+            updatePivotIcons();
         }
         
         atualizarPainelDados();
@@ -399,8 +392,18 @@ async function startMainSimulation(antenaData) {
     }
 }
 
-
 function handleMapClick(e) {
+    if (AppState.selectedPivoMarker) {
+        const pivoElement = AppState.selectedPivoMarker.getElement();
+    if (pivoElement) {
+            pivoElement.classList.remove('pivo-marker-container-selected');
+        }
+        AppState.selectedPivoMarker = null;
+    }
+
+    if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo || AppState.modoDesenhoPivoPacman) {
+        return;
+    }
 
     if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo || AppState.modoDesenhoPivoPacman) {
 
@@ -432,11 +435,6 @@ function handleMapClick(e) {
     document.getElementById("painel-repetidora").classList.remove("hidden");
 }
 
-/**
- * Lida com o clique no mapa quando o modo de desenho de Irripump está ativo.
- * Adiciona um novo Irripump no local clicado.
- * @param {object} e - O evento de clique do Leaflet.
- */
 async function handleIrripumpDrawClick(e) {
     if (!AppState.jobId) {
         mostrarMensagem(t('messages.errors.session_not_started_for_draw'), "erro");
@@ -447,7 +445,6 @@ async function handleIrripumpDrawClick(e) {
     mostrarLoader(true);
     try {
         const novoNumero = AppState.lastBombasDataDrawn.length + 1;
-        // ✅ ALTERADO: Usa a função t() para obter o nome base do Irripump no idioma selecionado.
         const novoNome = `${t('entity_names.irripump')} ${String(novoNumero).padStart(2, '0')}`;
         
         const novaBomba = {
@@ -619,11 +616,18 @@ function handleBuscarLocaisRepetidoraActivation() {
                 togglePivoEditing();
             }
         }
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump(); //
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
         if (map) map.getContainer().style.cursor = 'crosshair';
 
     } else {
+        if (AppState.xSelecionadoMarker) {
+            map.removeLayer(AppState.xSelecionadoMarker);
+            AppState.xSelecionadoMarker = null;
+        }
+        
         mostrarMensagem(t('messages.info.los_mode_off_find_repeater'), "sucesso");
+        mostrarMensagem(t('messages.info.find_repeater_long_process_warning'), "info"); 
+        AppState.pivoAlvoParaLocalRepetidora = null;
         if (map) map.getContainer().style.cursor = '';
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
@@ -639,9 +643,15 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
         return;
     }
 
-    if (pivoMarker.options.fillColor === 'green') {
+    const pivoInfo = AppState.lastPivosDataDrawn.find(p => p.nome === pivoData.nome);
+    if (pivoInfo && !pivoInfo.fora) {
         mostrarMensagem(t('messages.errors.select_uncovered_pivot'), "erro");
         return;
+    }
+
+    if (AppState.xSelecionadoMarker) { //
+        map.removeLayer(AppState.xSelecionadoMarker); //
+        AppState.xSelecionadoMarker = null; //
     }
 
     AppState.pivoAlvoParaLocalRepetidora = {
@@ -652,11 +662,11 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     };
 
     mostrarMensagem(t('messages.info.target_pivot_selected', { name: AppState.pivoAlvoParaLocalRepetidora.nome }), "info");
-    mostrarLoader(true);
+    mostrarLoader(true, t('messages.info.find_repeater_long_process_warning'));
     if (map) map.getContainer().style.cursor = 'wait';
 
     const activeOverlaysForSearch = [];
-    
+
     const antenaVisBtn = document.querySelector("#antena-item button[data-visible]");
     const isAntenaVisible = !antenaVisBtn || antenaVisBtn.getAttribute('data-visible') === 'true';
 
@@ -664,7 +674,7 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
         const b = AppState.antenaGlobal.overlay.getBounds();
         activeOverlaysForSearch.push({
             id: 'antena_principal',
-            imagem: AppState.antenaGlobal.imagem_filename, 
+            imagem: AppState.antenaGlobal.imagem_filename,
             bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
         });
     }
@@ -726,7 +736,6 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 function toggleModoDesenhoPivo() {
     const isActivating = !AppState.modoDesenhoPivo;
 
-    // Antes de ativar este modo, desativa os outros para evitar conflitos.
     if (isActivating) {
         if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
         if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
@@ -848,7 +857,8 @@ function handleResetClick(showMessage = true) {
         'btn-draw-pivot-pacman',
         'toggle-distancias-pivos',
         'toggle-legenda',
-        'btn-draw-irripump'
+        'btn-draw-irripump',
+        'toggle-antenas-legendas'
     ];
 
     toggleableButtonsIds.forEach(id => {
@@ -891,7 +901,10 @@ function handleResetClick(showMessage = true) {
     
     atualizarPainelDados();
     reposicionarPaineisLaterais();
-    toggleLegendas(true);
+    
+    AppState.legendasAtivas = true;
+    AppState.antenaLegendasAtivas = true;
+    updateLegendsVisibility();
 
     if (showMessage) mostrarMensagem(t('messages.success.app_reset'), "sucesso");
 }
@@ -1149,11 +1162,6 @@ function removePositioningMarker() {
     }
 }
 
-/**
- * ✅ NOVA FUNÇÃO AUXILIAR
- * Cria um único marcador de pivô editável no mapa, com todos os seus eventos.
- * @param {object} pivoInfo - O objeto de dados do pivô a ser desenhado.
- */
 function createEditablePivotMarker(pivoInfo) {
     const nome = pivoInfo.nome;
     const currentLatLng = L.latLng(pivoInfo.lat, pivoInfo.lon);
@@ -1274,7 +1282,6 @@ function disablePivoEditingMode() {
         lucide.createIcons();
     }
 }
-
 
 function desfazerUltimaAcao() {
     if (AppState.historyStack.length === 0) {
@@ -1581,11 +1588,6 @@ function toggleModoDesenhoPivoSetorial() {
     }
 }
 
-/**
- * Lida com os cliques no mapa para desenhar um pivô setorial.
- * O primeiro clique define o centro; o segundo define o raio e a direção.
- * @param {object} e - O evento de clique do Leaflet.
- */
 async function handleSectorialPivotDrawClick(e) {
     if (!AppState.modoDesenhoPivoSetorial) return;
 
