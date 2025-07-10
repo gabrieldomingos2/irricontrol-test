@@ -384,27 +384,51 @@ function drawCirculos(ciclosData) {
     AppState.circulosPivos = [];
 
     AppState.lastPivosDataDrawn.forEach(pivo => {
-        if (pivo.tipo === 'setorial') {
-            const sectorCoords = generateSectorCoords(L.latLng(pivo.lat, pivo.lon), pivo.raio, pivo.angulo_central, pivo.abertura_arco);
-            const sectorPolygon = L.polygon(sectorCoords, { color: '#cc0000', weight: 2, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-setorial' }).addTo(map);
+        const pivoLatLng = L.latLng(pivo.lat, pivo.lon);
+
+        if (pivo.tipo === 'circular' || !pivo.tipo) { // Para pivôs circulares (padrão ou criados)
+            // Usar L.circle para pivôs circulares
+            const circle = L.circle(pivoLatLng, { 
+                radius: pivo.raio, // O raio já deve estar em metros
+                color: '#cc0000', 
+                weight: 3, 
+                opacity: 0.9, 
+                fillOpacity: 0, 
+                className: 'circulo-vermelho-pulsante' 
+            }).addTo(map);
+            AppState.circulosPivos.push(circle);
+        }
+        else if (pivo.tipo === 'setorial') {
+            const sectorCoords = generateSectorCoords(pivoLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
+            const sectorPolygon = L.polygon(sectorCoords, { color: '#cc0000', weight: 3, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-setorial' }).addTo(map);
             AppState.circulosPivos.push(sectorPolygon);
         } else if (pivo.tipo === 'pacman') {
-            const pacmanCoords = generatePacmanCoords(L.latLng(pivo.lat, pivo.lon), pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
-            const pacmanPolygon = L.polygon(pacmanCoords, { color: '#cc0000', weight: 2, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-pacman' }).addTo(map);
+            const pacmanCoords = generatePacmanCoords(pivoLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
+            const pacmanPolygon = L.polygon(pacmanCoords, { color: '#cc0000', weight: 3, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-pacman' }).addTo(map);
             AppState.circulosPivos.push(pacmanPolygon);
         }
     });
 
-    const ciclosCirculares = ciclosData.filter(ciclo => {
-        if (!ciclo.nome_original_circulo) return false;
+    ciclosData.forEach(ciclo => {
+        if (!ciclo.nome_original_circulo) return;
         const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
         const pivoCorrespondente = AppState.lastPivosDataDrawn.find(p => p.nome === nomePivo);
-        return !pivoCorrespondente || !['setorial', 'pacman'].includes(pivoCorrespondente.tipo);
-    });
 
-    AppState.circulosPivos.push(...ciclosCirculares.map(circulo =>
-        L.polygon(circulo.coordenadas, { color: '#cc0000', weight: 2, opacity: 0.9, fillOpacity: 0, className: 'circulo-vermelho-pulsante' }).addTo(map)
-    ));
+        if (!pivoCorrespondente || !['setorial', 'pacman'].includes(pivoCorrespondente.tipo)) {
+            let center = L.polygon(ciclo.coordenadas).getBounds().getCenter();
+            let radius = pivoCorrespondente?.raio || center.distanceTo(L.latLng(ciclo.coordenadas[0]));
+
+            const circle = L.circle(center, { 
+                radius: radius, 
+                color: '#cc0000', 
+                weight: 3, 
+                opacity: 0.9, 
+                fillOpacity: 0, 
+                className: 'circulo-vermelho-pulsante' 
+            }).addTo(map);
+            AppState.circulosPivos.push(circle);
+        }
+    });
 }
 
 
@@ -720,7 +744,7 @@ function drawTempCircle(center, radiusPoint) {
         tempCircle.setLatLng(center).setRadius(radius);
     } else {
         tempCircle = L.circle(center, {
-            radius: radius, color: '#3B82F6', weight: 2, dashArray: '5, 5',
+            radius: radius, color: '#3B82F6', weight: 3, dashArray: '5, 5',
             fillColor: '#3B82F6', fillOpacity: 0.1, interactive: false
         }).addTo(map);
     }
@@ -757,7 +781,7 @@ function drawTempSector(center, currentPoint) {
         tempSectorShape.setLatLngs(coords);
     } else {
         tempSectorShape = L.polygon(coords, {
-            color: '#3B82F6', weight: 2, dashArray: '8, 8',
+            color: '#3B82F6', weight: 3, dashArray: '8, 8',
             fillColor: '#3B82F6', fillOpacity: 0.2, interactive: false
         }).addTo(map);
     }
@@ -837,7 +861,7 @@ function drawTempPacman(center, radiusPoint, currentMousePoint) {
         const radius = center.distanceTo(currentMousePoint);
         if (radius > 5) {
             tempPacmanShape = L.circle(center, {
-                radius: radius, color: '#3B82F6', weight: 2, dashArray: '5, 5',
+                radius: radius, color: '#3B82F6', weight: 3, dashArray: '5, 5',
                 fillColor: '#3B82F6', fillOpacity: 0.1, interactive: false
             }).addTo(map);
         }
@@ -849,7 +873,7 @@ function drawTempPacman(center, radiusPoint, currentMousePoint) {
         const coords = generatePacmanCoords(center, radius, startAngle, endAngle);
         
         tempPacmanShape = L.polygon(coords, {
-            color: '#3B82F6', weight: 2, dashArray: '8, 8',
+            color: '#3B82F6', weight: 3, dashArray: '8, 8',
             fillColor: '#3B82F6', fillOpacity: 0.2, interactive: false
         }).addTo(map);
     }

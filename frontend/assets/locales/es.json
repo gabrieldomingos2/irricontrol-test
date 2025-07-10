@@ -50,7 +50,7 @@
             "load_kmz": "Cargar KMZ",
             "run_study": "Ejecutar Estudio de Cobertura",
             "run_los_diagnostic": "Ejecutar Diagnóstico de Línea de Vista",
-            "export_kmz": "Generar Archivo KMZ",
+            "export_kmz": "Descargar Archivo KMZ",
             "reset": "Reiniciar",
             "simulate": "Simular"
         }

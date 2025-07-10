@@ -20,6 +20,7 @@ const AppState = {
     distanciasPivosVisiveis: false,
     legendasAtivas: true,
     antenaLegendasAtivas: true,
+    visadaVisivel: false,
 
     // --- Variáveis de Apoio e Temporárias ---
     coordenadaClicada: null,
@@ -70,6 +71,7 @@ const AppState = {
         this.distanciasPivosVisiveis = false;
         this.legendasAtivas = true;
         this.antenaLegendasAtivas = true;
+        this.visadaVisivel = false;
         this.coordenadaClicada = null;
         this.marcadorPosicionamento = null;
         this.backupPosicoesPivos = {};
@@ -841,9 +843,9 @@ async function handlePivotDrawClick(e) {
 
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
-    clearMapLayers(); 
+    clearMapLayers();
     AppState.reset();
-    
+
     if (showMessage) {
       startNewSession();
     }
@@ -867,23 +869,28 @@ function handleResetClick(showMessage = true) {
             btn.classList.remove('glass-button-active');
         }
     });
-    
+
+    const btnVisada = document.getElementById("btn-visada");
+    if (btnVisada) {
+        btnVisada.classList.add("opacity-50");
+    }
+
     if (map) {
         map.getContainer().style.cursor = '';
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         }
     }
-    
+
     map.off('click', handlePivotDrawClick);
     map.off('mousemove', handlePivotDrawMouseMove);
     map.off('contextmenu', handleCancelCircularDraw);
     map.off('click', handleSectorialPivotDrawClick);
     map.off('mousemove', handleSectorialDrawMouseMove);
-    
+
     document.getElementById("simular-btn")?.classList.add("hidden");
     document.getElementById("lista-repetidoras").innerHTML = "";
-    
+
     const paineisParaEsconder = ["painel-repetidora", "painel-dados", "painel-repetidoras", "desfazer-edicao"];
     paineisParaEsconder.forEach(id => document.getElementById(id)?.classList.add("hidden"));
 
@@ -898,10 +905,10 @@ function handleResetClick(showMessage = true) {
     document.getElementById("range-opacidade").value = 1;
 
     if (map) map.setView([-15, -55], 5);
-    
+
     atualizarPainelDados();
     reposicionarPaineisLaterais();
-    
+
     AppState.legendasAtivas = true;
     AppState.antenaLegendasAtivas = true;
     updateLegendsVisibility();

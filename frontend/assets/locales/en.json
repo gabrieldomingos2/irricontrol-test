@@ -50,7 +50,7 @@
             "load_kmz": "Load KMZ",
             "run_study": "Run Coverage Study",
             "run_los_diagnostic": "Run Line of Sight Diagnostic",
-            "export_kmz": "Generate KMZ File",
+            "export_kmz": "Downlaod KMZ File",
             "reset": "Reset",
             "simulate": "Simulate"
         }

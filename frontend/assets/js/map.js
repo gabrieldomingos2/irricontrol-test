@@ -16,10 +16,7 @@ function initMap() {
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
     }).addTo(map);
 
-    // Inicializa as camadas de grupo DENTRO do objeto de estado central
     AppState.visadaLayerGroup = L.layerGroup().addTo(map);
-    
-    // ✅ CORREÇÃO CENTRAL: A camada de candidatas agora é parte do AppState.
     AppState.antenaCandidatesLayerGroup = L.layerGroup().addTo(map);
 
     if (!window.candidateRepeaterSitesLayerGroup) {
@@ -30,6 +27,7 @@ function initMap() {
     const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
         btnVisada.addEventListener("click", toggleVisada);
+        btnVisada.classList.add("opacity-50");
     } else {
         console.error("Botão #btn-visada não encontrado!");
     }
@@ -44,14 +42,14 @@ function initMap() {
  */
 function toggleVisada() {
     AppState.visadaVisivel = !AppState.visadaVisivel; 
-    
+
     if (AppState.visadaLayerGroup) {
         AppState.visadaLayerGroup.eachLayer(layer => {
             const opacity = AppState.visadaVisivel ? 1 : 0;
             if (layer.setStyle) {
                 layer.setStyle({
                     opacity: opacity,
-                    fillOpacity: AppState.visadaVisivel ? (layer.options.fillOpacityOriginal || 0) : 0
+                    fillOpacity: AppState.visadaVisivel ? (layer.options.fillOpacityOriginal !== undefined ? layer.options.fillOpacityOriginal : 0.5) : 0
                 });
             } else if (layer.getElement) {
                 const element = layer.getElement();
@@ -59,7 +57,7 @@ function toggleVisada() {
                    element.style.opacity = opacity;
                    element.style.pointerEvents = AppState.visadaVisivel ? 'auto' : 'none';
                 }
-            } else if (layer._icon) { // Fallback
+            } else if (layer._icon) {
                  layer._icon.style.opacity = opacity;
                  layer._icon.style.pointerEvents = AppState.visadaVisivel ? 'auto' : 'none';
             }

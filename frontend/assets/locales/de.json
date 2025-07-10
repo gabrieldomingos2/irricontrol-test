@@ -50,7 +50,7 @@
             "load_kmz": "KMZ laden",
             "run_study": "Abdeckungsstudie ausführen",
             "run_los_diagnostic": "Sichtlinien-Diagnose ausführen",
-            "export_kmz": "KMZ-Datei generieren",
+            "export_kmz": "KMZ-Datei herunterladen",
             "reset": "Zurücksetzen",
             "simulate": "Simulieren"
         }

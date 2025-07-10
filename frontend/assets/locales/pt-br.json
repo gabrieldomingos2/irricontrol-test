@@ -4,14 +4,14 @@
             "main": "Simulador de Sinal - Irricontrol",
             "data_panel": "Painel de Dados",
             "repeater_panel": "Painel de Repetidoras",
-            "line_of_sight": "Ocultar Linha de Visada",
+            "line_of_sight": "Linha de Visada (Obstáculos)",
             "los_pivots": "Diagnóstico de Visada Pivô-a-Pivô",
             "find_repeater_locations": "Análise de Local para Repetidora",
-            "legend": "Ocultar Legendas",
+            "legend": "Legendas",
             "show_pivot_distances": "Exibir Distâncias Entre Pivôs",
             "hide_pivot_distances": "Ocultar Distâncias Entre Pivôs",
             "edit_pivots": "Reconfigurar Pivôs",
-            "save_edit": "Aplicar Alterações",
+            "save_edit": "Salvar Edição",
             "undo_edit": "Reverter Alterações",
             "draw_pivot": "Adicionar Pivô Circular Central",
             "draw_sector_pivot": "Adicionar Pivô Setorial Simples",
@@ -19,7 +19,7 @@
             "draw_irripump": "Adicionar Estação de Bomba (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidora",
             "search_coordinates": "Buscar Coordenadas",
-            "toggle_antenna_legends": "Ocultar Legendas das Antenas"
+            "toggle_antenna_legends": "Legendas das Antenas"
         },
         "labels": {
             "tools": "Ferramentas",
@@ -47,12 +47,12 @@
             "lat_lon_search": "Latitude, Longitude"
         },
         "buttons": {
-            "load_kmz": "Carregar KMZ",
+            "load_kmz": "Importar KMZ",
             "run_study": "Executar Estudo de Cobertura",
-            "run_los_diagnostic": "Executar Diagnóstico de Linha de Visada",
-            "export_kmz": "Gerar Arquivo KMZ",
+            "run_los_diagnostic": "Diagnóstico de Visada",
+            "export_kmz": "Baixar Arquivo KMZ",
             "reset": "Reiniciar",
-            "simulate": "Simular"
+            "simulate": "Executar Simulação"
         }
     },
     "tooltips": {
@@ -156,12 +156,12 @@
             "draw_pacman_step3": "Raio e ângulo inicial definidos. Clique para ângulo final.",
             "draw_pacman_off": "Modo de Edição em Arco desativado.",
             "draw_pacman_still_active": "Modo em Arco ainda ativo. Clique para novo pivô.",
-            "draw_pacman_cancelled": "Desenho de pivô em Arco cancelado.",
+            "draw_pacman_cancelled": "Criação de Pivô em Arco cancelada",
             "draw_irripump_step1": "Modo de Adição de Irripump: clique para inserir.",
             "draw_irripump_off": "Modo de Adição de Irripump desativado.",
             "draw_irripump_still_active": "Modo de Irripump ainda ativo. Clique para outro.",
             "draw_irripump_cancelled": "Adição de Irripump cancelada.",
-            "nothing_to_undo": "Nada a desfazer.",
+            "nothing_to_undo": "Nenhuma alteração para desfazer.",
             "find_repeater_long_process_warning": "A busca por locais de repetidora pode levar um minuto ou mais. Por favor, aguarde."
         },
         "confirm": {
