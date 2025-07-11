@@ -214,7 +214,6 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
     logger.info(f"Usando keywords para Bombas: {bomba_kws}")
 
     try:
-        # Lógica para decidir como obter o arquivo KML
         if caminho_gis.suffix.lower() == ".kmz":
             logger.info(f"Processando arquivo KMZ: {caminho_gis.name}")
             kml_extraido_path_temp = _extract_kml_from_zip(caminho_gis, pasta_extracao)
@@ -230,38 +229,68 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
 
         for placemark_node in root.findall(".//kml:Placemark", KML_NAMESPACE):
             parsed_data = _parse_placemark_data(placemark_node)
-            if not parsed_data: continue
+            if not parsed_data:
+                continue
 
             nome_original = parsed_data["nome_original"]
             nome_norm = normalizar_nome(nome_original)
-            coords, geo_type = parsed_data["coordenadas_lista"], parsed_data["geometry_type"] # type: ignore
+            coords, geo_type = parsed_data["coordenadas_lista"], parsed_data["geometry_type"]  # type: ignore
 
             if geo_type == "Point" and coords:
                 lat, lon = coords[0][0], coords[0][1]
-                
-                # A lógica de verificação agora usa as listas da configuração
+
                 if any(kw in nome_norm for kw in antena_kws):
                     match = HEIGHT_REGEX.search(nome_norm)
                     altura = int(match.group(1)) if match else DEFAULT_ANTENA_HEIGHT
-                    antenas_list.append({"lat": lat, "lon": lon, "altura": altura, "altura_receiver": DEFAULT_RECEIVER_HEIGHT, "nome": nome_original})
-                
+                    antenas_list.append({
+                        "lat": lat,
+                        "lon": lon,
+                        "altura": altura,
+                        "altura_receiver": DEFAULT_RECEIVER_HEIGHT,
+                        "nome": nome_original
+                    })
+
                 elif any(kw in nome_norm for kw in pivo_kws) or re.match(r"p\s?\d+", nome_norm):
-                    pivos_de_pontos_list.append({"nome": nome_original, "lat": lat, "lon": lon, "type": "pivo"}) # type: ignore
-                
+                    pivo_dict = {
+                        "nome": nome_original,
+                        "lat": lat,
+                        "lon": lon,
+                        "type": "pivo"
+                    }
+
+                    # Tenta achar um ciclo correspondente
+                    ciclo_associado = next(
+                        (c for c in ciclos_list if normalizar_nome(c["nome_original_circulo"]) == normalizar_nome(f"Ciclo {nome_original}")),
+                        None
+                    )
+                    if ciclo_associado:
+                        pivo_dict["tipo"] = "custom"
+                        pivo_dict["coordenadas"] = ciclo_associado["coordenadas"]
+
+                    pivos_de_pontos_list.append(pivo_dict)  # type: ignore
+
                 elif any(kw in nome_norm for kw in bomba_kws):
-                    bombas_list.append({"nome": nome_original, "lat": lat, "lon": lon, "type": "bomba"}) # type: ignore
-                
+                    bombas_list.append({
+                        "nome": nome_original,
+                        "lat": lat,
+                        "lon": lon,
+                        "type": "bomba"
+                    })  # type: ignore
+
                 elif any(kw in nome_norm for kw in PONTA_RETA_KEYWORDS):
                     pontas_retas_map[nome_norm] = {"lat": lat, "lon": lon}
-                    
-            elif geo_type in ["LineString", "Polygon"] and len(coords) >= 3: # type: ignore
-                if eh_um_circulo(coords) or geo_type == "Polygon": # type: ignore
-                    ciclos_list.append({"nome_original_circulo": nome_original, "coordenadas": coords}) # type: ignore
-        
+
+            elif geo_type in ["LineString", "Polygon"] and len(coords) >= 3:  # type: ignore
+                if eh_um_circulo(coords) or geo_type == "Polygon":  # type: ignore
+                    ciclos_list.append({
+                        "nome_original_circulo": nome_original,
+                        "coordenadas": coords
+                    })  # type: ignore
+
         pivos_finais_list = _consolidate_pivos(pivos_de_pontos_list, ciclos_list, pontas_retas_map)
         logger.info(f"✅ Processamento do arquivo concluído: {len(antenas_list)} antenas, {len(pivos_finais_list)} pivôs, {len(bombas_list)} bombas.")
         return antenas_list, pivos_finais_list, ciclos_list, bombas_list
+
     finally:
-        # Garante que o KML extraído temporariamente seja excluído
         if kml_extraido_path_temp and kml_extraido_path_temp.exists():
             kml_extraido_path_temp.unlink(missing_ok=True)

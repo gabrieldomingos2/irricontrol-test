@@ -380,40 +380,22 @@ function drawBombas(bombasData) {
 
 function drawCirculos(ciclosData) {
     if (!map) return;
-
-    // Limpa os círculos anteriores
     AppState.circulosPivos.forEach(c => map.removeLayer(c));
     AppState.circulosPivos = [];
 
     AppState.lastPivosDataDrawn.forEach(pivo => {
         const pivoLatLng = L.latLng(pivo.lat, pivo.lon);
 
-        // 💥 PRIORIDADE: Desenhar polígono se o shape original do Google Earth estiver disponível
-        if (Array.isArray(pivo.coordenadas) && pivo.coordenadas.length >= 3) {
-            const poligono = L.polygon(pivo.coordenadas, {
+        if (pivo.tipo === 'custom' && Array.isArray(pivo.coordenadas)) {
+            const polygon = L.polygon(pivo.coordenadas, {
                 color: '#cc0000',
                 weight: 3,
                 opacity: 0.9,
                 fillOpacity: 0,
-                className: 'circulo-pivo-shape'
+                className: 'circulo-custom-kmz'
             }).addTo(map);
-            AppState.circulosPivos.push(poligono);
+            AppState.circulosPivos.push(polygon);
         }
-
-        // 🎯 Círculo padrão (sem tipo ou tipo circular)
-        else if (pivo.tipo === 'circular' || !pivo.tipo) {
-            const circle = L.circle(pivoLatLng, { 
-                radius: pivo.raio, 
-                color: '#cc0000', 
-                weight: 3, 
-                opacity: 0.9, 
-                fillOpacity: 0, 
-                className: 'circulo-vermelho-pulsante' 
-            }).addTo(map);
-            AppState.circulosPivos.push(circle);
-        }
-
-        // 🧭 Setorial
         else if (pivo.tipo === 'setorial') {
             const sectorCoords = generateSectorCoords(pivoLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
             const sectorPolygon = L.polygon(sectorCoords, {
@@ -425,8 +407,6 @@ function drawCirculos(ciclosData) {
             }).addTo(map);
             AppState.circulosPivos.push(sectorPolygon);
         }
-
-        // 🍕 Pacman
         else if (pivo.tipo === 'pacman') {
             const pacmanCoords = generatePacmanCoords(pivoLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
             const pacmanPolygon = L.polygon(pacmanCoords, {
@@ -438,31 +418,40 @@ function drawCirculos(ciclosData) {
             }).addTo(map);
             AppState.circulosPivos.push(pacmanPolygon);
         }
+        else {
+            // fallback padrão (circular simples)
+            const circle = L.circle(pivoLatLng, {
+                radius: pivo.raio || 100,
+                color: '#cc0000',
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: 'circulo-vermelho-pulsante'
+            }).addTo(map);
+            AppState.circulosPivos.push(circle);
+        }
     });
 
-    // 🔁 Círculos vindos dos ciclos (fallback, mas sem sobrescrever shapes customizados)
+    // Renderização extra para ciclos soltos (não associados a pivôs)
     ciclosData.forEach(ciclo => {
         if (!ciclo.nome_original_circulo) return;
+
         const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
         const pivoCorrespondente = AppState.lastPivosDataDrawn.find(p => p.nome === nomePivo);
 
-        // Só desenha se o pivo não for setorial, pacman ou shape custom
-        const tipo = pivoCorrespondente?.tipo;
-        const temShape = Array.isArray(pivoCorrespondente?.coordenadas) && pivoCorrespondente.coordenadas.length >= 3;
-
-        if (!pivoCorrespondente || (!['setorial', 'pacman'].includes(tipo) && !temShape)) {
+        if (!pivoCorrespondente || !['custom', 'setorial', 'pacman'].includes(pivoCorrespondente.tipo)) {
             const center = L.polygon(ciclo.coordenadas).getBounds().getCenter();
             const radius = pivoCorrespondente?.raio || center.distanceTo(L.latLng(ciclo.coordenadas[0]));
 
-            const circle = L.circle(center, { 
-                radius: radius, 
-                color: '#cc0000', 
-                weight: 3, 
-                opacity: 0.9, 
-                fillOpacity: 0, 
-                className: 'circulo-vermelho-pulsante' 
+            const fallbackCircle = L.circle(center, {
+                radius: radius,
+                color: '#cc0000',
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: 'circulo-fallback'
             }).addTo(map);
-            AppState.circulosPivos.push(circle);
+            AppState.circulosPivos.push(fallbackCircle);
         }
     });
 }
