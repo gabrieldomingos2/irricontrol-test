@@ -129,25 +129,27 @@ def _consolidate_pivos(
     ciclos_parsed: List[CicloData],
     pontas_retas_map: Dict[str, CoordsDict]
 ) -> List[PivoData]:
-    final_pivos_list = list(pivos_de_pontos) 
+    final_pivos_list = list(pivos_de_pontos)
     nomes_pivos_existentes_normalizados = {normalizar_nome(p["nome"]) for p in final_pivos_list}
     pivos_pontos_geometrias = [Point(p['lon'], p['lat']) for p in pivos_de_pontos]
-    
+
     for ciclo_info in ciclos_parsed:
         nome_ciclo_original = ciclo_info["nome_original_circulo"]
         coordenadas_ciclo = ciclo_info["coordenadas"]
-        
+
         try:
             poligono_ciclo = Polygon([(lon, lat) for lat, lon in coordenadas_ciclo])
-            if not poligono_ciclo.is_valid: continue
-        except Exception: continue
-            
+            if not poligono_ciclo.is_valid:
+                continue
+        except Exception:
+            continue
+
         if any(poligono_ciclo.contains(p_geom) for p_geom in pivos_pontos_geometrias):
             continue
 
         centro_lat: Optional[float] = None
         centro_lon: Optional[float] = None
-        
+
         nome_ciclo_norm = normalizar_nome(nome_ciclo_original)
         ponta1 = pontas_retas_map.get(f"ponta 1 reta {nome_ciclo_norm}")
         ponta2 = pontas_retas_map.get(f"ponta 2 reta {nome_ciclo_norm}")
@@ -161,17 +163,28 @@ def _consolidate_pivos(
             try:
                 centro_lat, centro_lon, _, _ = ponto_central_da_reta_maior(coordenadas_ciclo)
             except (ValueError, Exception):
-                 if coordenadas_ciclo:
-                    centro_lat, centro_lon = mean([c[0] for c in coordenadas_ciclo]), mean([c[1] for c in coordenadas_ciclo])
+                if coordenadas_ciclo:
+                    centro_lat = mean([c[0] for c in coordenadas_ciclo])
+                    centro_lon = mean([c[1] for c in coordenadas_ciclo])
 
         if centro_lat is not None and centro_lon is not None:
             nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados)
-            final_pivos_list.append({"nome": nome_pivo_gerado, "lat": centro_lat, "lon": centro_lon, "type": "pivo"}) # type: ignore
+
+            pivo_dict = {
+                "nome": nome_pivo_gerado,
+                "lat": centro_lat,
+                "lon": centro_lon,
+                "type": "pivo",
+                "tipo": "custom",  # 🔥 chave que o frontend vai usar
+                "coordenadas": coordenadas_ciclo  # 🔥 shape real do Google Earth
+            }
+
+            final_pivos_list.append(pivo_dict)
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
-            
+
             ciclo_info['nome_original_circulo'] = f"Ciclo {nome_pivo_gerado}"
             logger.info(f"  -> 🛰️ Pivô de ciclo adicionado como '{nome_pivo_gerado}'. Nome do ciclo atualizado para '{ciclo_info['nome_original_circulo']}'.")
-            
+
     return final_pivos_list
 
 def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:

@@ -380,16 +380,30 @@ function drawBombas(bombasData) {
 
 function drawCirculos(ciclosData) {
     if (!map) return;
+
+    // Limpa os círculos anteriores
     AppState.circulosPivos.forEach(c => map.removeLayer(c));
     AppState.circulosPivos = [];
 
     AppState.lastPivosDataDrawn.forEach(pivo => {
         const pivoLatLng = L.latLng(pivo.lat, pivo.lon);
 
-        if (pivo.tipo === 'circular' || !pivo.tipo) { // Para pivôs circulares (padrão ou criados)
-            // Usar L.circle para pivôs circulares
+        // 💥 PRIORIDADE: Desenhar polígono se o shape original do Google Earth estiver disponível
+        if (Array.isArray(pivo.coordenadas) && pivo.coordenadas.length >= 3) {
+            const poligono = L.polygon(pivo.coordenadas, {
+                color: '#cc0000',
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: 'circulo-pivo-shape'
+            }).addTo(map);
+            AppState.circulosPivos.push(poligono);
+        }
+
+        // 🎯 Círculo padrão (sem tipo ou tipo circular)
+        else if (pivo.tipo === 'circular' || !pivo.tipo) {
             const circle = L.circle(pivoLatLng, { 
-                radius: pivo.raio, // O raio já deve estar em metros
+                radius: pivo.raio, 
                 color: '#cc0000', 
                 weight: 3, 
                 opacity: 0.9, 
@@ -398,25 +412,47 @@ function drawCirculos(ciclosData) {
             }).addTo(map);
             AppState.circulosPivos.push(circle);
         }
+
+        // 🧭 Setorial
         else if (pivo.tipo === 'setorial') {
             const sectorCoords = generateSectorCoords(pivoLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
-            const sectorPolygon = L.polygon(sectorCoords, { color: '#cc0000', weight: 3, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-setorial' }).addTo(map);
+            const sectorPolygon = L.polygon(sectorCoords, {
+                color: '#cc0000',
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: 'circulo-pivo-setorial'
+            }).addTo(map);
             AppState.circulosPivos.push(sectorPolygon);
-        } else if (pivo.tipo === 'pacman') {
+        }
+
+        // 🍕 Pacman
+        else if (pivo.tipo === 'pacman') {
             const pacmanCoords = generatePacmanCoords(pivoLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
-            const pacmanPolygon = L.polygon(pacmanCoords, { color: '#cc0000', weight: 3, opacity: 0.9, fillOpacity: 0, className: 'circulo-pivo-pacman' }).addTo(map);
+            const pacmanPolygon = L.polygon(pacmanCoords, {
+                color: '#cc0000',
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: 'circulo-pivo-pacman'
+            }).addTo(map);
             AppState.circulosPivos.push(pacmanPolygon);
         }
     });
 
+    // 🔁 Círculos vindos dos ciclos (fallback, mas sem sobrescrever shapes customizados)
     ciclosData.forEach(ciclo => {
         if (!ciclo.nome_original_circulo) return;
         const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
         const pivoCorrespondente = AppState.lastPivosDataDrawn.find(p => p.nome === nomePivo);
 
-        if (!pivoCorrespondente || !['setorial', 'pacman'].includes(pivoCorrespondente.tipo)) {
-            let center = L.polygon(ciclo.coordenadas).getBounds().getCenter();
-            let radius = pivoCorrespondente?.raio || center.distanceTo(L.latLng(ciclo.coordenadas[0]));
+        // Só desenha se o pivo não for setorial, pacman ou shape custom
+        const tipo = pivoCorrespondente?.tipo;
+        const temShape = Array.isArray(pivoCorrespondente?.coordenadas) && pivoCorrespondente.coordenadas.length >= 3;
+
+        if (!pivoCorrespondente || (!['setorial', 'pacman'].includes(tipo) && !temShape)) {
+            const center = L.polygon(ciclo.coordenadas).getBounds().getCenter();
+            const radius = pivoCorrespondente?.raio || center.distanceTo(L.latLng(ciclo.coordenadas[0]));
 
             const circle = L.circle(center, { 
                 radius: radius, 
