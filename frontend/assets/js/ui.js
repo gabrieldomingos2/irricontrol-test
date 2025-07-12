@@ -238,3 +238,46 @@ function expandAllPanels() {
     lucide.createIcons();
     setTimeout(reposicionarPaineisLaterais, 500);
 }
+
+/**
+ * Cria ou atualiza um tooltip que segue o mouse.
+ * @param {L.Map} mapInstance - A instância do mapa Leaflet.
+ * @param {MouseEvent} mouseEvent - O evento do mouse para obter a posição.
+ * @param {string} textContent - O texto a ser exibido no tooltip.
+ */
+function updateDrawingTooltip(mapInstance, mouseEvent, textContent) {
+    const container = mapInstance.getContainer();
+    let tooltip = container.querySelector('.drawing-tooltip');
+
+    // Cria o tooltip se ele não existir
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.className = 'drawing-tooltip';
+        container.appendChild(tooltip);
+    }
+
+    // Atualiza o texto
+    tooltip.innerHTML = textContent;
+
+    // Posiciona o tooltip um pouco abaixo e à direita do cursor
+    const x = mouseEvent.containerPoint.x + 15;
+    const y = mouseEvent.containerPoint.y + 15;
+
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y}px`;
+    tooltip.style.opacity = 1;
+}
+
+/**
+ * Remove o tooltip de desenho do mapa.
+ * @param {L.Map} mapInstance - A instância do mapa Leaflet.
+ */
+function removeDrawingTooltip(mapInstance) {
+    const container = mapInstance.getContainer();
+    const tooltip = container.querySelector('.drawing-tooltip');
+    if (tooltip) {
+        tooltip.style.opacity = 0;
+        // Remove o elemento após a transição para suavizar o desaparecimento
+        setTimeout(() => tooltip.remove(), 100);
+    }
+}

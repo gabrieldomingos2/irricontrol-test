@@ -41,7 +41,9 @@
             "pump_houses": "Irripumps:",
             "repeater": "Ретранслятор",
             "pivo_distance_label": "Расстояние до цели:",
-            "powered_by": "Powered by Irricontrol"
+            "powered_by": "Powered by Irricontrol",
+            "radius": "Радиус",
+            "dry_angle": "Сухой угол"
         },
         "placeholders": {
             "lat_lon_search": "Широта, Долгота"

@@ -159,6 +159,14 @@ html, body {
   box-shadow: 0 0 8px 3px rgba(255, 255, 255, 0.9);
 }
 
+/* NOVO: Estilo para pivôs selecionados no modo de otimização (borda amarela) */
+.pivo-marker-optimization-selected .pivo-marker-dot {
+    border: 3px solid #FFD700; /* Borda amarela dourada */
+    box-shadow: 0 0 10px 4px rgba(255, 215, 0, 0.7); /* Sombra amarela forte */
+    transform: scale(1.2); /* Aumenta um pouco para destaque extra */
+}
+
+
 .label-pivo {
   background-color: transparent !important; /* Garante que não haja fundo do Leaflet */
   border: none !important; /* Garante que não haja borda do Leaflet */
@@ -213,21 +221,6 @@ html, body {
 /* Esconde a ponta/seta padrão do popup do Leaflet */
 .leaflet-popup-tip-container {
   display: none;
-}
-
-/* ======================= */
-/* 🗂️ PAINÉIS (Dados e Repetidoras) */
-/* ======================= */
-#painel-dados,
-#painel-repetidoras {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-#painel-dados.hidden,
-#painel-repetidoras.hidden {
-  opacity: 0;
-  transform: translateX(20px); /* Efeito de deslizar para a direita ao desaparecer */
-  pointer-events: none;
 }
 
 /* ========================= */
@@ -338,7 +331,6 @@ input[type="file"].hidden { /* Garante que o input original fique escondido */
   border-radius: 6px !important; /* Borda um pouco menos arredondada */
   padding: 6px 10px !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Borda sutil */
-  font-size: 12px !important;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5) !important; /* Sombra mais pronunciada */
   opacity: 0; /* Começa invisível para transição */
   /* REMOVIDO: transform: translateY(5px) scale(0.95); */
@@ -627,6 +619,39 @@ button, .glass-button, label[for="arquivo"] {
 
   /* Este filtro mágico "pinta" a imagem de verde */
   filter: brightness(0) saturate(100%) invert(58%) sepia(85%) saturate(548%) hue-rotate(95deg) brightness(95%) contrast(90%);
+}
+
+
+.drawing-tooltip {
+    position: absolute;
+    /* Remove or significantly reduce background for more transparency */
+    background-color: rgba(10, 15, 20, 0.2); /* More transparent background */
+    /* background-color: transparent; */ /* Or completely transparent background */
+    color: #ffffffa6; /* White color for the number */
+    padding: 2px 5px; /* Reduced padding to make it more compact */
+    border-radius: 4px; /* Slightly smaller border-radius */
+    font-size: 11px; /* Smaller font size for the number */
+    font-weight: bold;
+    border: none; /* Remove the border */
+    box-shadow: none; /* Remove the shadow */
+    pointer-events: none;
+    z-index: 10001;
+    white-space: nowrap;
+    transition: opacity 0.1s ease;
+}
+
+
+/* NOVO: Estilo para o ícone de repetidora sugerida pela otimização */
+.suggested-repeater-icon {
+    /* O estilo principal é definido via HTML/CSS inline na função JS */
+    /* Mas você pode adicionar estilos adicionais aqui, se necessário, como borda animada */
+    animation: pulseBlue 1.5s infinite; /* Exemplo de animação de pulso azul */
+}
+
+@keyframes pulseBlue {
+    0% { box-shadow: 0 0 5px rgba(0, 191, 255, 0.7); } /* Azul claro */
+    50% { box-shadow: 0 0 15px rgba(0, 191, 255, 1); }
+    100% { box-shadow: 0 0 5px rgba(0, 191, 255, 0.7); }
 }
 
 /* ============================ */

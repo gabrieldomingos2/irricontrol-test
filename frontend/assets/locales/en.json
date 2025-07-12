@@ -41,7 +41,9 @@
             "pump_houses": "Irripumps:",
             "repeater": "Repeater",
             "pivo_distance_label": "Distance to Target:",
-            "powered_by": "Powered by Irricontrol"
+            "powered_by": "Powered by Irricontrol",
+            "radius": "Radius",
+            "dry_angle": "Dry Angle"
         },
         "placeholders": {
             "lat_lon_search": "Latitude, Longitude"

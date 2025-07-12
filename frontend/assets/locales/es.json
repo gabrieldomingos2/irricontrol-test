@@ -19,7 +19,7 @@
             "draw_irripump": "Añadir Estación de Bombeo (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidor",
             "search_coordinates": "Buscar Coordenadas",
-            "toggle_antenna_legends": "Leyendas de Antenas"
+            "toggle_antenna_legends": "Leyendas de Antenas",
         },
         "labels": {
             "tools": "Herramientas",
@@ -41,7 +41,9 @@
             "pump_houses": "Irripumps:",
             "repeater": "Repetidor",
             "pivo_distance_label": "Distancia al Objetivo:",
-            "powered_by": "Powered by Irricontrol"
+            "powered_by": "Powered by Irricontrol",
+            "radius": "Radio",
+            "dry_angle": "Ángulo seco"
         },
         "placeholders": {
             "lat_lon_search": "Latitud, Longitud"

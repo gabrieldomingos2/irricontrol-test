@@ -117,15 +117,13 @@ async function getElevationProfile(payload) {
 
 async function exportKmz(payload) {
   try {
-    // A chamada à API agora usa o wrapper, informando que espera uma resposta do tipo 'blob'
     const response = await apiRequest('/kmz/exportar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      responseType: 'blob' // <-- Opção especial para o wrapper
+      responseType: 'blob' 
     });
 
-    // O restante da lógica de download do arquivo é mantido exatamente como estava
     const disposition = response.headers.get('content-disposition');
     let filename = 'estudo-irricontrol.kmz';
     if (disposition?.includes('attachment')) {
@@ -147,7 +145,6 @@ async function exportKmz(payload) {
     a.remove();
 
   } catch (error) {
-    // A lógica de captura de erro e mensagem ao usuário é mantida
     mostrarMensagem(`Falha ao exportar KMZ: ${error.message}`, "erro");
     throw error;
   }
@@ -181,7 +178,7 @@ async function optimizeNetwork(payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).catch(error => {
-
+    mostrarMensagem(`Falha na otimização da rede: ${error.message}`, "erro"); // Adicionada mensagem de erro
     throw error;
   });
 }

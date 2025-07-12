@@ -78,6 +78,10 @@ function updatePivotIcons() {
             if (AppState.selectedPivoMarker === marker) {
                 iconClasses += ' pivo-marker-container-selected';
             }
+            // NOVO: Adicionar classe de seleção para o modo de otimização
+            if (AppState.modoOtimizacao && AppState.pivosSelecionadosOtimizacao[pivo.nome]) {
+                iconClasses += ' pivo-marker-optimization-selected';
+            }
 
             const newIcon = L.divIcon({
                 className: iconClasses,
@@ -256,7 +260,12 @@ function drawPivos(pivosData, useEdited = false) {
             } 
             else if (AppState.modoBuscaLocalRepetidora) {
                 if (typeof handlePivotSelectionForRepeaterSite === 'function') handlePivotSelectionForRepeaterSite(pivo, marker);
-            } else {
+            }
+            // NOVO: Lógica de clique para seleção no modo de otimização
+            else if (AppState.modoOtimizacao) {
+                if (typeof handleOptimizationTargetSelection === 'function') handleOptimizationTargetSelection(pivo, marker);
+            }
+            else {
                 window.ultimoCliqueFoiSobrePivo = true;
                 AppState.coordenadaClicada = e.latlng;
                 removePositioningMarker();
@@ -601,6 +610,7 @@ function clearMapLayers() {
         AppState.marcadorPosicionamento,
         AppState.visadaLayerGroup,
         window.candidateRepeaterSitesLayerGroup,
+        AppState.suggestedRepeatersLayerGroup, // NOVO: Limpar sugestões de repetidoras
         ...(AppState.marcadoresPivos || []),
         ...(AppState.circulosPivos || []),
         ...(AppState.marcadoresBombas || []),
@@ -738,7 +748,7 @@ function togglePivoDistances(show) {
         drawBombas(AppState.lastBombasDataDrawn);
     }
     const messageKey = show ? 'messages.success.pivot_distances_shown' : 'messages.success.pivot_distances_hidden';
-    mostrarMensagem(t(messageKey), 'sucesso');
+    mostrarMensagem(t(messageKey), "sucesso");
 }
 
 let tempCircle = null;

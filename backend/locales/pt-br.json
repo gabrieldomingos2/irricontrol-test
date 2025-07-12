@@ -19,7 +19,8 @@
             "draw_irripump": "Adicionar Estação de Bomba (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidora",
             "search_coordinates": "Buscar Coordenadas",
-            "toggle_antenna_legends": "Legendas das Antenas"
+            "toggle_antenna_legends": "Legendas das Antenas",
+            "radius": "Radius"
         },
         "labels": {
             "tools": "Ferramentas",

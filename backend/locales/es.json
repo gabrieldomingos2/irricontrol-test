@@ -19,7 +19,8 @@
             "draw_irripump": "Añadir Estación de Bombeo (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidor",
             "search_coordinates": "Buscar Coordenadas",
-            "toggle_antenna_legends": "Leyendas de Antenas"
+            "toggle_antenna_legends": "Leyendas de Antenas",
+            "radius": "Radio"
         },
         "labels": {
             "tools": "Herramientas",

@@ -2,7 +2,7 @@
 import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Tuple, Literal
+from typing import List, Dict, Optional, Tuple, Literal, Any 
 from pathlib import Path
 import logging
 import json
@@ -68,6 +68,16 @@ class GeneratePivotPayload(BaseModel):
     center: Tuple[float, float]
     pivos_atuais: List[PivoData]
     language: str = 'pt-br'
+
+# NOVO: Modelo para o payload de otimização
+class OptimizeNetworkPayload(BaseModel):
+    job_id: str
+    pivos_atuais: List[PivoData]
+    antena_global: Optional[Dict[str, Any]] = None
+    repetidoras_atuais: List[Dict[str, Any]]
+    template: str
+    target_pivots: List[str] # Lista de nomes dos pivôs que precisam de cobertura
+    optimization_params: Dict[str, Any] # Parâmetros como max_repeaters, etc.
 
 def _get_image_filepath_for_analysis(image_filename: str, job_id: str) -> Path:
     filename_only = Path(image_filename.split('?')[0]).name
@@ -271,3 +281,30 @@ async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
     except Exception as e:
         logger.error(f"❌ Erro Interno em /find_repeater_sites (job: {payload.job_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro interno ao buscar locais para repetidora: {str(e)}")
+
+# NOVO ENDPOINT PARA OTIMIZAÇÃO DE REDE
+@router.post("/optimize_network")
+async def optimize_network_endpoint(payload: OptimizeNetworkPayload):
+    try:
+        logger.info(f"✨ Iniciando otimização de rede para job: {payload.job_id}. Alvos: {len(payload.target_pivots)}")
+        
+        # Converte os pivos e repetidoras para o formato que analysis_service espera
+        pivos_para_otimizar = [p.model_dump() for p in payload.pivos_atuais]
+        repetidoras_existentes = payload.repetidoras_atuais # Já estão em formato de dict
+        antena_global = payload.antena_global
+
+        optimization_result = await analysis_service.find_optimal_repeaters(
+            job_id=payload.job_id,
+            pivos=pivos_para_otimizar,
+            antena_global=antena_global,
+            repetidoras_existentes=repetidoras_existentes,
+            template_id=payload.template,
+            target_pivot_names=payload.target_pivots,
+            optimization_params=payload.optimization_params
+        )
+        
+        logger.info(f"✅ Otimização de rede para job {payload.job_id} concluída. Sugeridas: {len(optimization_result['new_repeater_suggestions'])} repetidoras.")
+        return optimization_result
+    except Exception as e:
+        logger.error(f"❌ Erro Interno em /simulation/optimize_network (job: {payload.job_id}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro ao otimizar rede: {str(e)}")

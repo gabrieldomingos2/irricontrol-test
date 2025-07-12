@@ -7,6 +7,7 @@
             "line_of_sight": "Linha de Visada (Obstáculos)",
             "los_pivots": "Diagnóstico de Visada Pivô-a-Pivô",
             "find_repeater_locations": "Análise de Local para Repetidora",
+            "optimize_network": "Otimizar Rede",
             "legend": "Legendas",
             "show_pivot_distances": "Exibir Distâncias Entre Pivôs",
             "hide_pivot_distances": "Ocultar Distâncias Entre Pivôs",
@@ -41,7 +42,9 @@
             "pump_houses": "Irripumps:",
             "repeater": "Repetidora",
             "pivo_distance_label": "Distância ao Alvo:",
-            "powered_by": "Powered by Irricontrol"
+            "powered_by": "Powered by Irricontrol",
+            "radius": "Raio",
+            "dry_angle": "Ângulo seco"
         },
         "placeholders": {
             "lat_lon_search": "Latitude, Longitude"
@@ -94,7 +97,10 @@
             "repeater_suggestion_removed": "Sugestão de repetidora removida.",
             "location_found": "Localização encontrada e marcada no mapa.",
             "action_undone_move": "Movimentação do pivô \"{pivot_name}\" desfeita.",
-            "action_undone_delete": "Exclusão do pivô \"{pivot_name}\" revertida."
+            "action_undone_delete": "Exclusão do pivô \"{pivot_name}\" revertida.",
+            "optimization_started": "Otimização da rede iniciada. Isso pode levar alguns minutos.",
+            "optimization_complete": "Otimização concluída. {count} repetidoras sugeridas.",
+            "suggestions_accepted": "Sugestões de repetidoras aceitas. Reavaliando cobertura."
         },
         "errors": {
             "session_start_fail": "Falha crítica ao iniciar nova sessão. Recarregue a página.",
@@ -116,7 +122,10 @@
             "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ex.: 19°26'S 44°29'W) ou Decimal (ex.: -19.44 -44.49).",
             "draw_pivot_radius_too_small": "Raio muito pequeno. Desenho cancelado. Clique para novo centro.",
             "generic_error": "Erro inesperado. Tente novamente.",
-            "template_load_fail": "Falha ao buscar templates. Verifique sua conexão."
+            "template_load_fail": "Falha ao buscar templates. Verifique sua conexão.",
+            "no_pivots_for_optimization": "Nenhum pivô encontrado ou nenhum pivô sem cobertura para otimizar.",
+            "optimization_fail": "Falha na otimização da rede: {error}",
+            "no_optimization_solution": "Não foi encontrada uma solução de otimização com os parâmetros atuais."
         },
         "info": {
             "no_towers_found": "Nenhuma antena encontrada no KMZ. Adicione manualmente clicando no mapa.",
@@ -162,7 +171,8 @@
             "draw_irripump_still_active": "Modo de Irripump ainda ativo. Clique para outro.",
             "draw_irripump_cancelled": "Adição de Irripump cancelada.",
             "nothing_to_undo": "Nenhuma alteração para desfazer.",
-            "find_repeater_long_process_warning": "A busca por locais de repetidora pode levar um minuto ou mais. Por favor, aguarde."
+            "find_repeater_long_process_warning": "A busca por locais de repetidora pode levar um minuto ou mais. Por favor, aguarde.",
+            "optimization_select_uncovered": "Clique nos pivôs SEM cobertura (vermelhos) para selecionar os alvos da otimização. Clique novamente para desmarcar. Depois, clique no botão 'Otimizar Rede' novamente."
         },
         "confirm": {
             "remove_pivot": "Confirma a exclusão do pivô \"{name}\" e suas áreas associadas?",
