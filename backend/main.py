@@ -9,7 +9,7 @@ import logging
 
 # Importa as configurações e os routers
 from backend.config import settings
-from backend.routers import kmz, simulation
+from backend.routers import kmz, simulation, report # Adiciona 'report' aqui
 
 # Importa a nova função de setup do logging que criamos
 from backend.logging_config import setup_logging
@@ -39,7 +39,6 @@ async def startup_event():
     settings.initialize_directories()
 
     # Logs de depuração para verificar a configuração do CORS.
-    # Estes logs agora usarão o novo formato centralizado.
     logger.info(f"Startup - ALLOWED_ORIGINS_CSV: {settings.ALLOWED_ORIGINS_CSV}")
     logger.info(f"Startup - NETLIFY_APP_URL: {settings.NETLIFY_APP_URL}")
     logger.info(f"Startup - Effective ALLOWED_ORIGINS for CORS: {settings.ALLOWED_ORIGINS}")
@@ -66,6 +65,7 @@ app.mount(
 # --- Inclusão dos Routers ---
 app.include_router(kmz.router, prefix=settings.API_V1_STR, tags=["KMZ Operations"])
 app.include_router(simulation.router, prefix=settings.API_V1_STR, tags=["Simulation"])
+app.include_router(report.router, prefix=settings.API_V1_STR, tags=["Report Operations"]) # INCLUA ESTA LINHA
 
 
 # --- Endpoint Raiz ---

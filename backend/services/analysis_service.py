@@ -28,7 +28,7 @@ from fastapi.concurrency import run_in_threadpool
 # Configuração do Logger
 logger = logging.getLogger("irricontrol")
 
-# --- Tipos Personalizados (sem alterações, mas repetidos para contexto) ---
+# --- Tipos Personalizados (sem alterações) ---
 class PivoInputData(TypedDict, total=False):
     nome: str
     lat: float
@@ -68,15 +68,7 @@ class CandidateSite(TypedDict):
     ponto_bloqueio: Optional[Union[BlockageInfo, Dict[str, str]]]
     altura_necessaria_torre: Optional[float]
 
-# NOVO: Tipo para repetidora sugerida
-class SuggestedRepeater(TypedDict):
-    lat: float
-    lon: float
-    altura_sugerida: float
-    # Você pode adicionar mais campos se a otimização determinar outros atributos
-    # Ex: 'expected_coverage_increase': float
-
-# --- Funções Auxiliares (repetidas para contexto) ---
+# --- Funções Auxiliares ---
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calcula a distância em metros entre dois pontos geográficos."""
@@ -101,7 +93,7 @@ def _check_coverage_sync(
     imagens_abertas_cache: Dict[Path, Image.Image] = {}
     entities_atualizadas: List[Dict[str, Any]] = []
     
-    PROXIMITY_THRESHOLD_METERS = 20.0 #
+    PROXIMITY_THRESHOLD_METERS = 20.0
 
     try: 
         for entity_data in entities:
@@ -213,10 +205,8 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
     logger.info(f"CACHE MISS: Calculando perfil de elevação ({num_passos} passos) entre {pontos[0]} e {pontos[1]}.")
 
     pontos_amostrados = [
-        (
-            pontos[0][0] + (pontos[1][0] - pontos[0][0]) * i / num_passos,
-            pontos[0][1] + (pontos[1][1] - pontos[0][1]) * i / num_passos
-        )
+        (pontos[0][0] + (pontos[1][0] - pontos[0][0]) * i / num_passos,
+         pontos[0][1] + (pontos[1][1] - pontos[0][1]) * i / num_passos)
         for i in range(num_passos + 1)
     ]
 
@@ -537,277 +527,3 @@ def generate_pivot_at_center(
     }
 
     return new_pivot_data
-
-# NOVO: Função para simular a cobertura de uma única fonte para um conjunto de pivôs.
-# Isso é um MOCK e deve ser substituído pela sua lógica de simulação real.
-async def _simulate_single_source_coverage(
-    source_data: Dict[str, Any],
-    pivos_to_check: List[Dict[str, Any]],
-    template_id: str,
-    job_id: str # Adicionado job_id para consistência, embora não usado no mock
-) -> List[Dict[str, Any]]:
-    """
-    MOCK: Simula a cobertura de uma ÚNICA fonte de sinal para um conjunto de pivôs.
-    Retorna o status 'fora' para cada pivô.
-    Em uma aplicação real, você chamaria cloudrf_service.run_cloudrf_simulation
-    para a source_data, obteria o overlay, e então usaria _check_coverage_sync.
-    Para a otimização, precisamos de algo mais leve e rápido.
-    """
-    logger.debug(f"  -> (Mock Sim) Verificando cobertura para {len(pivos_to_check)} pivôs de uma fonte.")
-
-    # MOCK: Apenas para demonstração. O sinal é "bom" se a distância for menor que 2000m.
-    # Em um ambiente real, você usaria o CloudRF service ou um modelo interno.
-    
-    # Se você tiver um mock de overlay para a fonte (source_data), use-o.
-    # Caso contrário, simule o "alcance".
-    
-    # Para o propósito da otimização, precisamos APENAS do status de cobertura (fora: True/False).
-    # Uma forma mais robusta seria:
-    # 1. Chamar cloudrf_service.run_cloudrf_simulation(source_data...)
-    # 2. Obter o `imagem_local_path` e `bounds` do resultado.
-    # 3. Chamar _check_coverage_sync com este único overlay.
-    
-    # Para evitar chamadas CloudRF em loop durante a otimização,
-    # vamos usar um modelo de alcance simplificado baseado em distância e altura.
-    
-    # Parâmetros simplificados para um modelo de "alcance":
-    # Estes são arbitrários, mas representam a ideia de que altura e distância influenciam.
-    MAX_COVERAGE_DISTANCE_BASE_M = 1500 # Alcance base em metros
-    HEIGHT_IMPACT_FACTOR = 50 # Metros adicionais de alcance por metro de altura extra da antena
-    
-    source_lat = source_data['lat']
-    source_lon = source_data['lon']
-    source_height = source_data.get('altura', settings.TEMPLATES_DISPONIVEIS[0].antenna.txg) # Altura Tx
-    
-    # Use a altura do receptor do template, ou um padrão
-    # Este é o alt_rx da antena principal ou um valor padrão (3m)
-    # Não é o altura_receiver_pivo que pode vir da otimização.
-    # Para este mock, usamos um valor padrão ou do template.
-    template = settings.obter_template(template_id)
-    default_pivot_rx_height = template.receiver.alt
-
-    results = []
-    for pivo in pivos_to_check:
-        pivot_lat = pivo['lat']
-        pivot_lon = pivo['lon']
-        
-        distance_m = haversine(source_lat, source_lon, pivot_lat, pivot_lon)
-        
-        # Alcance efetivo: base + impacto da altura da antena Tx
-        effective_range = MAX_COVERAGE_DISTANCE_BASE_M + (source_height * HEIGHT_IMPACT_FACTOR)
-        
-        # Considerar um LOS simples para pontos altos para evitar simulações falsas
-        # Isso seria mais preciso com perfil de elevação, mas é um mock.
-        # Se a fonte ou o pivô estiver em um ponto alto, aumentar a chance de LoS
-        # (Para um mock, ignoramos a elevação real e apenas testamos a distância)
-        
-        is_covered = distance_m < effective_range
-        
-        results.append({
-            "nome": pivo['nome'],
-            "lat": pivo['lat'],
-            "lon": pivo['lon'],
-            "fora": not is_covered
-        })
-    return results
-
-
-async def find_optimal_repeaters(
-    job_id: str,
-    pivos: List[Dict[str, Any]],
-    antena_global: Optional[Dict[str, Any]],
-    repetidoras_existentes: List[Dict[str, Any]],
-    template_id: str,
-    target_pivot_names: List[str],
-    optimization_params: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Encontra um conjunto "ótimo" de repetidoras para cobrir os pivôs alvo.
-    Utiliza um algoritmo ganancioso.
-    """
-    logger.info(f"✨ Iniciando algoritmo de otimização para job {job_id}.")
-    logger.info(f"  -> Pivôs alvo: {len(target_pivot_names)}")
-    logger.info(f"  -> Parâmetros de otimização: {optimization_params}")
-
-    max_repeaters = optimization_params.get('max_repeaters', 3) # Limite de repetidoras a sugerir
-    
-    # Filtra os pivôs que são alvos e estão FORA de cobertura
-    # Assume que 'pivos' já reflete o estado atual de cobertura sem novas repetidoras.
-    uncovered_target_pivots = [
-        p for p in pivos if p['nome'] in target_pivot_names and p.get('fora', True)
-    ]
-
-    if not uncovered_target_pivots:
-        logger.info("  -> Todos os pivôs alvo já estão cobertos. Nenhuma otimização necessária.")
-        return {
-            "new_repeater_suggestions": [],
-            "optimized_coverage_status": pivos # Retorna o estado atual
-        }
-
-    logger.info(f"  -> {len(uncovered_target_pivots)} pivôs alvo inicialmente sem cobertura.")
-
-    # Lista de repetidoras sugeridas que serão construídas
-    suggested_repeaters: List[SuggestedRepeater] = []
-    
-    # Conjunto de nomes de pivôs alvo que ainda precisam ser cobertos
-    pivots_still_uncovered = {p['nome'] for p in uncovered_target_pivots}
-
-    # Fontes de sinal ativas no mapa (antena principal + repetidoras existentes)
-    current_active_sources: List[Dict[str, Any]] = []
-    if antena_global:
-        current_active_sources.append({
-            "lat": antena_global['lat'], "lon": antena_global['lon'],
-            "altura": antena_global.get('altura', settings.TEMPLATES_DISPONIVEIS[0].antenna.txg), # Altura Tx
-            "altura_receiver": antena_global.get('altura_receiver', settings.TEMPLATES_DISPONIVEIS[0].receiver.alt), # Altura Rx
-            "type": "main_antenna"
-        })
-    for rep in repetidoras_existentes:
-        current_active_sources.append({
-            "lat": rep['lat'], "lon": rep['lon'],
-            "altura": rep.get('altura', 5), # Altura Tx
-            "altura_receiver": rep.get('altura_receiver', settings.TEMPLATES_DISPONIVEIS[0].receiver.alt), # Altura Rx
-            "type": "existing_repeater"
-        })
-
-    # Algoritmo Ganancioso: Adiciona a repetidora que cobre o maior número de pivôs não cobertos.
-    iteration = 0
-    while len(pivots_still_uncovered) > 0 and len(suggested_repeaters) < max_repeaters:
-        iteration += 1
-        logger.info(f"  -> Iteração {iteration}: {len(pivots_still_uncovered)} pivôs ainda não cobertos.")
-
-        best_candidate_repeater = None
-        max_newly_covered_in_this_iteration = -1
-        
-        # Gerar pontos candidatos próximos aos pivôs ainda não cobertos
-        # Para uma otimização mais inteligente, usaríamos DEM aqui.
-        candidate_locations_for_iteration: List[Dict[str, float]] = []
-        for pivo_name in list(pivots_still_uncovered): # Iterar sobre uma cópia
-            pivo_data = next((p for p in pivos if p['nome'] == pivo_name), None)
-            if pivo_data:
-                # Gerar 3 pontos candidatos aleatórios ao redor de cada pivô descoberto
-                # Isso é um mock, na vida real seriam pontos estratégicos (elevação, visada)
-                for _ in range(3):
-                    lat_offset = (random.random() - 0.5) * 0.01 # +/- 0.005 graus
-                    lon_offset = (random.random() - 0.5) * 0.01
-                    candidate_locations_for_iteration.append({
-                        "lat": pivo_data['lat'] + lat_offset,
-                        "lon": pivo_data['lon'] + lon_offset,
-                        "altura": 5, # Altura padrão sugerida para novas repetidoras
-                        "altura_receiver": settings.TEMPLATES_DISPONIVEIS[0].receiver.alt # Rx alt da repetidora
-                    })
-        
-        if not candidate_locations_for_iteration:
-            logger.warning("  -> Não há mais locais candidatos viáveis para esta iteração.")
-            break # Não há mais candidatos para adicionar
-
-        for candidate_rep in candidate_locations_for_iteration:
-            # Temporariamente adiciona o candidato às fontes de sinal
-            temp_sources = current_active_sources + [candidate_rep]
-            
-            # Avalia quantos pivôs alvo seriam cobertos com este candidato
-            # ATENÇÃO: Esta é a parte CRÍTICA do desempenho.
-            # `_simulate_single_source_coverage` é um mock.
-            # A forma ideal é um "modelo de propagação local" muito rápido
-            # ou um cache inteligente de resultados CloudRF.
-
-            # Simula a cobertura de TODAS as fontes (atuais + candidato) para TODOS os pivôs alvo
-            # que AINDA estão descobertos.
-            pivos_status_with_candidate = await _simulate_single_source_coverage(
-                source_data=candidate_rep,
-                pivos_to_check=[p for p in pivos if p['nome'] in pivots_still_uncovered],
-                template_id=template_id,
-                job_id=job_id # Passando job_id para o mock
-            )
-
-            newly_covered_count_this_candidate = 0
-            for pivo_name in pivots_still_uncovered:
-                # Se o pivô já foi coberto por uma fonte existente, não o conta como "novo" aqui.
-                # A lógica abaixo é para identificar os pivôs que AGORA estão cobertos
-                # considerando APENAS o candidato atual.
-                pivo_status = next((p for p in pivos_status_with_candidate if p['nome'] == pivo_name), None)
-                if pivo_status and not pivo_status['fora']:
-                    # Um pivô é considerado "recém-coberto" por este candidato
-                    # se ele estava descoberto e agora estaria coberto.
-                    newly_covered_count_this_candidate += 1
-            
-            # A lógica do greedy é escolher o candidato que COBRE MAIS NOVOS PIVÔS
-            if newly_covered_count_this_candidate > max_newly_covered_in_this_iteration:
-                max_newly_covered_in_this_iteration = newly_covered_count_this_candidate
-                best_candidate_repeater = candidate_rep
-        
-        if best_candidate_repeater and max_newly_covered_in_this_iteration > 0:
-            suggested_repeaters.append({
-                "lat": best_candidate_repeater['lat'],
-                "lon": best_candidate_repeater['lon'],
-                "altura_sugerida": best_candidate_repeater['altura']
-            })
-            # Adiciona a repetidora sugerida ao conjunto de fontes ativas
-            current_active_sources.append({
-                "lat": best_candidate_repeater['lat'],
-                "lon": best_candidate_repeater['lon'],
-                "altura": best_candidate_repeater['altura'],
-                "altura_receiver": settings.TEMPLATES_DISPONIVEIS[0].receiver.alt,
-                "type": "suggested_repeater"
-            })
-            
-            # Reavalia o status de todos os pivôs que ainda estavam descobertos
-            # para atualizar `pivots_still_uncovered` para a próxima iteração.
-            
-            # Primeiro, simula a cobertura de todas as fontes ATUAIS (existentes + sugeridas)
-            # para todos os pivôs alvo
-            all_target_pivots_status = []
-            for pivo_original in uncovered_target_pivots:
-                sim_status = await _simulate_single_source_coverage(
-                    source_data={"lat": pivo_original['lat'], "lon": pivo_original['lon'], "altura": 1, "is_target": True}, # Mock source para o target
-                    pivos_to_check=[pivo_original],
-                    template_id=template_id,
-                    job_id=job_id
-                )
-                all_target_pivots_status.extend(sim_status) # Isso não está usando todas as sources. CORRIGIR.
-            
-            # CORREÇÃO: Você precisaria de uma função que simulasse a cobertura de *todos* os pivôs alvo
-            # contra *todas* as `current_active_sources` acumuladas até agora.
-            # O `_simulate_single_source_coverage` não faz isso.
-            
-            # VAMOS SIMPLIFICAR O MOCK AQUI para o greedy:
-            # Após adicionar o best_candidate_repeater,
-            # remova de `pivots_still_uncovered` aqueles que seriam cobertos por ELE (best_candidate_repeater)
-            # A simulação real para `_simulate_single_source_coverage` deveria refletir o impacto cumulativo.
-            
-            # Para o mock, vamos apenas remover os pivôs que o "melhor candidato" coberto.
-            # Isso é uma aproximação bem simplificada.
-            for pivo_status in pivos_status_with_candidate: # pivos_status_with_candidate veio da avaliação do *melhor candidato*
-                 if not pivo_status['fora'] and pivo_status['nome'] in pivots_still_uncovered:
-                     pivots_still_uncovered.remove(pivo_status['nome'])
-        else:
-            logger.info("  -> Nenhuma repetidora candidata conseguiu cobrir novos pivôs nesta iteração.")
-            break # Não há mais melhorias a fazer
-
-    # Reavaliar o status final de todos os pivôs (não apenas os alvos) com todas as fontes (existentes + sugeridas)
-    # Isso precisa ser feito chamando o _check_coverage_sync com todas as imagens/bounds gerados
-    # ou usando uma simulação CloudRF completa para cada repetidora sugerida
-    # e então verificando os pivôs com todos os overlays.
-
-    # Para simpplicidade do mock de otimização, vamos apenas marcar os pivôs alvo cobertos como 'não fora'.
-    # Em um cenário real, você faria uma reavaliação completa como no endpoint `/reevaluate`.
-
-    # MOCK final_pivos_status
-    final_pivos_status = []
-    for pivo in pivos:
-        pivo_copy = pivo.copy()
-        if pivo['nome'] in target_pivot_names:
-            # Se o pivô alvo foi coberto durante a otimização, marque-o como coberto
-            if pivo['nome'] not in pivots_still_uncovered:
-                pivo_copy['fora'] = False
-            else:
-                pivo_copy['fora'] = True # Permanece fora se não foi coberto
-        # Senão, mantém o status original (se já coberto ou não alvo)
-        final_pivos_status.append(pivo_copy)
-
-    logger.info(f"✨ Otimização finalizada. Total de repetidoras sugeridas: {len(suggested_repeaters)}")
-    logger.info(f"  -> Pivôs alvo que permanecem sem cobertura: {len(pivots_still_uncovered)}")
-
-    return {
-        "new_repeater_suggestions": suggested_repeaters,
-        "optimized_coverage_status": final_pivos_status # Retorna os pivôs com os novos status
-    }

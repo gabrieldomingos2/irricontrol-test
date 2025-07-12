@@ -117,13 +117,15 @@ async function getElevationProfile(payload) {
 
 async function exportKmz(payload) {
   try {
+    // A chamada à API agora usa o wrapper, informando que espera uma resposta do tipo 'blob'
     const response = await apiRequest('/kmz/exportar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      responseType: 'blob' 
+      responseType: 'blob' // <-- Opção especial para o wrapper
     });
 
+    // O restante da lógica de download do arquivo é mantido exatamente como estava
     const disposition = response.headers.get('content-disposition');
     let filename = 'estudo-irricontrol.kmz';
     if (disposition?.includes('attachment')) {
@@ -145,6 +147,7 @@ async function exportKmz(payload) {
     a.remove();
 
   } catch (error) {
+    // A lógica de captura de erro e mensagem ao usuário é mantida
     mostrarMensagem(`Falha ao exportar KMZ: ${error.message}`, "erro");
     throw error;
   }
@@ -178,7 +181,42 @@ async function optimizeNetwork(payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).catch(error => {
-    mostrarMensagem(`Falha na otimização da rede: ${error.message}`, "erro"); // Adicionada mensagem de erro
+
     throw error;
   });
+}
+
+async function exportPdfReport(payload) {
+  try {
+    const response = await apiRequest('/report/pdf_export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      responseType: 'blob'
+    });
+
+    const disposition = response.headers.get('content-disposition');
+    let filename = 'relatorio-irricontrol.pdf';
+    if (disposition?.includes('attachment')) {
+      const filenameMatch = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+      if (filenameMatch?.[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+
+  } catch (error) {
+    mostrarMensagem(t('messages.errors.pdf_export_fail', { error: error.message }), "erro");
+    throw error;
+  }
 }

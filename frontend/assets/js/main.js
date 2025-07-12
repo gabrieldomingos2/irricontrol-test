@@ -16,7 +16,6 @@ const AppState = {
     modoDesenhoPivoSetorial: false,
     modoDesenhoPivoPacman: false,
     modoDesenhoIrripump: false,
-    modoOtimizacao: false, // NOVO: Modo de Otimização de Rede
     pontoRaioTemporario: null,
     distanciasPivosVisiveis: false,
     legendasAtivas: true,
@@ -31,7 +30,6 @@ const AppState = {
     losSourcePivot: null,
     losTargetPivot: null,
     pivoAlvoParaLocalRepetidora: null,
-    pivosSelecionadosOtimizacao: {}, // NOVO: Para guardar pivôs selecionados na otimização
     templateSelecionado: "",
     centroPivoTemporario: null,
     isDrawingSector: false,
@@ -50,7 +48,6 @@ const AppState = {
     overlaysVisiveis: [],
     linhasDiagnostico: [],
     marcadoresBloqueio: [],
-    suggestedRepeatersLayerGroup: null, // NOVO: Grupo de camadas para sugestões de repetidoras
 
     setJobId(id) {
         this.jobId = id;
@@ -101,11 +98,6 @@ const AppState = {
         this.modoDesenhoIrripump = false;
         this.pontoRaioTemporario = null;
         this.selectedPivoMarker = null;
-        this.modoOtimizacao = false; // Resetar
-        this.pivosSelecionadosOtimizacao = {}; // Resetar
-        if (this.suggestedRepeatersLayerGroup) { // Resetar camada de sugestões
-            this.suggestedRepeatersLayerGroup.clearLayers();
-        }
     }
 };
 
@@ -140,6 +132,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof reposicionarPaineisLaterais === 'function') {
         reposicionarPaineisLaterais();
     }
+
+    applyTranslations();
 });
 
 async function startNewSession() {
@@ -169,10 +163,10 @@ function setupMainActionListeners() {
     document.getElementById('arquivo').addEventListener('change', handleKmzFileSelect);
     document.getElementById('resetar-btn').addEventListener('click', () => handleResetClick(true));
     document.getElementById('exportar-btn').addEventListener('click', handleExportClick);
+    document.getElementById('exportar-pdf-btn').addEventListener('click', handleExportPdfReportClick);
     document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
     document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
     document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
-    document.getElementById('btn-optimize-network').addEventListener('click', handleOptimizeNetworkClick); // NOVO Listener
     document.getElementById('coord-search-btn').addEventListener('click', handleCoordinateSearch);
     document.getElementById('btn-draw-pivot-pacman').addEventListener('click', toggleModoDesenhoPivoPacman);
     document.getElementById('btn-draw-irripump').addEventListener('click', toggleModoDesenhoIrripump);
@@ -186,6 +180,10 @@ function setupMainActionListeners() {
     const toggleDistanciasBtn = document.getElementById('toggle-distancias-pivos');
     if (toggleDistanciasBtn) {
         toggleDistanciasBtn.addEventListener('click', handleToggleDistanciasPivos);
+    }
+    
+    if (typeof applyTranslations === 'function') {
+        applyTranslations();
     }
 }
 
@@ -434,48 +432,6 @@ function handleMapClick(e) {
     
     if (AppState.modoEdicaoPivos || AppState.modoLoSPivotAPivot) return;
 
-    // NOVO: Lógica para seleção de pivôs no modo de otimização
-    if (AppState.modoOtimizacao) {
-        const clickedPivo = AppState.lastPivosDataDrawn.find(pivo => {
-            const marker = AppState.pivotsMap[pivo.nome];
-            if (marker) {
-                const markerLatLng = marker.getLatLng();
-                // Verifica se o clique está "próximo" o suficiente do marcador do pivô
-                // Você pode ajustar a distância (e.g., 20 pixels) ou usar a lógica de clique do marcador
-                return markerLatLng.distanceTo(e.latlng) < 20; 
-            }
-            return false;
-        });
-
-        if (clickedPivo) {
-            // Se o pivô não tem cobertura, ele pode ser selecionado para otimização
-            if (clickedPivo.fora) {
-                if (AppState.pivosSelecionadosOtimizacao[clickedPivo.nome]) {
-                    // Desmarcar
-                    delete AppState.pivosSelecionadosOtimizacao[clickedPivo.nome];
-                    // Remover estilo de seleção visual do pivô
-                    const marker = AppState.pivotsMap[clickedPivo.nome];
-                    if (marker && marker.getElement()) {
-                        marker.getElement().classList.remove('pivo-marker-optimization-selected');
-                    }
-                    mostrarMensagem(t('messages.info.pivot_deselected', { name: clickedPivo.nome }), "info");
-                } else {
-                    // Marcar
-                    AppState.pivosSelecionadosOtimizacao[clickedPivo.nome] = clickedPivo;
-                    // Adicionar estilo de seleção visual ao pivô
-                    const marker = AppState.pivotsMap[clickedPivo.nome];
-                    if (marker && marker.getElement()) {
-                        marker.getElement().classList.add('pivo-marker-optimization-selected');
-                    }
-                    mostrarMensagem(t('messages.info.pivot_selected_for_optimization', { name: clickedPivo.nome }), "info");
-                }
-            } else {
-                mostrarMensagem(t('messages.errors.select_uncovered_pivot_optimization'), "erro");
-            }
-        }
-        return; // Retorna para não cair na lógica de adicionar repetidora manual
-    }
-
     window.clickedCandidateData = null;
     window.ultimoCliqueFoiSobrePivo = false;
     AppState.coordenadaClicada = e.latlng;
@@ -656,16 +612,7 @@ function handleBuscarLocaisRepetidoraActivation() {
         btn.classList.toggle('glass-button-active', AppState.modoBuscaLocalRepetidora);
     }
 
-    // Desativar outros modos ao ativar este
     if (AppState.modoBuscaLocalRepetidora) {
-        if (AppState.modoEdicaoPivos) togglePivoEditing();
-        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
-        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
-        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
-        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
-        if (AppState.modoOtimizacao) toggleOptimizeNetworkMode(); // Desativar modo de otimização
-
         mostrarMensagem(t('messages.info.los_mode_on'), "sucesso");
         AppState.pivoAlvoParaLocalRepetidora = null;
 
@@ -675,6 +622,16 @@ function handleBuscarLocaisRepetidoraActivation() {
 
         document.getElementById("painel-repetidora")?.classList.add("hidden");
 
+        if (AppState.modoLoSPivotAPivot && typeof toggleLoSPivotAPivotMode === 'function') {
+            toggleLoSPivotAPivotMode();
+        }
+
+        if (AppState.modoEdicaoPivos) {
+            if (document.getElementById("editar-pivos")?.classList.contains('glass-button-active') && typeof togglePivoEditing === 'function') {
+                togglePivoEditing();
+            }
+        }
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
         if (map) map.getContainer().style.cursor = 'crosshair';
 
     } else {
@@ -801,7 +758,6 @@ function toggleModoDesenhoPivo() {
         if (AppState.modoEdicaoPivos) togglePivoEditing();
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoOtimizacao) toggleOptimizeNetworkMode(); // Desativar modo de otimização
     }
     
     AppState.modoDesenhoPivo = isActivating;
@@ -903,6 +859,89 @@ async function handlePivotDrawClick(e) {
     }
 }
 
+async function handleExportPdfReportClick() {
+    if (!AppState.jobId) {
+        mostrarMensagem(t('messages.errors.session_not_started'), "erro");
+        return;
+    }
+    if (!AppState.antenaGlobal && AppState.repetidoras.length === 0 && AppState.lastPivosDataDrawn.length === 0 && AppState.lastBombasDataDrawn.length === 0) {
+        mostrarMensagem(t('messages.errors.nothing_to_export'), "erro");
+        return;
+    }
+
+    mostrarLoader(true);
+    mostrarMensagem(t('messages.success.pdf_export_preparing'), "info");
+
+    try {
+        const repetidorasParaRelatorio = [];
+        AppState.repetidoras.forEach(rep => {
+            // Inclua apenas repetidoras que têm overlay e estão visíveis
+            const visibilityBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
+            const isVisible = !visibilityBtn || visibilityBtn.getAttribute('data-visible') === 'true';
+
+            if (isVisible) { // Não precisa do filename para o PDF, apenas os dados básicos
+                repetidorasParaRelatorio.push({
+                    nome: rep.nome,
+                    lat: rep.lat,
+                    lon: rep.lon,
+                    altura: rep.altura,
+                    altura_receiver: rep.altura_receiver,
+                    is_from_kmz: rep.is_from_kmz || false,
+                    sobre_pivo: rep.sobre_pivo || false
+                });
+            }
+        });
+
+        let antenaDataParaRelatorio = null;
+        if (AppState.antenaGlobal) {
+            antenaDataParaRelatorio = {
+                nome: AppState.antenaGlobal.nome,
+                lat: AppState.antenaGlobal.lat,
+                lon: AppState.antenaGlobal.lon,
+                altura: AppState.antenaGlobal.altura,
+                altura_receiver: AppState.antenaGlobal.altura_receiver
+            };
+        }
+
+        // Coletar status atual dos pivôs para o relatório
+        const pivosComStatus = AppState.lastPivosDataDrawn.map(p => ({
+            nome: p.nome,
+            lat: p.lat,
+            lon: p.lon,
+            fora: p.fora // 'fora' já está presente
+        }));
+
+        const bombasComStatus = AppState.lastBombasDataDrawn.map(b => ({
+            nome: b.nome,
+            lat: b.lat,
+            lon: b.lon,
+            fora: b.fora
+        }));
+
+        const payload = {
+            job_id: AppState.jobId,
+            language: localStorage.getItem('preferredLanguage') || 'pt-br',         
+            antena_principal_data: antenaDataParaRelatorio,
+            pivos_data: pivosComStatus,
+            bombas_data: bombasComStatus,
+            repetidoras_data: repetidorasParaRelatorio,
+            template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,
+            // Você pode adicionar a URL de uma imagem do mapa aqui se tiver um serviço de captura de tela
+            // current_map_screenshot_url: "...", 
+        };
+
+        await exportPdfReport(payload); // Chama a função da API
+
+        mostrarMensagem(t('messages.success.pdf_export_complete'), "sucesso");
+
+    } catch (error) {
+        console.error("Erro no processo de exportação PDF:", error);
+        mostrarMensagem(t('messages.errors.pdf_export_fail', { error: error.message }), "erro");
+    } finally {
+        mostrarLoader(false);
+    }
+}
+
 function handleResetClick(showMessage = true) {
     console.log("🔄 Resetando aplicação...");
     clearMapLayers();
@@ -916,7 +955,6 @@ function handleResetClick(showMessage = true) {
         'editar-pivos',
         'btn-los-pivot-a-pivot',
         'btn-buscar-locais-repetidora',
-        'btn-optimize-network', // Adicionado aqui
         'btn-draw-pivot',
         'btn-draw-pivot-setorial',
         'btn-draw-pivot-pacman',
@@ -943,17 +981,12 @@ function handleResetClick(showMessage = true) {
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         }
-        // Limpar a camada de sugestões de otimização também
-        if (AppState.suggestedRepeatersLayerGroup) {
-            AppState.suggestedRepeatersLayerGroup.clearLayers();
-        }
     }
 
     map.off('click', handlePivotDrawClick);
     map.off('mousemove', handlePivotDrawMouseMove);
     map.off('click', handleSectorialPivotDrawClick);
     map.off('mousemove', handleSectorialDrawMouseMove);
-    map.off('click', handleOptimizationTargetSelection); // Remover listener específico da otimização
 
     document.getElementById("simular-btn")?.classList.add("hidden");
     document.getElementById("lista-repetidoras").innerHTML = "";
@@ -1417,20 +1450,14 @@ function toggleLoSPivotAPivotMode() {
     document.getElementById('btn-los-pivot-a-pivot').classList.toggle('glass-button-active', AppState.modoLoSPivotAPivot);
     
     if (AppState.modoLoSPivotAPivot) {
-        // Desativar outros modos ao ativar este
-        if (AppState.modoEdicaoPivos) togglePivoEditing();
-        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
-        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
-        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
-        if (AppState.modoOtimizacao) toggleOptimizeNetworkMode(); // Desativar modo de otimização
-
         mostrarMensagem(t('messages.info.los_mode_step1_source'), "sucesso");
         if (AppState.marcadorPosicionamento) removePositioningMarker();
         document.getElementById("painel-repetidora").classList.add("hidden");
         AppState.losSourcePivot = null;
         AppState.losTargetPivot = null;
+        if (AppState.modoEdicaoPivos && document.getElementById("editar-pivos").classList.contains('glass-button-active')) togglePivoEditing();
+        if (AppState.modoBuscaLocalRepetidora && document.getElementById('btn-buscar-locais-repetidora').classList.contains('glass-button-active')) handleBuscarLocaisRepetidoraActivation();
+        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
         map.getContainer().style.cursor = 'help';
     } else {
         mostrarMensagem(t('messages.info.los_mode_deactivated'), "sucesso");
@@ -1645,7 +1672,6 @@ function toggleModoDesenhoPivoSetorial() {
         if (AppState.modoEdicaoPivos) togglePivoEditing();
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoOtimizacao) toggleOptimizeNetworkMode(); // Desativar modo de otimização
     }
 
     AppState.modoDesenhoPivoSetorial = isActivating;
@@ -1770,7 +1796,6 @@ function toggleModoDesenhoPivoPacman() {
         if (AppState.modoEdicaoPivos) togglePivoEditing();
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoOtimizacao) toggleOptimizeNetworkMode(); // Desativar modo de otimização
     }
     
     AppState.modoDesenhoPivoPacman = isActivating;
@@ -1901,7 +1926,6 @@ function toggleModoDesenhoIrripump() {
         if (AppState.modoEdicaoPivos) togglePivoEditing();
         if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
         if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoOtimizacao) toggleOptimizeNetworkMode(); // Desativar modo de otimização
     }
 
     AppState.modoDesenhoIrripump = isActivating;
@@ -1913,241 +1937,5 @@ function toggleModoDesenhoIrripump() {
     } else {
         map.getContainer().style.cursor = '';
         mostrarMensagem(t('messages.info.draw_irripump_off'), "sucesso");
-    }
-}
-
-// NOVO: Funções e lógica para o modo de Otimização de Rede
-function toggleOptimizeNetworkMode() {
-    const isActivating = !AppState.modoOtimizacao;
-    AppState.modoOtimizacao = isActivating;
-    const btn = document.getElementById('btn-optimize-network');
-
-    // Desativar outros modos ao ativar este
-    if (isActivating) {
-        if (AppState.modoEdicaoPivos) togglePivoEditing();
-        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
-        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
-        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
-        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
-
-        btn.classList.add('glass-button-active');
-        map.getContainer().style.cursor = 'pointer'; // Mudar cursor para indicar seleção
-        mostrarMensagem(t('messages.info.optimization_select_uncovered'), "info");
-        
-        // Limpar seleções anteriores
-        for (const pivoName in AppState.pivosSelecionadosOtimizacao) {
-            const marker = AppState.pivotsMap[pivoName];
-            if (marker && marker.getElement()) {
-                marker.getElement().classList.remove('pivo-marker-optimization-selected');
-            }
-        }
-        AppState.pivosSelecionadosOtimizacao = {};
-
-        // Adicionar listener para cliques nos pivôs (já existe no handleMapClick)
-        // map.on('click', handleOptimizationTargetSelection); // Isso é tratado no handleMapClick agora
-        
-        // Limpar sugestões anteriores
-        if (AppState.suggestedRepeatersLayerGroup) {
-            AppState.suggestedRepeatersLayerGroup.clearLayers();
-        }
-
-    } else {
-        btn.classList.remove('glass-button-active');
-        map.getContainer().style.cursor = '';
-        mostrarMensagem(t('messages.info.optimization_mode_off'), "sucesso");
-
-        // Remover seleção visual dos pivôs
-        for (const pivoName in AppState.pivosSelecionadosOtimizacao) {
-            const marker = AppState.pivotsMap[pivoName];
-            if (marker && marker.getElement()) {
-                marker.getElement().classList.remove('pivo-marker-optimization-selected');
-            }
-        }
-        AppState.pivosSelecionadosOtimizacao = {};
-        
-        // map.off('click', handleOptimizationTargetSelection); // Isso é tratado no handleMapClick agora
-        
-        // Limpar sugestões ao desativar o modo
-        if (AppState.suggestedRepeatersLayerGroup) {
-            AppState.suggestedRepeatersLayerGroup.clearLayers();
-        }
-    }
-}
-
-async function handleOptimizeNetworkClick() {
-    if (!AppState.jobId) {
-        mostrarMensagem(t('messages.errors.session_not_started'), "erro");
-        return;
-    }
-
-    if (AppState.modoOtimizacao) {
-        // Se o modo já está ativo, significa que o usuário clicou para INICIAR a otimização
-        const targetPivots = Object.values(AppState.pivosSelecionadosOtimizacao);
-
-        if (targetPivots.length === 0) {
-            mostrarMensagem(t('messages.errors.no_pivots_for_optimization'), "erro");
-            return;
-        }
-
-        mostrarLoader(true, t('messages.success.optimization_started'));
-        
-        try {
-            const payload = {
-                job_id: AppState.jobId,
-                pivos_atuais: AppState.lastPivosDataDrawn.map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, fora: p.fora })),
-                antena_global: AppState.antenaGlobal ? { lat: AppState.antenaGlobal.lat, lon: AppState.antenaGlobal.lon, altura: AppState.antenaGlobal.altura, altura_receiver: AppState.antenaGlobal.altura_receiver, imagem_filename: AppState.antenaGlobal.imagem_filename } : null,
-                repetidoras_atuais: AppState.repetidoras.map(r => ({ lat: r.lat, lon: r.lon, altura: r.altura, altura_receiver: r.altura_receiver, imagem_filename: r.imagem_filename })),
-                template: AppState.templateSelecionado,
-                target_pivots: targetPivots.map(p => p.nome), // Nomes dos pivôs selecionados
-                optimization_params: {
-                    max_repeaters: 5, // Exemplo: limite de 5 repetidoras
-                    min_coverage_percentage: 100 // Exemplo: tentar cobrir 100% dos alvos
-                }
-            };
-
-            const data = await optimizeNetwork(payload);
-
-            if (AppState.suggestedRepeatersLayerGroup) {
-                AppState.suggestedRepeatersLayerGroup.clearLayers();
-            } else {
-                AppState.suggestedRepeatersLayerGroup = L.layerGroup().addTo(map);
-            }
-
-            if (data.new_repeater_suggestions && data.new_repeater_suggestions.length > 0) {
-                // Desenhar as sugestões no mapa
-                data.new_repeater_suggestions.forEach((rep, index) => {
-                    const suggestedIcon = L.divIcon({
-                        className: 'suggested-repeater-icon',
-                        html: `<div style="background-color: #00BFFF; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: white;">${index + 1}</div>`,
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
-                    });
-                    const marker = L.marker([rep.lat, rep.lon], { icon: suggestedIcon, draggable: false }).addTo(AppState.suggestedRepeatersLayerGroup);
-                    marker.bindTooltip(`Sugestão Repetidora ${index + 1}<br>Alt: ${rep.altura_sugerida}m`, { permanent: false, direction: 'top', offset: [0, -10], className: 'tooltip-sinal' });
-                });
-
-                mostrarMensagem(t('messages.success.optimization_complete', { count: data.new_repeater_suggestions.length }), "sucesso");
-                // Adicionar botões "Aceitar Sugestões" e "Descartar"
-                // Por simplicidade, vamos apenas mostrar uma mensagem para o usuário.
-                // Em uma aplicação real, você teria um painel com estas opções.
-                
-                // Para demonstração, vamos simular a aceitação automática
-                setTimeout(() => acceptSuggestedRepeaters(data.new_repeater_suggestions), 3000); // Aceita após 3 segundos
-                
-            } else {
-                mostrarMensagem(t('messages.errors.no_optimization_solution'), "info");
-            }
-
-        } catch (error) {
-            console.error("Erro na otimização de rede:", error);
-            mostrarMensagem(t('messages.errors.optimization_fail', { error: error.message }), "erro");
-        } finally {
-            mostrarLoader(false);
-            // Desativar o modo de otimização após a tentativa
-            toggleOptimizeNetworkMode(); // Desativar o modo de seleção de pivôs
-        }
-
-    } else {
-        // Se o modo não está ativo, o usuário clicou para ATIVAR o modo de seleção de pivôs
-        toggleOptimizeNetworkMode();
-    }
-}
-
-// NOVO: Função para aceitar as repetidoras sugeridas
-async function acceptSuggestedRepeaters(suggestions) {
-    if (!suggestions || suggestions.length === 0) return;
-
-    mostrarLoader(true, t('messages.success.suggestions_accepted'));
-
-    try {
-        for (const rep of suggestions) {
-            const id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
-            const nomeRep = `${t('ui.labels.repeater')} (Otimizada ${String(id).padStart(2, '0')})`;
-            const novaRepetidoraMarker = L.marker([rep.lat, rep.lon], { icon: antenaIcon }).addTo(map);
-            
-            const labelRepetidora = L.marker([rep.lat, rep.lon], {
-                icon: L.divIcon({
-                    className: 'label-pivo', html: nomeRep,
-                    iconSize: [(nomeRep.length * 7) + 10, 20],
-                    iconAnchor: [((nomeRep.length * 7) + 10) / 2, 45]
-                }),
-                labelType: 'repetidora'
-            }).addTo(map);
-            AppState.marcadoresLegenda.push(labelRepetidora);
-
-            const tooltipRepetidoraContent = `
-                <div style="text-align: center;">
-                    ${t('ui.labels.antenna_height_tooltip', { height: rep.altura_sugerida || 5 })}
-                    <br>
-                    ${t('ui.labels.receiver_height_tooltip', { height: AppState.antenaGlobal?.altura_receiver || 3 })}
-                </div>
-            `;
-            novaRepetidoraMarker.bindTooltip(tooltipRepetidoraContent, {
-                permanent: false, direction: 'top', offset: [0, -40], className: 'tooltip-sinal'
-            });
-
-            const repetidoraObj = {
-                id, marker: novaRepetidoraMarker, overlay: null, label: labelRepetidora,
-                altura: rep.altura_sugerida || 5, altura_receiver: AppState.antenaGlobal?.altura_receiver || 3,
-                lat: rep.lat, lon: rep.lon,
-                imagem_filename: null, sobre_pivo: false, nome: nomeRep,
-                is_from_kmz: false, is_optimized: true // Marcar como otimizada
-            };
-            AppState.repetidoras.push(repetidoraObj);
-
-            // Simular sinal para a nova repetidora (se necessário ou esperar a reavaliação geral)
-            // Para manter a simplicidade, vamos deixar a reavaliação geral para o final
-        }
-
-        // Limpar as sugestões visuais do mapa
-        if (AppState.suggestedRepeatersLayerGroup) {
-            AppState.suggestedRepeatersLayerGroup.clearLayers();
-        }
-
-        // Reavaliar todos os pivôs com as novas repetidoras
-        await reavaliarPivosViaAPI();
-        atualizarPainelDados();
-        reposicionarPaineisLaterais();
-
-    } catch (error) {
-        console.error("Erro ao aceitar sugestões de repetidoras:", error);
-        mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
-    } finally {
-        mostrarLoader(false);
-    }
-}
-
-// NOVO: Adicionar listener para a seleção de pivôs no modo de otimização
-// Esta função será chamada pelo handleMapClick para evitar duplicação de listeners
-function handleOptimizationTargetSelection(pivoData, pivoMarker) {
-    if (!AppState.modoOtimizacao) return;
-
-    if (!AppState.jobId) {
-        mostrarMensagem(t('messages.errors.run_study_first'), "erro");
-        return;
-    }
-
-    const pivoInfo = AppState.lastPivosDataDrawn.find(p => p.nome === pivoData.nome);
-    if (pivoInfo && !pivoInfo.fora) {
-        mostrarMensagem(t('messages.errors.select_uncovered_pivot_optimization'), "erro");
-        return;
-    }
-
-    if (AppState.pivosSelecionadosOtimizacao[pivoData.nome]) {
-        // Desmarcar
-        delete AppState.pivosSelecionadosOtimizacao[pivoData.nome];
-        if (pivoMarker && pivoMarker.getElement()) {
-            pivoMarker.getElement().classList.remove('pivo-marker-optimization-selected');
-        }
-        mostrarMensagem(t('messages.info.pivot_deselected', { name: pivoData.nome }), "info");
-    } else {
-        // Marcar
-        AppState.pivosSelecionadosOtimizacao[pivoData.nome] = pivoData;
-        if (pivoMarker && pivoMarker.getElement()) {
-            pivoMarker.getElement().classList.add('pivo-marker-optimization-selected');
-        }
-        mostrarMensagem(t('messages.info.pivot_selected_for_optimization', { name: pivoData.nome }), "info");
     }
 }

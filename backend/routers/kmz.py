@@ -12,6 +12,7 @@ import uuid
 
 from backend.services import kmz_parser
 from backend.services import kmz_exporter 
+from backend.services import pdf_service # Mantém este import por segurança, caso outros módulos o usem
 from backend.config import settings
 from backend.services.i18n_service import i18n_service
 
@@ -169,7 +170,6 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
     except Exception as e:
         logger.error(f"❌ Erro Interno em /kmz/exportar (job: {payload.job_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao exportar KMZ: {type(e).__name__} - {str(e)}")
-
 
 @router.get("/icone-torre")
 async def get_icone_torre():

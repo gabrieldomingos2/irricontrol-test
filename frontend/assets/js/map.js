@@ -23,12 +23,6 @@ function initMap() {
         window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
         console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa.");
     }
-    
-    // NOVO: Inicializar camada para sugestões de repetidoras da otimização
-    if (!AppState.suggestedRepeatersLayerGroup) {
-        AppState.suggestedRepeatersLayerGroup = L.layerGroup().addTo(map);
-        console.log("suggestedRepeatersLayerGroup inicializado e adicionado ao mapa.");
-    }
 
     const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {

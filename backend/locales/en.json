@@ -19,8 +19,7 @@
             "draw_irripump": "Add Pump Station (Irripump)",
             "repeater_panel_setup": "📡 Configure Repeater",
             "search_coordinates": "Search Coordinates",
-            "toggle_antenna_legends": "Antenna Legends",
-            "radius": "Radius"
+            "toggle_antenna_legends": "Antenna Legends"
         },
         "labels": {
             "tools": "Tools",
