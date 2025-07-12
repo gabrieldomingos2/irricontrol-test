@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Query, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Query, HTTPException, BackgroundTasks, Form
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -13,6 +13,7 @@ import uuid
 from backend.services import kmz_parser
 from backend.services import kmz_exporter 
 from backend.config import settings
+from backend.services.i18n_service import i18n_service
 
 logger = logging.getLogger("irricontrol")
 
@@ -38,10 +39,10 @@ async def iniciar_job_vazio_endpoint():
 
 
 @router.post("/processar")
-async def processar_kmz_endpoint(file: UploadFile = File(...)):
+async def processar_kmz_endpoint(file: UploadFile = File(...), language: str = Form('pt-br')):
     job_id = str(uuid.uuid4())
 
-    logger.info(f"🆕 Novo job de processamento de arquivo GIS ({file.filename}) iniciado com ID: {job_id}")
+    logger.info(f"🆕 Novo job de processamento de arquivo GIS ({file.filename}) iniciado com ID: {job_id} para o idioma: '{language}'")
     job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / job_id
     job_input_dir.mkdir(parents=True, exist_ok=True)
@@ -55,7 +56,7 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
             f.write(conteudo)
         logger.info(f"  -> Arquivo de entrada salvo em: {input_file_path}")
 
-        antenas, pivos, ciclos, bombas = kmz_parser.parse_gis_file(str(input_file_path), str(job_input_dir))
+        antenas, pivos, ciclos, bombas = kmz_parser.parse_gis_file(str(input_file_path), str(job_input_dir), lang=language)
         
         parsed_data_path = job_input_dir / "parsed_data.json"
         parsed_content = {"antenas": antenas, "pivos": pivos, "ciclos": ciclos, "bombas": bombas}
@@ -74,8 +75,6 @@ async def processar_kmz_endpoint(file: UploadFile = File(...)):
 class ExportPayload(BaseModel):
     job_id: str
     template_id: str
-    # ✅ NOVO CAMPO: Recebe o código do idioma do frontend (ex: 'en', 'es', 'de').
-    # O valor padrão 'pt-br' garante compatibilidade com versões antigas do frontend.
     language: str = 'pt-br'
     antena_principal_data: Optional[Dict[str, Any]] = None
     imagem: Optional[str] = None
@@ -114,7 +113,9 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
             raise HTTPException(status_code=404, detail=f"O template com ID '{payload.template_id}' não foi encontrado.")
         logger.info(f"  -> Usando template '{selected_template.id}' do payload.")
 
-        kml = simplekml.Kml(name="Estudo de Sinal Irricontrol")
+        t = i18n_service.get_translator(payload.language)
+
+        kml = simplekml.Kml(name=t("kml.main_name"))
         doc = kml.document
         
         arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
@@ -136,7 +137,9 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         logger.info(f"  -> KML temporário salvo em: {caminho_kml_temp}")
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        nome_kmz_final = f"estudo-irricontrol-{timestamp}.kmz"
+        filename_prefix = t("kml.filename_prefix")
+        nome_kmz_final = f"{filename_prefix}-{timestamp}.kmz"
+        
         caminho_kmz_final_servidor = job_input_dir / nome_kmz_final
 
         logger.info(f"  -> Criando KMZ final: {caminho_kmz_final_servidor}")

@@ -200,6 +200,11 @@ async function handleKmzFileSelect(event) {
     const formData = new FormData();
     formData.append("file", file);
 
+    // --- NOVO: Adicionar o idioma atual ao formulário ---
+    const currentLanguage = localStorage.getItem('preferredLanguage') || 'pt-br';
+    formData.append("language", currentLanguage);
+    // --- FIM DA MODIFICAÇÃO ---
+
     try {
         handleResetClick(false);
 
@@ -214,26 +219,39 @@ async function handleKmzFileSelect(event) {
         AppState.currentProcessedKmzData = JSON.parse(JSON.stringify(data));
 
         if (data.pivos && data.ciclos) {
-            data.ciclos.forEach(ciclo => {
-                const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
-                const pivoCorrespondente = data.pivos.find(p => p.nome === nomePivo);
-                if (pivoCorrespondente && ciclo.coordenadas.length > 0) {
-                    const bounds = L.polygon(ciclo.coordenadas).getBounds();
+            data.pivos.forEach(pivo => {
+                if (pivo.tipo === 'custom' && Array.isArray(pivo.coordenadas) && pivo.coordenadas.length > 0) {
+                    return;
+                }
+                const nomeCicloEsperado = `Ciclo ${pivo.nome}`;
+                const cicloCorrespondente = data.ciclos.find(c => c.nome_original_circulo === nomeCicloEsperado);
+
+                if (cicloCorrespondente && Array.isArray(cicloCorrespondente.coordenadas) && cicloCorrespondente.coordenadas.length > 0) {
+                    pivo.tipo = 'custom';
+                    pivo.coordenadas = cicloCorrespondente.coordenadas;
+                    
+                    const bounds = L.polygon(cicloCorrespondente.coordenadas).getBounds();
                     const centro = bounds.getCenter();
                     const pontoNorte = L.latLng(bounds.getNorth(), centro.lng);
-                    pivoCorrespondente.raio = centro.distanceTo(pontoNorte);
-
-                    if (typeof generateCircleCoords === 'function') {
-                        ciclo.coordenadas = generateCircleCoords(centro, pivoCorrespondente.raio, 360);
-                    }
+                    pivo.raio = centro.distanceTo(pontoNorte);
                 }
             });
         }
-        
-        AppState.antenaGlobal = null; 
+
+        AppState.antenaGlobal = null;
         const antenasCandidatas = data.antenas || [];
+        const bombasParaDesenhar = data.bombas || [];
+        const pivosParaDesenhar = data.pivos || [];
+        const pivosComStatusInicial = pivosParaDesenhar.map(p => ({ ...p, fora: true }));
+
+        AppState.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
+        AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(bombasParaDesenhar));
+        AppState.ciclosGlobais = data.ciclos || [];
 
         drawAntenaCandidates(antenasCandidatas);
+        drawBombas(AppState.lastBombasDataDrawn);
+        drawPivos(AppState.lastPivosDataDrawn);
+        drawCirculos();
 
         if (antenasCandidatas.length > 0) {
             mostrarMensagem(t('messages.success.kmz_loaded_select_tower'), "sucesso");
@@ -242,18 +260,6 @@ async function handleKmzFileSelect(event) {
         }
 
         document.getElementById("simular-btn").classList.add("hidden");
-
-        const bombasParaDesenhar = data.bombas || [];
-        AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(bombasParaDesenhar));
-        drawBombas(bombasParaDesenhar);
-        
-        AppState.ciclosGlobais = data.ciclos || [];
-        drawCirculos(AppState.ciclosGlobais);
-
-        const pivosParaDesenhar = data.pivos || [];
-        const pivosComStatusInicial = pivosParaDesenhar.map(p => ({ ...p, fora: true }));
-        AppState.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
-        drawPivos(pivosComStatusInicial);
 
         if (pivosParaDesenhar.length > 0 || antenasCandidatas.length > 0) {
             const boundsToFit = [];

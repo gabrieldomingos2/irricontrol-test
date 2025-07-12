@@ -6,7 +6,7 @@ import logging
 import json
 from datetime import datetime
 import re
-from math import log10
+from math import log10, isnan
 from typing import Any, Optional, List, Tuple, Callable
 from shutil import copyfile
 from geopy.distance import geodesic
@@ -16,10 +16,12 @@ from backend.config import settings
 from backend.services.i18n_service import i18n_service
 
 logger = logging.getLogger("irricontrol")
-COLOUR_KEY_KML_NAME, LOGO_FILENAME, TORRE_ICON_NAME = "Colour Key", "IRRICONTROL.png", "cloudrf.png"
+
+# Constantes de nome de arquivo
+LOGO_FILENAME, TORRE_ICON_NAME = "IRRICONTROL.png", "cloudrf.png"
 DEFAULT_ICON_URL = "http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png"
 
-# --- Funções de Geração de Geometria (Sem alterações) ---
+# --- Funções de Geração de Geometria ---
 
 def _generate_sector_coords(lat, lon, radius_m, bearing_deg, arc_width_deg, steps=40) -> list:
     """Gera coordenadas para um polígono de setor (fatia de pizza)."""
@@ -30,7 +32,7 @@ def _generate_sector_coords(lat, lon, radius_m, bearing_deg, arc_width_deg, step
         angle = start_angle + (i * arc_width_deg / steps)
         dest = geodesic(meters=radius_m).destination(center_point, angle)
         coords.append((dest.longitude, dest.latitude, 0))
-    coords.append((lon, lat, 0)) # Fecha o polígono no centro
+    coords.append((lon, lat, 0))
     return coords
 
 def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, steps=80) -> list:
@@ -51,40 +53,45 @@ def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, 
         dest = geodesic(meters=radius_m).destination(center_point, current_angle)
         coords.append((dest.longitude, dest.latitude, 0))
 
-    coords.append((lon, lat, 0)) # Fecha o polígono de volta ao centro
+    coords.append((lon, lat, 0))
     return coords
 
 
 # --- Funções de Criação de Estrutura KML ---
 
-def _create_html_description_table(entity_data: dict, template: Any, file_id_info: str, colour_key_filename: str) -> str:
+def _create_html_description_table(entity_data: dict, template: Any, file_id_info: str, colour_key_filename: str, t: Callable) -> str:
+    """Cria a tabela HTML de descrição usando chaves de tradução."""
     txw, txg_dbi = template.transmitter.txw, template.antenna.txg
-    tx_power_dbm = 10 * log10(txw * 1000)
-    eirp_dbm = tx_power_dbm + txg_dbi
-    eirp_w = (10**(eirp_dbm / 10)) / 1000
-    erp_dbm = eirp_dbm - 2.15
-    erp_w = (10**(erp_dbm / 10)) / 1000
+    
+    # Adiciona checagem de segurança para evitar erro de log
+    tx_power_dbm = 10 * log10(txw * 1000) if txw > 0 else -float('inf')
+    eirp_dbm = tx_power_dbm + txg_dbi if not isnan(tx_power_dbm) else -float('inf')
+    eirp_w = (10**(eirp_dbm / 10)) / 1000 if not isnan(eirp_dbm) else 0
+    erp_dbm = eirp_dbm - 2.15 if not isnan(eirp_dbm) else -float('inf')
+    erp_w = (10**(erp_dbm / 10)) / 1000 if not isnan(erp_dbm) else 0
+    
     lat, lon = entity_data.get('lat'), entity_data.get('lon')
     lat_str, lon_str = (f"{lat:.6f}", f"{lon:.6f}") if isinstance(lat, float) else ("N/A", "N/A")
     file_id_info_sanitized = html.escape(file_id_info)
     
+    # Usa a função de tradução 't' para todos os cabeçalhos da tabela
     return f"""<div style="font-family: Arial, sans-serif; font-size: 12px;">
     <table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse; width: 350px;">
-        <tr><td bgcolor="#f2f2f2" style="width: 120px;"><b>Frequency</b></td><td>{template.frq} MHz</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>RF Power</b></td><td>{txw} W</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Tx Gain</b></td><td>{txg_dbi} dBi</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>ERP</b></td><td>{erp_w:.3f} W / {erp_dbm:.3f} dBm</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>EIRP</b></td><td>{eirp_w:.3f} W / {eirp_dbm:.3f} dBm</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Tx Lat/Lon</b></td><td>{lat_str}, {lon_str}</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Tx Height</b></td><td>{entity_data.get('altura', 'N/A')}m</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Tx Antenna</b></td><td>Pattern: DIPOLE.ANT<br>Azimuth: 0°<br>Tilt: 0°<br>Polarisation: v<br>Gain: {txg_dbi} dBi</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Rx Height</b></td><td>{template.receiver.alt}m</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Rx Sensitivity</b></td><td>{template.rxs}dBm</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Rx Gain</b></td><td>{template.receiver.rxg} dBi</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Modulation</b></td><td>CW</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Bandwidth</b></td><td>{template.transmitter.bwi} MHz</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>File ID</b></td><td>{file_id_info_sanitized}</td></tr>
-        <tr><td bgcolor="#f2f2f2"><b>Colour Key</b></td><td><img src="{colour_key_filename}" alt="Legenda" style="max-width: 120px;"></td></tr>
+        <tr><td bgcolor="#f2f2f2" style="width: 120px;"><b>{t("kml.table.frequency")}</b></td><td>{template.frq} MHz</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.rf_power")}</b></td><td>{txw} W</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.tx_gain")}</b></td><td>{txg_dbi} dBi</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.erp")}</b></td><td>{erp_w:.3f} W / {erp_dbm:.3f} dBm</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.eirp")}</b></td><td>{eirp_w:.3f} W / {eirp_dbm:.3f} dBm</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.tx_lat_lon")}</b></td><td>{lat_str}, {lon_str}</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.tx_height")}</b></td><td>{entity_data.get('altura', 'N/A')}m</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.tx_antenna")}</b></td><td>Pattern: DIPOLE.ANT<br>Azimuth: 0°<br>Tilt: 0°<br>Polarisation: v<br>Gain: {txg_dbi} dBi</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.rx_height")}</b></td><td>{template.receiver.alt}m</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.rx_sensitivity")}</b></td><td>{template.rxs}dBm</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.rx_gain")}</b></td><td>{template.receiver.rxg} dBi</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.modulation")}</b></td><td>CW</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.bandwidth")}</b></td><td>{template.transmitter.bwi} MHz</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.file_id")}</b></td><td>{file_id_info_sanitized}</td></tr>
+        <tr><td bgcolor="#f2f2f2"><b>{t("kml.table.colour_key")}</b></td><td><img src="{colour_key_filename}" alt="Legenda" style="max-width: 120px;"></td></tr>
         <tr><td colspan="2" style="text-align: center;"><img src="{LOGO_FILENAME}" alt="Logo" style="width: 200px;"></td></tr>
     </table></div>"""
 
@@ -99,7 +106,8 @@ def _setup_main_antenna_structure(doc, antena, style, details_name, template, fi
     folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
     subfolder = folder.newfolder(name=details_name)
     pnt = subfolder.newpoint(name=folder_name, coords=[(antena["lon"], antena["lat"])])
-    pnt.description = _create_html_description_table(antena, template, file_id, legend_name)
+    # Passa a função 't' para a criação da tabela
+    pnt.description = _create_html_description_table(antena, template, file_id, legend_name, t)
     pnt.style = style
     return subfolder
 
@@ -134,7 +142,8 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         lat, lon = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
         
         pnt = sub.newpoint(name=nome, coords=[(lon, lat)])
-        pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": altura_repetidora}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name)
+        # Passa a função 't' para a criação da tabela
+        pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": altura_repetidora}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name, t)
         pnt.style = style
         
         ground = sub.newgroundoverlay(name=t("kml.overlays.coverage_for", name=nome))
@@ -142,7 +151,8 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = bounds[2], bounds[0], bounds[3], bounds[1]
         files.append((path_img, img_name))
         
-        screen_rep = sub.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
+        # Usa a função 't' para o nome do screen overlay
+        screen_rep = sub.newscreenoverlay(name=t("kml.colour_key_name"))
         screen_rep.icon.href = overlay_name
         screen_rep.overlayxy = simplekml.OverlayXY(**overlay_props['overlay_xy'])
         screen_rep.screenxy = simplekml.ScreenXY(**overlay_props['screen_xy'])
@@ -251,7 +261,8 @@ def build_kml_document_and_get_image_list(doc, lang: str, pivos_data, ciclos_dat
         ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = b[2], b[0], b[3], b[1]
         files_for_kmz.append((generated_images_dir / imagem_principal_nome_relativo, imagem_principal_nome_relativo))
         
-        screen = folder.newscreenoverlay(name=COLOUR_KEY_KML_NAME)
+        # Usa a função 't' para o nome do screen overlay
+        screen = folder.newscreenoverlay(name=t("kml.colour_key_name"))
         screen.icon.href = key_overlay_name
         screen.overlayxy = simplekml.OverlayXY(**OVERLAY_PROPS['overlay_xy'])
         screen.screenxy = simplekml.ScreenXY(**OVERLAY_PROPS['screen_xy'])

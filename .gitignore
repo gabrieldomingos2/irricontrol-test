@@ -1,48 +1,47 @@
-# Ambiente virtual
+# === Python: Ambiente virtual ===
 .venv/
 env/
 venv/
 
-# Cache do Python
+# === Python: Cache e arquivos compilados ===
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 
-# Arquivos do sistema
+# === Arquivos do sistema operacional ===
 .DS_Store
 Thumbs.db
 
-# Arquivos temporários
+# === Temporários e logs ===
 *.log
 *.tmp
 *.bak
+*.swp
 
-# IDEs
+# === IDEs e editores ===
 .vscode/
 .idea/
+*.code-workspace
 
-# Arquivos de configuração locais
+# === Variáveis de ambiente (segredos) ===
 .env
 *.env
 
-# Frontend (Node.js)
+# === Frontend (Node.js) ===
 node_modules/
 dist/
 build/
 
-# Arquivos de deploy estáticos (ignora conteúdo, mas mantém a pasta com .keep)
+# === Arquivos de deploy estáticos (mantém a pasta com .keep) ===
 backend/static/imagens/*
 !backend/static/imagens/.keep
 
 backend/static/arquivos/*
 !backend/static/arquivos/.keep
 
-
-# Bats
-start-servidor.bat
-
-# Bc
+# === Scripts e logs locais ===
+*.bat
+*.sh
 irricontrol_app.log
-
-
+*.ps1

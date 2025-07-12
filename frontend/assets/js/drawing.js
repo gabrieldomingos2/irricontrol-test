@@ -38,11 +38,6 @@ let tempPacmanShape = null;
 
 // --- FUNÇÕES DE LÓGICA DE DESENHO DINÂMICO ---
 
-/**
- * Calcula o tamanho do ícone do pivô com base no nível de zoom atual.
- * @param {number} zoom - O nível de zoom do mapa.
- * @returns {number} - O tamanho (diâmetro) do ícone em pixels.
- */
 function getDynamicIconSize(zoom) {
     const minZoom = 10; // Zoom mínimo em que o ícone começa a diminuir
     const maxZoom = 17; // Zoom em que o ícone atinge o tamanho máximo
@@ -64,10 +59,7 @@ function getDynamicIconSize(zoom) {
     return Math.round(size);
 }
 
-/**
- * Atualiza o tamanho de todos os ícones de pivô no mapa.
- * Esta função será chamada toda vez que o zoom do mapa mudar.
- */
+
 function updatePivotIcons() {
     if (!map || !AppState.lastPivosDataDrawn) return;
     if (AppState.modoEdicaoPivos) {
@@ -201,10 +193,10 @@ function drawPivos(pivosData, useEdited = false) {
         
         const initialSize = getDynamicIconSize(map.getZoom());
         const pivoIcon = L.divIcon({
-    className: 'pivo-marker-container',
-    iconSize: [initialSize, initialSize],
-    html: `<div class="pivo-marker-dot" style="background-color: ${cor};"></div>`
-});
+            className: 'pivo-marker-container',
+            iconSize: [initialSize, initialSize],
+            html: `<div class="pivo-marker-dot" style="background-color: ${cor};"></div>`
+        });
 
         const marker = L.marker(pos, { icon: pivoIcon }).addTo(map);
 
@@ -275,7 +267,6 @@ function drawPivos(pivosData, useEdited = false) {
         AppState.marcadoresPivos.push(marker);
         AppState.pivotsMap[pivo.nome] = marker;
 
-        // Manipulador de clique com botão direito
         marker.on('contextmenu', (e) => {
             L.DomEvent.stop(e);
             if (AppState.modoEdicaoPivos) return;
@@ -380,13 +371,13 @@ function drawBombas(bombasData) {
 
 function drawCirculos(ciclosData) {
     if (!map) return;
+
     AppState.circulosPivos.forEach(c => map.removeLayer(c));
     AppState.circulosPivos = [];
-
     AppState.lastPivosDataDrawn.forEach(pivo => {
         const pivoLatLng = L.latLng(pivo.lat, pivo.lon);
 
-        if (pivo.tipo === 'custom' && Array.isArray(pivo.coordenadas)) {
+        if (pivo.tipo === 'custom' && Array.isArray(pivo.coordenadas) && pivo.coordenadas.length > 0) {
             const polygon = L.polygon(pivo.coordenadas, {
                 color: '#cc0000',
                 weight: 3,
@@ -396,6 +387,7 @@ function drawCirculos(ciclosData) {
             }).addTo(map);
             AppState.circulosPivos.push(polygon);
         }
+
         else if (pivo.tipo === 'setorial') {
             const sectorCoords = generateSectorCoords(pivoLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
             const sectorPolygon = L.polygon(sectorCoords, {
@@ -407,6 +399,7 @@ function drawCirculos(ciclosData) {
             }).addTo(map);
             AppState.circulosPivos.push(sectorPolygon);
         }
+
         else if (pivo.tipo === 'pacman') {
             const pacmanCoords = generatePacmanCoords(pivoLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
             const pacmanPolygon = L.polygon(pacmanCoords, {
@@ -418,8 +411,8 @@ function drawCirculos(ciclosData) {
             }).addTo(map);
             AppState.circulosPivos.push(pacmanPolygon);
         }
+
         else {
-            // fallback padrão (circular simples)
             const circle = L.circle(pivoLatLng, {
                 radius: pivo.raio || 100,
                 color: '#cc0000',
@@ -431,36 +424,23 @@ function drawCirculos(ciclosData) {
             AppState.circulosPivos.push(circle);
         }
     });
-
-    // Renderização extra para ciclos soltos (não associados a pivôs)
-    ciclosData.forEach(ciclo => {
-        if (!ciclo.nome_original_circulo) return;
-
-        const nomePivo = ciclo.nome_original_circulo.replace('Ciclo ', '');
-        const pivoCorrespondente = AppState.lastPivosDataDrawn.find(p => p.nome === nomePivo);
-
-        if (!pivoCorrespondente || !['custom', 'setorial', 'pacman'].includes(pivoCorrespondente.tipo)) {
-            const center = L.polygon(ciclo.coordenadas).getBounds().getCenter();
-            const radius = pivoCorrespondente?.raio || center.distanceTo(L.latLng(ciclo.coordenadas[0]));
-
-            const fallbackCircle = L.circle(center, {
-                radius: radius,
-                color: '#cc0000',
-                weight: 3,
-                opacity: 0.9,
-                fillOpacity: 0,
-                className: 'circulo-fallback'
-            }).addTo(map);
-            AppState.circulosPivos.push(fallbackCircle);
-        }
-    });
 }
 
 
 function drawImageOverlay(url, bounds, opacity = 1.0) {
     if (!map || !url || !bounds) return null;
+
+    // Determina se estamos em ambiente local.
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    // Define a URL base do backend.
+    const BACKEND_URL = isLocal ? "http://localhost:8000" : "https://irricontrol-test.onrender.com";
+
+    // Constrói a URL completa para a imagem, garantindo que ela seja carregada do servidor backend.
+    const fullUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
+
     const imageBounds = [[bounds[0], bounds[1]], [bounds[2], bounds[3]]];
-    const overlay = L.imageOverlay(url, imageBounds, { opacity, interactive: false }).addTo(map);
+    // Usa a URL completa para criar o overlay.
+    const overlay = L.imageOverlay(fullUrl, imageBounds, { opacity, interactive: false }).addTo(map);
     AppState.overlaysVisiveis.push(overlay);
     return overlay;
 }
@@ -765,15 +745,22 @@ let tempCircle = null;
 
 function drawTempCircle(center, radiusPoint) {
     const radius = center.distanceTo(radiusPoint);
+
     if (tempCircle) {
         tempCircle.setLatLng(center).setRadius(radius);
     } else {
         tempCircle = L.circle(center, {
-            radius: radius, color: '#3B82F6', weight: 3, dashArray: '5, 5',
-            fillColor: '#3B82F6', fillOpacity: 0.1, interactive: false
+            radius: radius,
+            color: '#D97706',
+            weight: 3,
+            dashArray: '5, 5',
+            fillColor: '#D97706',
+            fillOpacity: 0.1,
+            interactive: false
         }).addTo(map);
     }
 }
+
 
 function removeTempCircle() {
     if (tempCircle) {
@@ -782,7 +769,7 @@ function removeTempCircle() {
     }
 }
 
-function generateCircleCoords(center, radius, points = 240) { // <-- Aumentado de 60 para 240
+function generateCircleCoords(center, radius, points = 240) {
     const coords = [];
     const earthRadius = 6378137;
     const lat = center.lat * (Math.PI / 180);
@@ -793,21 +780,27 @@ function generateCircleCoords(center, radius, points = 240) { // <-- Aumentado d
         const newLon = lon + Math.atan2(Math.sin(bearing) * Math.sin(radius / earthRadius) * Math.cos(lat), Math.cos(radius / earthRadius) - Math.sin(lat) * Math.sin(newLat));
         coords.push([newLat * (180 / Math.PI), newLon * (180 / Math.PI)]);
     }
-    coords.push(coords[0]); // Fecha o círculo
+    coords.push(coords[0]);
     return coords;
 }
 
 function drawTempSector(center, currentPoint) {
     const radius = center.distanceTo(currentPoint);
     if (radius < 5) return;
+
     const bearing = calculateBearing(center, currentPoint);
     const coords = generateSectorCoords(center, radius, bearing, 180);
+
     if (tempSectorShape) {
         tempSectorShape.setLatLngs(coords);
     } else {
         tempSectorShape = L.polygon(coords, {
-            color: '#3B82F6', weight: 3, dashArray: '8, 8',
-            fillColor: '#3B82F6', fillOpacity: 0.2, interactive: false
+            color: '#D97706',
+            weight: 3,
+            dashArray: '8, 8',
+            fillColor: '#D97706',
+            fillOpacity: 0.2,
+            interactive: false
         }).addTo(map);
     }
 }
@@ -886,23 +879,32 @@ function drawTempPacman(center, radiusPoint, currentMousePoint) {
         const radius = center.distanceTo(currentMousePoint);
         if (radius > 5) {
             tempPacmanShape = L.circle(center, {
-                radius: radius, color: '#3B82F6', weight: 3, dashArray: '5, 5',
-                fillColor: '#3B82F6', fillOpacity: 0.1, interactive: false
+                radius: radius,
+                color: '#D97706',
+                weight: 3,
+                dashArray: '5, 5',
+                fillColor: '#D97706',
+                fillOpacity: 0.1,
+                interactive: false
             }).addTo(map);
         }
-    } 
-    else {
+    } else {
         const radius = center.distanceTo(radiusPoint);
         const startAngle = calculateBearing(center, radiusPoint);
         const endAngle = calculateBearing(center, currentMousePoint);
         const coords = generatePacmanCoords(center, radius, startAngle, endAngle);
-        
+
         tempPacmanShape = L.polygon(coords, {
-            color: '#3B82F6', weight: 3, dashArray: '8, 8',
-            fillColor: '#3B82F6', fillOpacity: 0.2, interactive: false
+            color: '#D97706',
+            weight: 3,
+            dashArray: '8, 8',
+            fillColor: '#D97706',
+            fillOpacity: 0.2,
+            interactive: false
         }).addTo(map);
     }
 }
+
 
 function removeTempPacman() {
     if (tempPacmanShape) {

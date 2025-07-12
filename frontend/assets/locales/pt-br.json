@@ -172,10 +172,53 @@
         "labels": {
             "shown": "exibidas",
             "hidden": "ocultas"
+        },
+        "entity_names": {
+            "pivot": "Pivô",
+            "irripump": "Irripump"
+        },
+        "kml": {
+            "main_name": "Estudo de Sinal Irricontrol",
+            "filename_prefix": "estudo-irricontrol",
+            "colour_key_name": "Legenda de Cores"
+        },
+        "folders": {
+            "main_antenna": "Antena Principal",
+            "pivots_markers": "Marcadores de Pivôs",
+            "pivot_areas": "Áreas dos Pivôs",
+            "pumps": "Estações de Bombeamento"
+        },
+        "repeaters": {
+            "solar_repeater": "Repetidora Solar {height}m",
+            "solar_pivot_repeater": "Repetidora Solar de Pivô {height}m"
+        },
+        "overlays": {
+            "coverage_freq": "Cobertura {freq}MHz",
+            "coverage_for": "Cobertura para {name}"
+        },
+        "areas": {
+            "pivot_area": "Área do {name}"
+        },
+        "prefixes": {
+            "cycle": "Ciclo",
+            "area": "Área"
+        },
+        "table": {
+           "frequency": "Frequency",
+           "rf_power": "RF Power",
+           "tx_gain": "Tx Gain",
+           "erp": "ERP",
+           "eirp": "EIRP",
+           "tx_lat_lon": "Tx Lat/Lon",
+           "tx_height": "Tx Height",
+           "tx_antenna": "Tx Antenna",
+           "rx_height": "Rx Height",
+           "rx_sensitivity": "Rx Sensitivity",
+           "rx_gain": "Rx Gain",
+           "modulation": "Modulation",
+           "bandwidth": "Bandwidth",
+           "file_id": "File ID",
+           "colour_key": "Colour Key"
         }
-    },
-    "entity_names": {
-        "pivot": "Pivô",
-        "irripump": "Irripump"
     }
 }

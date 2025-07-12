@@ -1,6 +1,7 @@
 // assets/js/api.js
 
-const BACKEND_URL = "https://irricontrol-test.onrender.com";
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const BACKEND_URL = isLocal ? "http://localhost:8000" : "https://irricontrol-test.onrender.com";
 const API_PREFIX = "/api/v1";
 
 /**

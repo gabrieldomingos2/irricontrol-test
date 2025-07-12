@@ -1,4 +1,3 @@
-# backend/services/kmz_parser.py
 import zipfile
 import re
 import xml.etree.ElementTree as ET
@@ -8,24 +7,22 @@ from pathlib import Path
 import logging
 from typing import List, Tuple, Dict, Optional, TypedDict, Union
 
-# Importa as configurações centralizadas que agora contêm as keywords
+# Importa o serviço de internacionalização e as configurações
+from backend.services.i18n_service import i18n_service
 from backend.config import settings
 
 logger = logging.getLogger("irricontrol")
 
 KML_NAMESPACE = {"kml": "http://www.opengis.net/kml/2.2"}
 
-# As listas de keywords foram movidas para config.py para suportar múltiplos idiomas
-# e facilitar a manutenção.
-
-# Esta keyword é muito específica da lógica interna e pode ser mantida aqui.
+# Keywords e constantes
 PONTA_RETA_KEYWORDS = ["ponta 1 reta", "ponta 2 reta"]
 DEFAULT_ANTENA_HEIGHT = 15
 DEFAULT_RECEIVER_HEIGHT = 3
 CIRCLE_CLOSENESS_THRESHOLD = 0.0005
-
 HEIGHT_REGEX = re.compile(r"(\d{1,3})\s*(m|metros)")
 
+# --- TypedDicts para tipagem ---
 class CoordsDict(TypedDict):
     lat: float
     lon: float
@@ -38,6 +35,10 @@ class AntenaData(CoordsDict):
 class PivoData(CoordsDict):
     nome: str
     type: str
+    # Adicionando campos opcionais para consistência
+    tipo: Optional[str]
+    coordenadas: Optional[List[List[float]]]
+
 
 class CicloData(TypedDict):
     nome_original_circulo: str
@@ -47,13 +48,11 @@ class BombaData(CoordsDict):
     nome: str
     type: str
 
+# --- Funções auxiliares ---
 def normalizar_nome(nome: str) -> str:
     if not nome: return ""
-    # Converte para minúsculas
     nome_lower = nome.lower()
-    # Remove caracteres especiais, mantendo letras acentuadas, números e espaços
     nome_sem_especiais = re.sub(r'[^a-z0-9\sÀ-ÖØ-öø-ÿ]', '', nome_lower)
-    # Substitui múltiplos espaços por um único espaço e remove espaços no início/fim
     return re.sub(r'\s+', ' ', nome_sem_especiais).strip()
 
 def calcular_meio_reta(p1: CoordsDict, p2: CoordsDict) -> Tuple[float, float]:
@@ -74,9 +73,7 @@ def ponto_central_da_reta_maior(coords_list: List[List[float]]) -> Tuple[float, 
 
 def eh_um_circulo(coords_list: List[List[float]], threshold: float = CIRCLE_CLOSENESS_THRESHOLD) -> bool:
     if len(coords_list) < 3: return False
-    # Compara a distância entre o primeiro e o último ponto
     return Point(coords_list[0][1], coords_list[0][0]).distance(Point(coords_list[-1][1], coords_list[-1][0])) < threshold
-
 
 def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
     try:
@@ -111,12 +108,16 @@ def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Unio
     if not coords_text or not geometry_type: return None
     data["geometry_type"] = geometry_type
     
-    parsed_coords = [[float(p.split(',')[1]), float(p.split(',')[0])] for p in coords_text.split() if len(p.split(',')) >= 2]
-    if not parsed_coords: return None
-    data["coordenadas_lista"] = parsed_coords
-    return data
+    try:
+        parsed_coords = [[float(p.split(',')[1]), float(p.split(',')[0])] for p in coords_text.split() if len(p.split(',')) >= 2]
+        if not parsed_coords: return None
+        data["coordenadas_lista"] = parsed_coords
+        return data
+    except (ValueError, IndexError):
+        logger.warning(f"Não foi possível parsear coordenadas para o placemark '{nome_original}'. Texto: '{coords_text}'")
+        return None
 
-def gerar_nome_pivo_sequencial_unico(lista_de_nomes_existentes_normalizados: set[str], nome_base: str = "Pivot") -> str:
+def gerar_nome_pivo_sequencial_unico(lista_de_nomes_existentes_normalizados: set[str], nome_base: str) -> str:
     contador = 1
     while True:
         nome_candidato = f"{nome_base} {contador}"
@@ -127,7 +128,8 @@ def gerar_nome_pivo_sequencial_unico(lista_de_nomes_existentes_normalizados: set
 def _consolidate_pivos(
     pivos_de_pontos: List[PivoData],
     ciclos_parsed: List[CicloData],
-    pontas_retas_map: Dict[str, CoordsDict]
+    pontas_retas_map: Dict[str, CoordsDict],
+    nome_base_pivo: str
 ) -> List[PivoData]:
     final_pivos_list = list(pivos_de_pontos)
     nomes_pivos_existentes_normalizados = {normalizar_nome(p["nome"]) for p in final_pivos_list}
@@ -168,15 +170,15 @@ def _consolidate_pivos(
                     centro_lon = mean([c[1] for c in coordenadas_ciclo])
 
         if centro_lat is not None and centro_lon is not None:
-            nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados)
+            nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados, nome_base=nome_base_pivo)
 
-            pivo_dict = {
+            pivo_dict: PivoData = {
                 "nome": nome_pivo_gerado,
                 "lat": centro_lat,
                 "lon": centro_lon,
                 "type": "pivo",
-                "tipo": "custom",  # 🔥 chave que o frontend vai usar
-                "coordenadas": coordenadas_ciclo  # 🔥 shape real do Google Earth
+                "tipo": "custom",
+                "coordenadas": coordenadas_ciclo
             }
 
             final_pivos_list.append(pivo_dict)
@@ -187,11 +189,12 @@ def _consolidate_pivos(
 
     return final_pivos_list
 
-def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
+def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'pt-br') -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
     """
     Processa um arquivo KML ou KMZ, extrai os dados relevantes e os retorna,
-    usando as keywords multilíngues da configuração.
+    usando as keywords multilíngues da configuração e o idioma fornecido.
     """
+    t = i18n_service.get_translator(lang)
     caminho_gis = Path(caminho_gis_str)
     pasta_extracao = Path(pasta_extracao_str)
     
@@ -204,7 +207,6 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
     caminho_kml_a_ser_lido: Optional[Path] = None
     kml_extraido_path_temp: Optional[Path] = None
 
-    # Pega as listas de keywords consolidadas da configuração
     antena_kws = settings.ENTITY_KEYWORDS['ANTENA']
     pivo_kws = settings.ENTITY_KEYWORDS['PIVO']
     bomba_kws = settings.ENTITY_KEYWORDS['BOMBA']
@@ -232,9 +234,10 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
             if not parsed_data:
                 continue
 
-            nome_original = parsed_data["nome_original"]
+            nome_original = str(parsed_data["nome_original"])
             nome_norm = normalizar_nome(nome_original)
-            coords, geo_type = parsed_data["coordenadas_lista"], parsed_data["geometry_type"]  # type: ignore
+            coords = parsed_data["coordenadas_lista"]
+            geo_type = str(parsed_data["geometry_type"])
 
             if geo_type == "Point" and coords:
                 lat, lon = coords[0][0], coords[0][1]
@@ -251,23 +254,15 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
                     })
 
                 elif any(kw in nome_norm for kw in pivo_kws) or re.match(r"p\s?\d+", nome_norm):
-                    pivo_dict = {
+                    pivo_dict: PivoData = {
                         "nome": nome_original,
                         "lat": lat,
                         "lon": lon,
-                        "type": "pivo"
+                        "type": "pivo",
+                        "tipo": None,
+                        "coordenadas": None
                     }
-
-                    # Tenta achar um ciclo correspondente
-                    ciclo_associado = next(
-                        (c for c in ciclos_list if normalizar_nome(c["nome_original_circulo"]) == normalizar_nome(f"Ciclo {nome_original}")),
-                        None
-                    )
-                    if ciclo_associado:
-                        pivo_dict["tipo"] = "custom"
-                        pivo_dict["coordenadas"] = ciclo_associado["coordenadas"]
-
-                    pivos_de_pontos_list.append(pivo_dict)  # type: ignore
+                    pivos_de_pontos_list.append(pivo_dict)
 
                 elif any(kw in nome_norm for kw in bomba_kws):
                     bombas_list.append({
@@ -275,19 +270,21 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str) -> Tuple[List[
                         "lat": lat,
                         "lon": lon,
                         "type": "bomba"
-                    })  # type: ignore
+                    })
 
                 elif any(kw in nome_norm for kw in PONTA_RETA_KEYWORDS):
                     pontas_retas_map[nome_norm] = {"lat": lat, "lon": lon}
 
-            elif geo_type in ["LineString", "Polygon"] and len(coords) >= 3:  # type: ignore
-                if eh_um_circulo(coords) or geo_type == "Polygon":  # type: ignore
+            elif geo_type in ["LineString", "Polygon"] and len(coords) >= 3:
+                if eh_um_circulo(coords) or geo_type == "Polygon":
                     ciclos_list.append({
                         "nome_original_circulo": nome_original,
                         "coordenadas": coords
-                    })  # type: ignore
+                    })
 
-        pivos_finais_list = _consolidate_pivos(pivos_de_pontos_list, ciclos_list, pontas_retas_map)
+        nome_base_pivo_traduzido = t('entity_names.pivot')
+        pivos_finais_list = _consolidate_pivos(pivos_de_pontos_list, ciclos_list, pontas_retas_map, nome_base_pivo_traduzido)
+        
         logger.info(f"✅ Processamento do arquivo concluído: {len(antenas_list)} antenas, {len(pivos_finais_list)} pivôs, {len(bombas_list)} bombas.")
         return antenas_list, pivos_finais_list, ciclos_list, bombas_list
 
