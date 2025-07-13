@@ -70,18 +70,64 @@ function updateLegendImage(templateName) {
 function atualizarPainelDados() {
     const totalPivos = AppState.lastPivosDataDrawn.length;
     const foraCobertura = AppState.lastPivosDataDrawn.filter(p => p.fora).length;
-    const totalRepetidoras = AppState.repetidoras.length + (AppState.antenaGlobal ? 1 : 0);
     const totalBombas = AppState.marcadoresBombas.length;
 
-    document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${totalRepetidoras}`;
+    let totalRepetidorasContagem = 0; // Inicia a contagem de Repetidoras em 0
+    let totalCentraisContagem = 0; // Inicia a contagem de Centrais em 0
+
+    // Lógica para contabilizar a Antena Principal (AppState.antenaGlobal)
+    if (AppState.antenaGlobal) {
+        const antennaType = AppState.antenaGlobal.type;
+
+        if (antennaType === 'central') {
+            totalCentraisContagem++; // Conta como 1 Central
+        } else if (antennaType === 'central_repeater_combined') {
+            totalCentraisContagem++;     // Conta como 1 Central
+            totalRepetidorasContagem++;  // E também como 1 Repetidora
+        } else {
+            // Se o tipo da antena principal não for 'central' nem 'central_repeater_combined',
+            // então ela é contada apenas como uma repetidora genérica.
+            totalRepetidorasContagem++;
+        }
+    }
+
+    // NOVO: Lógica para contabilizar as Repetidoras adicionais (em AppState.repetidoras)
+    // Iteramos sobre cada repetidora e aplicamos as regras de contagem
+    AppState.repetidoras.forEach(rep => {
+        const repType = rep.type;
+
+        if (repType === 'central') {
+            totalCentraisContagem++; // Repetidora como Central
+        } else if (repType === 'central_repeater_combined') {
+            totalCentraisContagem++;     // Repetidora como Central
+            totalRepetidorasContagem++;  // E também como Repetidora
+        } else {
+            // Todos os outros tipos de repetidora (tower, post, water_tank, default)
+            // são contados como repetidoras genéricas.
+            totalRepetidorasContagem++;
+        }
+    });
+
+
+    // Atualizar o HTML do painel de dados
     document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${totalPivos}`;
     document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${foraCobertura}`;
     document.getElementById("template-info").textContent = `🌐 Template: ${AppState.templateSelecionado || '--'}`;
+    
+    document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${totalRepetidorasContagem}`;
+
+    const centralCountElement = document.getElementById('total-centrais');
+    const centralCountValueElement = document.getElementById('central-count-value');
+    if (centralCountElement && centralCountValueElement) {
+        centralCountValueElement.textContent = totalCentraisContagem;
+        centralCountElement.classList.toggle("hidden", totalCentraisContagem === 0);
+    }
     
     const bombasElemento = document.getElementById("total-bombas");
     bombasElemento.textContent = `${t('ui.labels.pump_houses')} ${totalBombas}`;
     bombasElemento.classList.toggle("hidden", totalBombas === 0);
 }
+
 
 function reposicionarPaineisLaterais() {
     const paineis = [painelDadosDiv, painelRepetidorasDiv];

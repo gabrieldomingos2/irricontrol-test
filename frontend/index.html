@@ -112,7 +112,7 @@
                 <span class="text-sm font-medium" data-i18n="ui.buttons.reset"></span>
             </button>
 
-            <button id="exportar-pdf-btn" class="sidebar-button w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2">
+            <button id="exportar-pdf-btn" class="sidebar-button w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2 opacity-50 cursor-not-allowed" disabled>
                 <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/file-text.svg); mask-image: url(assets/images/file-text.svg);"></span>
                 <span class="text-sm font-medium" data-i18n="ui.buttons.export_pdf_report"></span>
             </button>
@@ -167,6 +167,9 @@
                 <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots"></p>
                 <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage"></p>
                 <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters"></p>
+                <p id="total-centrais" class="text-sm text-white/70 mb-1">
+                <span data-i18n="ui.labels.central_count">Centrais:</span> <span id="central-count-value">0</span>
+                </p>
                 <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses"></p>
             </div>
         </div>

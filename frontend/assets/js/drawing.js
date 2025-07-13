@@ -103,8 +103,11 @@ function findClosestSignalSource(targetLatLng) {
         if (distance < minDistance) {
             minDistance = distance;
             closestSource = {
-                name: AppState.antenaGlobal.nome || 'Torre Principal',
-                distance: distance
+                id: 'main_antenna', // ID para referência
+                name: AppState.antenaGlobal.nome || t('ui.labels.main_antenna_default'), // Nome original ou padrão
+                distance: distance,
+                isMainAntenna: true,
+                type: AppState.antenaGlobal.type // Adiciona o tipo
             };
         }
     }
@@ -119,8 +122,11 @@ function findClosestSignalSource(targetLatLng) {
             if (distance < minDistance) {
                 minDistance = distance;
                 closestSource = {
-                    name: rep.label.options.icon.options.html,
-                    distance: distance
+                    id: rep.id, // ID da repetidora
+                    name: rep.nome, // Nome original da repetidora
+                    distance: distance,
+                    isMainAntenna: false,
+                    type: rep.type // Adiciona o tipo
                 };
             }
         }
@@ -129,6 +135,130 @@ function findClosestSignalSource(targetLatLng) {
     return closestSource;
 }
 
+// NOVO: Função para obter o nome formatado da antena/repetidora para a legenda
+function getFormattedAntennaOrRepeaterName(entity) {
+    console.log("DEBUG: getFormattedAntennaOrRepeaterName received entity:", entity);
+
+    const alturaStr = entity.altura ? `${entity.altura}m` : '';
+
+    if (entity.isMainAntenna) {
+        // Lógica para a ANTENA PRINCIPAL (não alterada)
+        if (entity.type === 'central') {
+            return `${t('entity_names.central')} - ${alturaStr}`;
+        }
+        if (entity.type === 'central_repeater_combined') {
+            return `${t('entity_names.central_repeater_combined')} - ${alturaStr}`;
+        }
+        if (entity.type === 'tower') {
+            return `${t('entity_names.tower')} - ${alturaStr}`;
+        }
+        return entity.original_name || entity.nome || t('ui.labels.main_antenna_default');
+    } else {
+        // Lógica para as REPETIDORAS (NÃO a antena principal)
+        if (entity.type === 'central') { // <--- ADICIONADO para repetidoras
+            return `${t('entity_names.central')} - ${alturaStr}`;
+        }
+        if (entity.type === 'central_repeater_combined') { // <--- ADICIONADO para repetidoras
+            return `${t('entity_names.central_repeater_combined')} - ${alturaStr}`;
+        }
+        if (entity.type && entity.type !== 'default') { // Tipos como 'tower', 'post', 'water_tank'
+            return `${t(`entity_names.${entity.type}`)} - ${alturaStr}`; // Formata como "Torre - 5m"
+        }
+        // Tipo 'default' ou se não houver tipo específico (ex: "Repetidora 01")
+        return entity.nome;
+    }
+}
+
+// Função auxiliar para criar e exibir o menu de contexto
+function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
+    // Remove qualquer menu existente para evitar múltiplos menus
+    removeRenameMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'rename-menu absolute bg-gray-900 border border-gray-700 rounded-md shadow-lg p-2 z-[10002]';
+
+    // Define as opções de renomeação com base no tipo de entidade
+    let options = [];
+    if (isMainAntenna) {
+        options = [
+            { text: t('entity_names.central'), value: 'central' },
+            { text: t('entity_names.central_repeater_combined'), value: 'central_repeater_combined' }
+        ];
+    } else { // Opções para REPETIDORAS
+        options = [
+            { text: t('entity_names.tower'), value: 'tower' },
+            { text: t('entity_names.post'), value: 'post' },
+            { text: t('entity_names.water_tank'), value: 'water_tank' },
+            { text: t('entity_names.central'), value: 'central' },
+            { text: t('entity_names.central_repeater_combined'), value: 'central_repeater_combined' }
+        ];
+    }
+
+    // Cria os botões de opção
+    options.forEach(option => {
+        const button = document.createElement('button');
+        button.textContent = option.text;
+        button.className = 'block w-full text-left px-3 py-1 text-white hover:bg-gray-700 rounded-sm text-sm';
+        button.onclick = (e) => {
+            e.stopPropagation();
+            if (isMainAntenna) {
+                handleRenameMainAntenna(option.value); // Esta função já cuida de fechar o menu
+            } else {
+                handleRenameRepeater(entityId, option.value);
+                removeRenameMenu(); // Fecha o menu para repetidoras
+            }
+        };
+        menu.appendChild(button);
+    });
+
+    // --- LÓGICA CORRIGIDA E SIMPLIFICADA ---
+    // Adiciona o botão "Voltar ao Nome Original"
+    const restoreOriginalButton = document.createElement('button');
+    restoreOriginalButton.textContent = t('ui.titles.restore_original_name');
+    restoreOriginalButton.className = 'block w-full text-left px-3 py-1 text-white hover:bg-gray-700 rounded-sm text-sm mt-2 border-t border-gray-600 pt-2';
+
+    restoreOriginalButton.onclick = (e) => {
+        e.stopPropagation();
+        if (isMainAntenna) {
+            // Apenas chama a função principal. Ela já tem a lógica para reverter e fechar o menu.
+            if (AppState.antenaGlobal?.original_name) {
+                handleRenameMainAntenna('default');
+            }
+        } else {
+            // Apenas chama a função principal para a repetidora.
+            const repetidora = AppState.repetidoras.find(r => r.id === entityId);
+            if (repetidora?.original_name) {
+                handleRenameRepeater(entityId, 'default');
+                removeRenameMenu(); // Fecha o menu
+            }
+        }
+    };
+    menu.appendChild(restoreOriginalButton);
+
+    // Posiciona o menu no mapa
+    const mapContainer = map.getContainer();
+    const markerPos = map.latLngToContainerPoint(marker.getLatLng());
+    menu.style.left = `${markerPos.x + 20}px`;
+    menu.style.top = `${markerPos.y}px`;
+
+    mapContainer.appendChild(menu);
+
+    // Adiciona um listener para fechar o menu se o usuário clicar fora
+    setTimeout(() => {
+        document.addEventListener('click', removeRenameMenu, { once: true });
+    }, 100);
+}
+
+/**
+ * Remove o menu de renomeação do DOM.
+ */
+function removeRenameMenu() {
+    const existingMenu = document.querySelector('.rename-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+        // O listener de clique fora é removido automaticamente com `once: true`
+    }
+}
 
 // --- Funções de Desenho ---
 
@@ -144,12 +274,21 @@ function drawAntenaCandidates(antenasList) {
             .addTo(AppState.antenaCandidatesLayerGroup);
 
         const nomeAntena = antenaData.nome;
+        // Modificado: a label agora considera o tipo, mesmo para candidatas se aplicável.
+        // As candidatas não terão um `type` definido, então `getFormattedAntennaOrRepeaterName` usará o `nome` original.
+        const formattedName = getFormattedAntennaOrRepeaterName({
+            isMainAntenna: true, // É uma candidata para antena principal
+            type: antenaData.type, // Pega o tipo se existir (do KMZ, por exemplo)
+            nome: nomeAntena,
+            altura: antenaData.altura
+        });
+        const labelWidth = (formattedName.length * 7) + 10;
         const label = L.marker([antenaData.lat, antenaData.lon], {
             icon: L.divIcon({ 
                 className: 'label-pivo', 
-                html: nomeAntena, 
-                iconSize: [(nomeAntena.length * 7) + 10, 20], 
-                iconAnchor: [((nomeAntena.length * 7) + 10) / 2, 45] 
+                html: formattedName, 
+                iconSize: [labelWidth, 20], 
+                iconAnchor: [labelWidth / 2, 45] 
             }),
             interactive: false, 
             customId: uniqueId,
@@ -167,6 +306,11 @@ function drawAntenaCandidates(antenasList) {
             const inputAltura = document.getElementById("altura-antena-rep");
             if (painelRepetidora && inputAltura) {
                 inputAltura.value = data.altura;
+                // Preenche também a altura do receptor se disponível nos dados da candidata
+                const inputAlturaRx = document.getElementById("altura-receiver-rep");
+                if (inputAlturaRx && data.altura_receiver) {
+                    inputAlturaRx.value = data.altura_receiver;
+                }
                 painelRepetidora.classList.remove("hidden");
                 mostrarMensagem(t('messages.success.tower_selected_for_simulation', { name: data.nome }), "sucesso");
             }
@@ -209,9 +353,32 @@ function drawPivos(pivosData, useEdited = false) {
             const closest = findClosestSignalSource(pos);
             if (closest) {
                 const distanciaFormatada = closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + ' km' : Math.round(closest.distance) + ' m';
-                finalHtml = `${pivo.nome}<br><span class="source-name-pivo">${closest.name}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
+                
+                // NOVO: Adicionar o nome formatado da fonte (antena/repetidora)
+                let sourceFormattedName = "";
+                if (closest.isMainAntenna) {
+                    sourceFormattedName = getFormattedAntennaOrRepeaterName({
+                        isMainAntenna: true,
+                        type: AppState.antenaGlobal?.type,
+                        nome: AppState.antenaGlobal?.nome,
+                        altura: AppState.antenaGlobal?.altura
+                    });
+                } else {
+                    const rep = AppState.repetidoras.find(r => r.id === closest.id);
+                    if (rep) {
+                        sourceFormattedName = getFormattedAntennaOrRepeaterName({
+                            isMainAntenna: false,
+                            type: rep.type,
+                            nome: rep.nome,
+                            altura: rep.altura
+                        });
+                    }
+                }
+
+                finalHtml = `${pivo.nome}<br><span class="source-name-pivo">${sourceFormattedName}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
                 hasDistancia = true;
-                labelWidth = Math.max(labelWidth, (closest.name.length * 6.5) + 15);
+                // Ajusta a largura da label para o texto mais longo entre o nome do pivô e o nome da fonte
+                labelWidth = Math.max(labelWidth, (sourceFormattedName.length * 6.5) + 15, (distanciaFormatada.length * 6.5) + 15);
             }
         }
 
@@ -287,6 +454,18 @@ function drawPivos(pivosData, useEdited = false) {
     updateLegendsVisibility();
 }
 
+function updateAntenaOrRepeaterLabel(entity) {
+    if (entity.label && map.hasLayer(entity.label)) {
+        const newHtml = getFormattedAntennaOrRepeaterName(entity);
+        const labelWidth = (newHtml.length * 7) + 10; // Recalcula largura
+        entity.label.setIcon(L.divIcon({
+            className: 'label-pivo',
+            html: newHtml,
+            iconSize: [labelWidth, 20],
+            iconAnchor: [labelWidth / 2, 45]
+        }));
+    }
+}
 
 function drawBombas(bombasData) {
     if (!map || !bombasData) return;
@@ -352,9 +531,31 @@ function drawBombas(bombasData) {
             const closest = findClosestSignalSource(L.latLng(bomba.lat, bomba.lon));
             if (closest) {
                 const distanciaFormatada = closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + ' km' : Math.round(closest.distance) + ' m';
-                finalHtml = `${nomeBomba}<br><span class="source-name-pivo">${closest.name}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
+                
+                // NOVO: Adicionar o nome formatado da fonte (antena/repetidora)
+                let sourceFormattedName = "";
+                if (closest.isMainAntenna) {
+                    sourceFormattedName = getFormattedAntennaOrRepeaterName({
+                        isMainAntenna: true,
+                        type: AppState.antenaGlobal?.type,
+                        nome: AppState.antenaGlobal?.nome,
+                        altura: AppState.antenaGlobal?.altura
+                    });
+                } else {
+                    const rep = AppState.repetidoras.find(r => r.id === closest.id);
+                    if (rep) {
+                        sourceFormattedName = getFormattedAntennaOrRepeaterName({
+                            isMainAntenna: false,
+                            type: rep.type,
+                            nome: rep.nome,
+                            altura: rep.altura
+                        });
+                    }
+                }
+
+                finalHtml = `${nomeBomba}<br><span class="source-name-pivo">${sourceFormattedName}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
                 hasDistancia = true;
-                labelWidth = Math.max(labelWidth, (closest.name.length * 6.5) + 15);
+                labelWidth = Math.max(labelWidth, (sourceFormattedName.length * 6.5) + 15, (distanciaFormatada.length * 6.5) + 15);
             }
         }
         
@@ -456,8 +657,9 @@ function addRepetidoraNoPainel(repetidora) {
         <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
     </button>`;
 
+    // NOVO: Exibe o nome formatado
     item.innerHTML = `
-        <span class="text-white/80 text-sm">${repetidora.label.options.icon.options.html}</span>
+        <span class="text-white/80 text-sm">${getFormattedAntennaOrRepeaterName(repetidora)}</span>
         <div class="flex gap-3 items-center">
             ${diagBtnHtml}
             <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-id="${repetidora.id}" data-action="toggle-visibility" data-visible="true">
@@ -470,6 +672,12 @@ function addRepetidoraNoPainel(repetidora) {
     
     container.appendChild(item);
     lucide.createIcons();
+
+    // NOVO: Adiciona o event listener para o menu de contexto no marcador da repetidora
+    repetidora.marker.on('contextmenu', (e) => {
+        L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
+        showRenameRepeaterMenu(repetidora.marker, repetidora.nome, false, repetidora.id, repetidora.type);
+    });
 
     item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(repetidora));
     item.querySelector('[data-action="remover"]').addEventListener('click', () => {
@@ -512,8 +720,9 @@ function addAntenaAoPainel(antena) {
         <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
     </button>`;
 
+    // Exibe o nome formatado (o que já está sendo feito)
     item.innerHTML = `
-        <span class="text-white/90 font-semibold text-sm">${antena.nome || t('ui.labels.main_antenna_default')}</span>
+        <span class="text-white/90 font-semibold text-sm">${getFormattedAntennaOrRepeaterName(antena)}</span>
         <div class="flex gap-3 items-center">
             ${diagBtnHtml}
             <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-action="toggle-visibility" data-visible="true">
@@ -523,6 +732,22 @@ function addAntenaAoPainel(antena) {
     
     container.firstChild ? container.insertBefore(item, container.firstChild) : container.appendChild(item);
     lucide.createIcons();
+
+    // ADICIONE AQUI O LISTENER PARA O CLIQUE DIREITO NO ELEMENTO DO PAINEL,
+    // ALÉM DO MARCADOR NO MAPA. Isso garante que a atualização do tipo funcione de ambos.
+    item.addEventListener('contextmenu', (e) => {
+        L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
+        // Passa o marcador da antena, nome atual, true para antena principal e null para ID
+        showRenameRepeaterMenu(AppState.marcadorAntena, antena.nome, true, null); // Passa o marcador da antena
+    });
+
+    // O listener do marcador do mapa já está OK
+    if (AppState.marcadorAntena) {
+        AppState.marcadorAntena.on('contextmenu', (e) => {
+            L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
+            showRenameRepeaterMenu(AppState.marcadorAntena, antena.nome, true, null);
+        });
+    }
 
     item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(antena));
     

@@ -19,7 +19,8 @@
             "draw_irripump": "Adicionar Estação de Bomba (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidora",
             "search_coordinates": "Buscar Coordenadas",
-            "toggle_antenna_legends": "Legendas das Antenas"
+            "toggle_antenna_legends": "Legendas das Antenas",
+            "restore_original_name": "Voltar ao Original"
         },
         "labels": {
             "tools": "Ferramentas",
@@ -30,8 +31,8 @@
             "processing": "Processando...",
             "antenna_height": "Altura do Transmissor (Tx) (m)",
             "receiver_height": "Altura do Receptor (Rx) (m)",
-            "antenna_height_tooltip": "Alt. Tx: {height}m",
-            "receiver_height_tooltip": "Alt. Rx: {height}m",
+            "antenna_height_tooltip": "Tx: {height}m",
+            "receiver_height_tooltip": "Rx: {height}m",
             "total_pivots": "Pivôs:",
             "out_of_coverage": "Fora da cobertura:",
             "main_antenna": "Antena principal:",
@@ -53,7 +54,8 @@
             "general_info": "Informações Gerais",
             "map_view": "Visualização do Mapa",
             "pivots": "Pivôs",          
-            "repeaters": "Repetidoras"   
+            "repeaters": "Repetidoras",
+            "central_count": "Centrais:"
         },
         "placeholders": {
             "lat_lon_search": "Latitude, Longitude"
@@ -109,7 +111,9 @@
             "repeater_suggestion_removed": "Sugestão de repetidora removida.",
             "location_found": "Localização encontrada e marcada no mapa.",
             "action_undone_move": "Movimentação do pivô \"{pivot_name}\" desfeita.",
-            "action_undone_delete": "Exclusão do pivô \"{pivot_name}\" revertida."
+            "action_undone_delete": "Exclusão do pivô \"{pivot_name}\" revertida.",
+            "main_antenna_renamed": "Antena principal renomeada para \"{name}\".",
+            "repeater_renamed": "Repetidora renomeada para \"{name}\"."
         },
         "errors": {
             "session_start_fail": "Falha crítica ao iniciar nova sessão. Recarregue a página.",
@@ -192,7 +196,14 @@
     },
     "entity_names": {
         "pivot": "Pivô",
-        "irripump": "Irripump"
+        "irripump": "Irripump",
+        "central": "Central",
+        "tower": "Torre",
+        "post": "Poste",
+        "water_tank": "Caixa D'água",
+        "central_repeater_combined": "Central + Repetidora",
+        "central_repeater_combined_solar": "Central + Repetidora Solar",
+        "default": "Padrão"
     },
     "kml": {
         "main_name": "Estudo de Sinal Irricontrol",
@@ -205,8 +216,9 @@
             "pumps": "Estações de Bombeamento"
         },
         "repeaters": {
-            "solar_repeater": "Repetidora Solar {height}m",
-            "solar_pivot_repeater": "Repetidora Solar de Pivô {height}m"
+            "solar_repeater": "Repetidora Solar - {height}",
+            "solar_pivot_repeater": "Repetidora Solar Pivô - {height}",
+            "solar_type_repeater": "Repetidora Solar {type_name} - {height}"
         },
         "overlays": {
             "coverage_freq": "Cobertura {freq}MHz",
@@ -230,7 +242,7 @@
             "tx_antenna": "Tx Antenna",
             "rx_height": "Rx Height",
             "rx_sensitivity": "Rx Sensitivity",
-            "rx_gain": "Rx Gain",
+            "rx_gain": "Rx Rx Gain",
             "modulation": "Modulation",
             "bandwidth": "Bandwidth",
             "file_id": "File ID",

@@ -648,6 +648,34 @@ button, .glass-button, label[for="arquivo"] {
     transition: opacity 0.1s ease;
 }
 
+/* NOVO: Estilo para o menu de renomeação */
+.rename-menu {
+    position: absolute;
+    background-color: rgba(30, 41, 59, 0.95); /* slate-800 com opacidade */
+    border: 1px solid rgba(71, 85, 105, 0.5); /* slate-600 com opacidade */
+    border-radius: 0.375rem; /* rounded-md */
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+    padding: 0.5rem;
+    z-index: 10002; /* Garante que esteja acima de outros elementos */
+    min-width: 120px; /* Largura mínima */
+}
+
+.rename-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.375rem 0.75rem;
+    color: rgba(226, 232, 240, 0.9); /* slate-200 com opacidade */
+    font-size: 0.875rem; /* text-sm */
+    border-radius: 0.125rem; /* rounded-sm */
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.rename-menu button:hover {
+    background-color: rgba(71, 85, 105, 0.7); /* slate-600 com opacidade no hover */
+    color: #fff;
+}
+
 
 /* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */

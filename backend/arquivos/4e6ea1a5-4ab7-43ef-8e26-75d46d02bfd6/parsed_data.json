@@ -1,0 +1,14 @@
+{
+    "antenas": [
+        {
+            "lat": -19.44153485213615,
+            "lon": -44.49077080200438,
+            "altura": 10,
+            "altura_receiver": 3,
+            "nome": "Torre - 10m"
+        }
+    ],
+    "pivos": [],
+    "ciclos": [],
+    "bombas": []
+}

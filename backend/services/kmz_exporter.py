@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 import re
 from math import log10, isnan
-from typing import Any, Optional, List, Tuple, Callable
+from typing import Any, Optional, List, Tuple, Callable, Dict
 from shutil import copyfile
 from geopy.distance import geodesic
 from geopy.point import Point
@@ -56,6 +56,54 @@ def _generate_pacman_coords(lat, lon, radius_m, start_angle_deg, end_angle_deg, 
     coords.append((lon, lat, 0))
     return coords
 
+def _get_formatted_entity_name_for_backend(
+    entity_data: dict,
+    is_main_antenna: bool,
+    t: Callable,
+    for_pdf: bool = False
+) -> str:
+    """
+    Formata o nome da antena/repetidora com base no seu 'type' para exportação no KMZ/PDF.
+    Usa o tradutor 't' para obter os nomes das entidades.
+    O parâmetro 'for_pdf' determina se o nome deve ser simplificado para o PDF.
+    """
+    altura_valor = entity_data.get('altura')
+    altura_str_formatada = f"{altura_valor}m" if altura_valor is not None else ""
+
+    entity_type = entity_data.get('type')
+    nome_original_do_frontend = entity_data.get('nome')
+
+    if is_main_antenna:
+        if entity_type == 'central':
+            return f"{t('entity_names.central')} - {altura_str_formatada}"
+        elif entity_type == 'central_repeater_combined':
+            if for_pdf:
+                return f"{t('entity_names.central')} - {altura_str_formatada}"
+            else:
+                return f"{t('entity_names.central_repeater_combined')} - {altura_str_formatada}"
+        elif entity_type == 'tower':
+            return f"{t('entity_names.tower')} - {altura_str_formatada}"
+        return nome_original_do_frontend or t('ui.labels.main_antenna_default')
+    else: # Lógica para as Repetidoras Adicionais
+        if entity_type == 'central':
+            return f"{t('entity_names.central')} - {altura_str_formatada}"
+        elif entity_type == 'central_repeater_combined':
+            if for_pdf:
+                return f"{t('entity_names.central')} - {altura_str_formatada}"
+            else:
+                return f"{t('entity_names.central_repeater_combined')} - {altura_str_formatada}"
+        elif entity_type == 'tower':
+            return t("kml.repeaters.solar_type_repeater", type_name=t('entity_names.tower'), height=altura_str_formatada)
+        elif entity_type == 'post':
+            return t("kml.repeaters.solar_type_repeater", type_name=t('entity_names.post'), height=altura_str_formatada)
+        elif entity_type == 'water_tank':
+            return t("kml.repeaters.solar_type_repeater", type_name=t('entity_names.water_tank'), height=altura_str_formatada)
+        else:
+            if entity_data.get('sobre_pivo'):
+                return t("kml.repeaters.solar_pivot_repeater", height=altura_str_formatada)
+            else:
+                return t("kml.repeaters.solar_repeater", height=altura_str_formatada)
+
 
 # --- Funções de Criação de Estrutura KML ---
 
@@ -63,18 +111,27 @@ def _create_html_description_table(entity_data: dict, template: Any, file_id_inf
     """Cria a tabela HTML de descrição usando chaves de tradução."""
     txw, txg_dbi = template.transmitter.txw, template.antenna.txg
     
-    # Adiciona checagem de segurança para evitar erro de log
-    tx_power_dbm = 10 * log10(txw * 1000) if txw > 0 else -float('inf')
-    eirp_dbm = tx_power_dbm + txg_dbi if not isnan(tx_power_dbm) else -float('inf')
-    eirp_w = (10**(eirp_dbm / 10)) / 1000 if not isnan(eirp_dbm) else 0
-    erp_dbm = eirp_dbm - 2.15 if not isnan(eirp_dbm) else -float('inf')
-    erp_w = (10**(erp_dbm / 10)) / 1000 if not isnan(erp_dbm) else 0
+    # --- ALTERAÇÃO AQUI para tratar isnan e garantir inicialização ---
+    tx_power_dbm = -float('inf') # Inicializa com valor padrão
+    if txw > 0:
+        tx_power_dbm = 10 * log10(txw * 1000)
+
+    eirp_dbm = -float('inf') # Inicializa com valor padrão
+    if not isnan(tx_power_dbm) and tx_power_dbm != -float('inf'):
+        eirp_dbm = tx_power_dbm + txg_dbi
+    
+    erp_dbm = -float('inf') # Inicializa com valor padrão
+    if not isnan(eirp_dbm) and eirp_dbm != -float('inf'):
+        erp_dbm = eirp_dbm - 2.15
+
+    eirp_w = (10**(eirp_dbm / 10)) / 1000 if not isnan(eirp_dbm) and eirp_dbm != -float('inf') else 0
+    erp_w = (10**(erp_dbm / 10)) / 1000 if not isnan(erp_dbm) and erp_dbm != -float('inf') else 0
+    # --- FIM DA ALTERAÇÃO ---
     
     lat, lon = entity_data.get('lat'), entity_data.get('lon')
     lat_str, lon_str = (f"{lat:.6f}", f"{lon:.6f}") if isinstance(lat, float) else ("N/A", "N/A")
     file_id_info_sanitized = html.escape(file_id_info)
     
-    # Usa a função de tradução 't' para todos os cabeçalhos da tabela
     return f"""<div style="font-family: Arial, sans-serif; font-size: 12px;">
     <table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse; width: 350px;">
         <tr><td bgcolor="#f2f2f2" style="width: 120px;"><b>{t("kml.table.frequency")}</b></td><td>{template.frq} MHz</td></tr>
@@ -101,12 +158,11 @@ def _create_kml_styles() -> Tuple[simplekml.Style, simplekml.Style]:
     return torre_style, default_point_style
 
 def _setup_main_antenna_structure(doc, antena, style, details_name, template, file_id, legend_name, t: Callable) -> simplekml.Folder:
-    folder_name = antena.get("nome", t("kml.folders.main_antenna"))
+    folder_name = _get_formatted_entity_name_for_backend(antena, is_main_antenna=True, t=t, for_pdf=False)
     folder = doc.newfolder(name=folder_name)
     folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
     subfolder = folder.newfolder(name=details_name)
     pnt = subfolder.newpoint(name=folder_name, coords=[(antena["lon"], antena["lat"])])
-    # Passa a função 't' para a criação da tabela
     pnt.description = _create_html_description_table(antena, template, file_id, legend_name, t)
     pnt.style = style
     return subfolder
@@ -124,34 +180,30 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
         if not bounds: continue
         
         altura_repetidora = item.get('altura', 5)
-        nome_from_frontend = item.get("nome")
-
-        if nome_from_frontend:
-            nome = nome_from_frontend
-        else:
-            if item.get('sobre_pivo'):
-                nome = t("kml.repeaters.solar_pivot_repeater", height=altura_repetidora)
-            else:
-                nome = t("kml.repeaters.solar_repeater", height=altura_repetidora)
+        
+        nome_formatado_repetidora = _get_formatted_entity_name_for_backend(
+            entity_data=item, 
+            is_main_antenna=False, 
+            t=t,
+            for_pdf=False
+        )
 
         sub_nome = f"{ts_prefix}_Rep{i+1:02d}_Irricontrol_{template.id}"
         
-        folder = doc.newfolder(name=nome)
+        folder = doc.newfolder(name=nome_formatado_repetidora)
         folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
         sub = folder.newfolder(name=sub_nome)
         lat, lon = (bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2
         
-        pnt = sub.newpoint(name=nome, coords=[(lon, lat)])
-        # Passa a função 't' para a criação da tabela
+        pnt = sub.newpoint(name=nome_formatado_repetidora, coords=[(lon, lat)])
         pnt.description = _create_html_description_table({"lat": lat, "lon": lon, "altura": altura_repetidora}, template, f"{ts_prefix}{i+1}_{template.id}", desc_name, t)
         pnt.style = style
         
-        ground = sub.newgroundoverlay(name=t("kml.overlays.coverage_for", name=nome))
+        ground = sub.newgroundoverlay(name=t("kml.overlays.coverage_for", name=nome_formatado_repetidora))
         ground.icon.href = img_name
         ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = bounds[2], bounds[0], bounds[3], bounds[1]
         files.append((path_img, img_name))
         
-        # Usa a função 't' para o nome do screen overlay
         screen_rep = sub.newscreenoverlay(name=t("kml.colour_key_name"))
         screen_rep.icon.href = overlay_name
         screen_rep.overlayxy = simplekml.OverlayXY(**overlay_props['overlay_xy'])
@@ -202,16 +254,16 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style, t: Callable):
     if ciclos:
         logger.info(f"Exportando {len(ciclos)} áreas de pivôs circulares.")
         for ciclo_data in ciclos:
-            coords = ciclo_data.get("coordenadas")
-            nome_ciclo = ciclo_data.get("nome_original_circulo", "")
-            nome_pivo_associado = nome_ciclo.replace(t("kml.prefixes.cycle"), "").strip()
+            nome_ciclo_original = ciclo_data.get("nome_original_circulo", "")
+            nome_pivo_associado = nome_ciclo_original.replace(t("kml.prefixes.cycle"), "").strip()
 
             if nome_pivo_associado in nomes_pivos_desenhados_manualmente:
                 logger.info(f" -> Pulando círculo para '{nome_pivo_associado}', pois já foi desenhado como Setorial/Pac-Man.")
                 continue
 
+            coords = ciclo_data.get("coordenadas")
             if coords and len(coords) > 2:
-                nome_area = nome_ciclo.replace(t("kml.prefixes.cycle"), t("kml.prefixes.area")).strip()
+                nome_area = nome_ciclo_original.replace(t("kml.prefixes.cycle"), t("kml.prefixes.area")).strip()
                 pol = f_areas.newpolygon(name=nome_area)
                 pol.outerboundaryis = [(lon, lat, 0) for lat, lon in coords]
                 pol.style.polystyle.fill = 0
@@ -249,19 +301,30 @@ def build_kml_document_and_get_image_list(doc, lang: str, pivos_data, ciclos_dat
 
     if antena_data and imagem_principal_nome_relativo and bounds_principal_data:
         logger.info(" -> Adicionando estrutura da Antena Principal.")
-        nome_antena = antena_data.get("nome", "Antena")
-        sub_nome = f"{ts}_{re.sub(r'[^a-zA-Z0-9]', '_', nome_antena)}_{selected_template.id}"
-        file_id = f"{ts[4:]}_{nome_antena.replace(' ', '')}_{selected_template.id}"
-
-        folder = _setup_main_antenna_structure(doc, antena_data, torre_style, sub_nome, selected_template, file_id, key_desc_name, t)
         
-        ground = folder.newgroundoverlay(name=t("kml.overlays.coverage_freq", freq=selected_template.frq))
+        nome_formatado_antena_principal = _get_formatted_entity_name_for_backend(
+            entity_data=antena_data, 
+            is_main_antenna=True, 
+            t=t,
+            for_pdf=False
+        )
+
+        sub_nome = f"{ts}_{re.sub(r'[^a-zA-Z0-9]', '_', nome_formatado_antena_principal)}_{selected_template.id}"
+        file_id = f"{ts[4:]}_{nome_formatado_antena_principal.replace(' ', '')}_{selected_template.id}"
+
+        folder = doc.newfolder(name=nome_formatado_antena_principal)
+        folder.style.liststyle.itemicon.href = TORRE_ICON_NAME
+        sub = folder.newfolder(name=sub_nome)
+        pnt = sub.newpoint(name=nome_formatado_antena_principal, coords=[(antena_data["lon"], antena_data["lat"])])
+        pnt.description = _create_html_description_table(antena_data, selected_template, file_id, key_desc_name, t)
+        pnt.style = torre_style
+        
+        ground = sub.newgroundoverlay(name=t("kml.overlays.coverage_freq", freq=selected_template.frq))
         ground.icon.href = imagem_principal_nome_relativo
         b = bounds_principal_data
         ground.latlonbox.north, ground.latlonbox.south, ground.latlonbox.east, ground.latlonbox.west = b[2], b[0], b[3], b[1]
         files_for_kmz.append((generated_images_dir / imagem_principal_nome_relativo, imagem_principal_nome_relativo))
         
-        # Usa a função 't' para o nome do screen overlay
         screen = folder.newscreenoverlay(name=t("kml.colour_key_name"))
         screen.icon.href = key_overlay_name
         screen.overlayxy = simplekml.OverlayXY(**OVERLAY_PROPS['overlay_xy'])
@@ -278,9 +341,12 @@ def build_kml_document_and_get_image_list(doc, lang: str, pivos_data, ciclos_dat
     
     _add_secondary_folders(doc, pivos_data, ciclos_data, bombas_data, default_point_style, t)
 
-    common_files = [(TORRE_ICON_NAME, TORRE_ICON_NAME), (key_desc_name, key_desc_name), (key_overlay_name, key_overlay_name), (LOGO_FILENAME, LOGO_FILENAME)]
-    for fname, zip_name in common_files:
-        fpath = settings.IMAGENS_DIR_PATH / fname
+    common_files = [(settings.IMAGENS_DIR_PATH / TORRE_ICON_NAME, TORRE_ICON_NAME), \
+                    (settings.IMAGENS_DIR_PATH / key_desc_name, key_desc_name), \
+                    (settings.IMAGENS_DIR_PATH / key_overlay_name, key_overlay_name), \
+                    (settings.IMAGENS_DIR_PATH / LOGO_FILENAME, LOGO_FILENAME)]
+    
+    for fpath, zip_name in common_files:
         if fpath.exists() and not any(item[1] == zip_name for item in files_for_kmz):
             files_for_kmz.append((fpath, zip_name))
             

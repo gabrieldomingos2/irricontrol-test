@@ -1,3 +1,5 @@
+# backend/services/kmz_parser.py
+
 import zipfile
 import re
 import xml.etree.ElementTree as ET
@@ -7,7 +9,6 @@ from pathlib import Path
 import logging
 from typing import List, Tuple, Dict, Optional, TypedDict, Union
 
-# Importa o serviço de internacionalização e as configurações
 from backend.services.i18n_service import i18n_service
 from backend.config import settings
 
@@ -22,7 +23,7 @@ DEFAULT_RECEIVER_HEIGHT = 3
 CIRCLE_CLOSENESS_THRESHOLD = 0.0005
 HEIGHT_REGEX = re.compile(r"(\d{1,3})\s*(m|metros)")
 
-# --- TypedDicts para tipagem ---
+# --- TypedDicts para tipagem (mantidas iguais) ---
 class CoordsDict(TypedDict):
     lat: float
     lon: float
@@ -35,7 +36,6 @@ class AntenaData(CoordsDict):
 class PivoData(CoordsDict):
     nome: str
     type: str
-    # Adicionando campos opcionais para consistência
     tipo: Optional[str]
     coordenadas: Optional[List[List[float]]]
 
@@ -48,7 +48,7 @@ class BombaData(CoordsDict):
     nome: str
     type: str
 
-# --- Funções auxiliares ---
+# --- Funções auxiliares (normalizar_nome, calcular_meio_reta, ponto_central_da_reta_maior, eh_um_circulo) mantidas iguais ---
 def normalizar_nome(nome: str) -> str:
     if not nome: return ""
     nome_lower = nome.lower()
@@ -75,47 +75,6 @@ def eh_um_circulo(coords_list: List[List[float]], threshold: float = CIRCLE_CLOS
     if len(coords_list) < 3: return False
     return Point(coords_list[0][1], coords_list[0][0]).distance(Point(coords_list[-1][1], coords_list[-1][0])) < threshold
 
-def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
-    try:
-        with zipfile.ZipFile(caminho_kmz, 'r') as kmz_file:
-            kml_file_name = next((f for f in kmz_file.namelist() if f.lower().endswith('.kml')), None)
-            if not kml_file_name: raise ValueError("Nenhum arquivo .kml encontrado dentro do KMZ.")
-            kmz_file.extract(kml_file_name, path=pasta_extracao)
-            caminho_kml_extraido = pasta_extracao / kml_file_name
-            logger.info(f"  -> Arquivo KML '{kml_file_name}' extraído para '{caminho_kml_extraido}'")
-            return caminho_kml_extraido
-    except zipfile.BadZipFile:
-        raise ValueError(f"Arquivo KMZ '{caminho_kmz.name}' inválido ou corrompido.")
-
-def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Union[str, List[List[float]]]]]:
-    nome_tag = placemark_node.find("kml:name", KML_NAMESPACE)
-    nome_original = nome_tag.text.strip() if nome_tag is not None and nome_tag.text else ""
-    data: Dict[str, Union[str, List[List[float]]]] = {"nome_original": nome_original}
-    geometry_type: Optional[str] = None
-    coords_text: Optional[str] = None
-
-    point = placemark_node.find(".//kml:Point/kml:coordinates", KML_NAMESPACE)
-    linestring = placemark_node.find(".//kml:LineString/kml:coordinates", KML_NAMESPACE)
-    polygon = placemark_node.find(".//kml:Polygon/kml:outerBoundaryIs/kml:LinearRing/kml:coordinates", KML_NAMESPACE)
-
-    if point is not None and point.text:
-        coords_text, geometry_type = point.text.strip(), "Point"
-    elif linestring is not None and linestring.text:
-        coords_text, geometry_type = linestring.text.strip(), "LineString"
-    elif polygon is not None and polygon.text:
-        coords_text, geometry_type = polygon.text.strip(), "Polygon"
-    
-    if not coords_text or not geometry_type: return None
-    data["geometry_type"] = geometry_type
-    
-    try:
-        parsed_coords = [[float(p.split(',')[1]), float(p.split(',')[0])] for p in coords_text.split() if len(p.split(',')) >= 2]
-        if not parsed_coords: return None
-        data["coordenadas_lista"] = parsed_coords
-        return data
-    except (ValueError, IndexError):
-        logger.warning(f"Não foi possível parsear coordenadas para o placemark '{nome_original}'. Texto: '{coords_text}'")
-        return None
 
 def gerar_nome_pivo_sequencial_unico(lista_de_nomes_existentes_normalizados: set[str], nome_base: str) -> str:
     contador = 1
@@ -189,6 +148,49 @@ def _consolidate_pivos(
 
     return final_pivos_list
 
+def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
+    try:
+        with zipfile.ZipFile(caminho_kmz, 'r') as kmz_file:
+            kml_file_name = next((f for f in kmz_file.namelist() if f.lower().endswith('.kml')), None)
+            if not kml_file_name: raise ValueError("Nenhum arquivo .kml encontrado dentro do KMZ.")
+            kmz_file.extract(kml_file_name, path=pasta_extracao)
+            caminho_kml_extraido = pasta_extracao / kml_file_name
+            logger.info(f"  -> Arquivo KML '{kml_file_name}' extraído para '{caminho_kml_extraido}'")
+            return caminho_kml_extraido
+    except zipfile.BadZipFile:
+        raise ValueError(f"Arquivo KMZ '{caminho_kmz.name}' inválido ou corrompido.")
+
+def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Union[str, List[List[float]]]]]:
+    nome_tag = placemark_node.find("kml:name", KML_NAMESPACE)
+    nome_original = nome_tag.text.strip() if nome_tag is not None and nome_tag.text else ""
+    data: Dict[str, Union[str, List[List[float]]]] = {"nome_original": nome_original}
+    geometry_type: Optional[str] = None
+    coords_text: Optional[str] = None
+
+    point = placemark_node.find(".//kml:Point/kml:coordinates", KML_NAMESPACE)
+    linestring = placemark_node.find(".//kml:LineString/kml:coordinates", KML_NAMESPACE)
+    polygon = placemark_node.find(".//kml:Polygon/kml:outerBoundaryIs/kml:LinearRing/kml:coordinates", KML_NAMESPACE)
+
+    if point is not None and point.text:
+        coords_text, geometry_type = point.text.strip(), "Point"
+    elif linestring is not None and linestring.text:
+        coords_text, geometry_type = linestring.text.strip(), "LineString"
+    elif polygon is not None and polygon.text:
+        coords_text, geometry_type = polygon.text.strip(), "Polygon"
+    
+    if not coords_text or not geometry_type: return None
+    data["geometry_type"] = geometry_type
+    
+    try:
+        parsed_coords = [[float(p.split(',')[1]), float(p.split(',')[0])] for p in coords_text.split() if len(p.split(',')) >= 2]
+        if not parsed_coords: return None
+        data["coordenadas_lista"] = parsed_coords
+        return data
+    except (ValueError, IndexError):
+        logger.warning(f"Não foi possível parsear coordenadas para o placemark '{nome_original}'. Texto: '{coords_text}'")
+        return None
+
+
 def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'pt-br') -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
     """
     Processa um arquivo KML ou KMZ, extrai os dados relevantes e os retorna,
@@ -229,6 +231,13 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
         tree = ET.parse(str(caminho_kml_a_ser_lido))
         root = tree.getroot()
 
+        # Regex para capturar padrões de Pivô com ou sem "ô" e número
+        # Ex: "Piv 1", "Pivô 2", "Pivot 3"
+        pivot_num_regex = re.compile(r"(?:piv(?:o|ô|ot)?)\s*(\d+)", re.IGNORECASE)
+        # Regex para capturar padrões de bomba
+        bomba_name_regex = re.compile(r"^(casa\s+de\s+bomba|pump\s+house|bomba\s*\d*)$", re.IGNORECASE)
+
+
         for placemark_node in root.findall(".//kml:Placemark", KML_NAMESPACE):
             parsed_data = _parse_placemark_data(placemark_node)
             if not parsed_data:
@@ -253,9 +262,20 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
                         "nome": nome_original
                     })
 
-                elif any(kw in nome_norm for kw in pivo_kws) or re.match(r"p\s?\d+", nome_norm):
+                elif any(kw in nome_norm for kw in pivo_kws) or pivot_num_regex.search(nome_original): # Incluindo a regex aqui
+                    final_pivo_name = nome_original # Mantém o original por padrão
+                    match_pivot_num = pivot_num_regex.search(nome_original)
+                    if match_pivot_num:
+                        # Formata como "Pivô X" usando a tradução
+                        pivo_num = match_pivot_num.group(1) # Pega o grupo do número
+                        final_pivo_name = f"{t('entity_names.pivot')} {pivo_num}"
+                    else:
+                        # Se foi detectado por keyword mas não tem número, pode-se gerar um nome sequencial aqui se for o caso
+                        # Ou manter o nome original (ex: "Pivô Central")
+                        pass
+                    
                     pivo_dict: PivoData = {
-                        "nome": nome_original,
+                        "nome": final_pivo_name,
                         "lat": lat,
                         "lon": lon,
                         "type": "pivo",
@@ -264,9 +284,12 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
                     }
                     pivos_de_pontos_list.append(pivo_dict)
 
-                elif any(kw in nome_norm for kw in bomba_kws):
+                elif any(kw in nome_norm for kw in bomba_kws) or bomba_name_regex.search(nome_original): # Adiciona regex para nome de bomba
+                    # Padroniza o nome da bomba para "Irripump" logo na leitura
+                    final_bomba_name = t('entity_names.irripump')
+                    
                     bombas_list.append({
-                        "nome": nome_original,
+                        "nome": final_bomba_name, # Agora já padronizado aqui
                         "lat": lat,
                         "lon": lon,
                         "type": "bomba"
