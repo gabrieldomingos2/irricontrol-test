@@ -8,22 +8,25 @@ const MOUNTAIN_ICON_PATH = '/assets/images/attention-icon-original.svg';
 const CAPTIONS_ON_ICON_PATH = '/assets/images/captions.svg';
 const CAPTIONS_OFF_ICON_PATH = '/assets/images/captions-off.svg';
 
-const antenaIcon = L.icon({
-  iconUrl: TORRE_ICON_PATH,
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
+const antenaIcon = L.divIcon({
+    className: 'leaflet-div-icon-transparent', // Classe para remover estilos padrão
+    html: `<div class="selection-effect-wrapper"><img src="${TORRE_ICON_PATH}" style="width: 28px; height: 28px;"></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28]
 });
 
-const bombaIconAzul = L.icon({
-  iconUrl: BOMBA_ICON_AZUL_PATH,
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
+const bombaIconAzul = L.divIcon({
+    className: 'leaflet-div-icon-transparent',
+    html: `<div class="selection-effect-wrapper"><img src="${BOMBA_ICON_AZUL_PATH}" style="width: 28px; height: 28px;"></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28]
 });
 
-const bombaIconVermelho = L.icon({
-  iconUrl: BOMBA_ICON_VERMELHO_PATH,
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
+const bombaIconVermelho = L.divIcon({
+    className: 'leaflet-div-icon-transparent',
+    html: `<div class="selection-effect-wrapper"><img src="${BOMBA_ICON_VERMELHO_PATH}" style="width: 28px; height: 28px;"></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28]
 });
 
 const posicionamentoIcon = L.icon({
@@ -41,8 +44,8 @@ let tempPacmanShape = null;
 function getDynamicIconSize(zoom) {
     const minZoom = 10; // Zoom mínimo em que o ícone começa a diminuir
     const maxZoom = 17; // Zoom em que o ícone atinge o tamanho máximo
-    const minSize = 4;  // Tamanho mínimo do ícone em pixels
-    const maxSize = 16; // Tamanho máximo do ícone em pixels
+    const minSize = 6;  // Tamanho mínimo do ícone em pixels
+    const maxSize = 20; // Tamanho máximo do ícone em pixels
 
     if (zoom <= minZoom) {
         return minSize;
@@ -299,14 +302,14 @@ function drawAntenaCandidates(antenasList) {
 
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
+            handleSpecialMarkerSelection(marker);
             const data = e.target.options.customData;
             AppState.coordenadaClicada = e.latlng;
             window.clickedCandidateData = data;
-            const painelRepetidora = document.getElementById("painel-repetidora");
+            const painelRepetidora = document.getElementById("painel-repetidora-setup");
             const inputAltura = document.getElementById("altura-antena-rep");
             if (painelRepetidora && inputAltura) {
                 inputAltura.value = data.altura;
-                // Preenche também a altura do receptor se disponível nos dados da candidata
                 const inputAlturaRx = document.getElementById("altura-receiver-rep");
                 if (inputAlturaRx && data.altura_receiver) {
                     inputAlturaRx.value = data.altura_receiver;
@@ -323,7 +326,6 @@ function drawAntenaCandidates(antenasList) {
 function drawPivos(pivosData, useEdited = false) {
     if (!map || !pivosData) return;
 
-    // Limpa marcadores e legenda de pivôs antigos
     AppState.marcadoresPivos.forEach(m => map.removeLayer(m));
     AppState.marcadoresPivos = [];
     AppState.pivotsMap = {};
@@ -336,15 +338,20 @@ function drawPivos(pivosData, useEdited = false) {
         const pos = useEdited && AppState.posicoesEditadas[pivo.nome] ? L.latLng(AppState.posicoesEditadas[pivo.nome].lat, AppState.posicoesEditadas[pivo.nome].lng) : L.latLng(pivo.lat, pivo.lon);
         
         const initialSize = getDynamicIconSize(map.getZoom());
+        
+        let iconClasses = 'pivo-marker-container';
+        if (AppState.selectedPivoNome === pivo.nome) {
+            iconClasses += ' pivo-marker-container-selected';
+        }
+        
         const pivoIcon = L.divIcon({
-            className: 'pivo-marker-container',
+            className: iconClasses,
             iconSize: [initialSize, initialSize],
             html: `<div class="pivo-marker-dot" style="background-color: ${cor};"></div>`
         });
 
         const marker = L.marker(pos, { icon: pivoIcon }).addTo(map);
 
-        // Lógica para criar o label com nome e distância
         let finalHtml = pivo.nome;
         let hasDistancia = false;
         let labelWidth = (pivo.nome.length * 6.5) + 15;
@@ -354,7 +361,6 @@ function drawPivos(pivosData, useEdited = false) {
             if (closest) {
                 const distanciaFormatada = closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + ' km' : Math.round(closest.distance) + ' m';
                 
-                // NOVO: Adicionar o nome formatado da fonte (antena/repetidora)
                 let sourceFormattedName = "";
                 if (closest.isMainAntenna) {
                     sourceFormattedName = getFormattedAntennaOrRepeaterName({
@@ -377,7 +383,6 @@ function drawPivos(pivosData, useEdited = false) {
 
                 finalHtml = `${pivo.nome}<br><span class="source-name-pivo">${sourceFormattedName}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
                 hasDistancia = true;
-                // Ajusta a largura da label para o texto mais longo entre o nome do pivô e o nome da fonte
                 labelWidth = Math.max(labelWidth, (sourceFormattedName.length * 6.5) + 15, (distanciaFormatada.length * 6.5) + 15);
             }
         }
@@ -385,65 +390,70 @@ function drawPivos(pivosData, useEdited = false) {
         const labelHeight = hasDistancia ? 55 : 20;
         const label = L.marker(pos, {
             icon: L.divIcon({ className: 'label-pivo', html: finalHtml, iconSize: [labelWidth, labelHeight], iconAnchor: [labelWidth / 2, -15] }),
-            labelType: 'pivot'
+            labelType: 'pivot',
+            interactive: false
         }).addTo(map);
         AppState.marcadoresLegenda.push(label);
         
         const statusTexto = pivo.fora ? `<span style="color:#ff4d4d; font-weight:bold;">${t('tooltips.out_of_signal')}</span>` : `<span style="color:#22c55e; font-weight:bold;">${t('tooltips.in_signal')}</span>`;
         marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, { permanent: false, direction: 'top', offset: [0, -10], className: 'tooltip-sinal' });
-
-        // Manipulador de clique com toda a lógica
+        
         marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e); 
-
-            // Lógica de seleção visual
-            const pivoElement = marker.getElement();
-            if (pivoElement) {
-                if (AppState.selectedPivoMarker === marker) {
-                    pivoElement.classList.remove('pivo-marker-container-selected');
-                    AppState.selectedPivoMarker = null;
-                } else {
-                    if (AppState.selectedPivoMarker) {
-                        const oldSelectedElement = AppState.selectedPivoMarker.getElement();
-                        if (oldSelectedElement) {
-                            oldSelectedElement.classList.remove('pivo-marker-container-selected');
-                        }
-                    }
-                    pivoElement.classList.add('pivo-marker-container-selected');
-                    AppState.selectedPivoMarker = marker;
-                }
+            L.DomEvent.stopPropagation(e);
+        
+            if (AppState.selectedSpecialMarker) {
+                AppState.selectedSpecialMarker.getElement()?.classList.remove('marker-selected');
+                AppState.selectedSpecialMarker = null;
             }
+        
+            const pivoElement = marker.getElement();
+            if (!pivoElement) return;
 
-            // Lógica dos diferentes modos de operação
+            if (AppState.selectedPivoNome === pivo.nome) {
+                pivoElement.classList.remove('pivo-marker-container-selected');
+                AppState.selectedPivoNome = null;
+            } else {
+                if (AppState.selectedPivoNome) {
+                    const oldMarker = AppState.pivotsMap[AppState.selectedPivoNome];
+                    oldMarker?.getElement()?.classList.remove('pivo-marker-container-selected');
+                }
+                pivoElement.classList.add('pivo-marker-container-selected');
+                AppState.selectedPivoNome = pivo.nome;
+            }
+        
             if (AppState.modoEdicaoPivos) {
                  marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
-            } 
-            else if (AppState.modoLoSPivotAPivot) {
+            } else if (AppState.modoLoSPivotAPivot) {
                 if (typeof handleLoSTargetClick === 'function') handleLoSTargetClick(pivo, marker);
-            } 
-            else if (AppState.modoBuscaLocalRepetidora) {
+            } else if (AppState.modoBuscaLocalRepetidora) {
                 if (typeof handlePivotSelectionForRepeaterSite === 'function') handlePivotSelectionForRepeaterSite(pivo, marker);
             } else {
                 window.ultimoCliqueFoiSobrePivo = true;
                 AppState.coordenadaClicada = e.latlng;
                 removePositioningMarker();
-                document.getElementById("painel-repetidora")?.classList.remove("hidden");
+                painelRepetidoraSetupDiv.classList.remove("hidden");
             }
         });
         
         AppState.marcadoresPivos.push(marker);
         AppState.pivotsMap[pivo.nome] = marker;
 
-        marker.on('contextmenu', (e) => {
+        marker.on('contextmenu', async (e) => {
             L.DomEvent.stop(e);
             if (AppState.modoEdicaoPivos) return;
 
-            if (confirm(t('messages.confirm.remove_pivot', { name: pivo.nome }))) {
+            const confirmed = await showCustomConfirm(t('messages.confirm.remove_pivot', { name: pivo.nome }));
+            if (confirmed) {
                 const nomeCicloParaRemover = `Ciclo ${pivo.nome}`;
                 AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.filter(p => p.nome !== pivo.nome);
                 AppState.ciclosGlobais = AppState.ciclosGlobais.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
                 if (AppState.currentProcessedKmzData?.pivos) AppState.currentProcessedKmzData.pivos = AppState.currentProcessedKmzData.pivos.filter(p => p.nome !== pivo.nome);
                 if (AppState.currentProcessedKmzData?.ciclos) AppState.currentProcessedKmzData.ciclos = AppState.currentProcessedKmzData.ciclos.filter(c => c.nome_original_circulo !== nomeCicloParaRemover);
+                
+                if (AppState.selectedPivoNome === pivo.nome) {
+                    AppState.selectedPivoNome = null;
+                }
+                
                 drawPivos(AppState.lastPivosDataDrawn, false);
                 drawCirculos(AppState.ciclosGlobais);
                 atualizarPainelDados();
@@ -488,6 +498,7 @@ function drawBombas(bombasData) {
         
         marcadorBomba.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
+
             if (AppState.modoLoSPivotAPivot) {
                 if (typeof handleLoSTargetClick === 'function') {
                     const bombaDataForHandler = {
@@ -499,9 +510,10 @@ function drawBombas(bombasData) {
             }
         });
 
-        marcadorBomba.on('contextmenu', (e) => {
+        marcadorBomba.on('contextmenu', async (e) => {
             L.DomEvent.stop(e); 
-            if (confirm(t('messages.confirm.remove_irripump', { name: nomeBomba }))) {
+            const confirmed = await showCustomConfirm(t('messages.confirm.remove_irripump', { name: nomeBomba }));
+            if (confirmed) {
                 map.removeLayer(marcadorBomba);
                 const labelParaRemover = AppState.marcadoresLegenda.find(l => 
                     l.getLatLng().equals(marcadorBomba.getLatLng()) && 
@@ -532,7 +544,6 @@ function drawBombas(bombasData) {
             if (closest) {
                 const distanciaFormatada = closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + ' km' : Math.round(closest.distance) + ' m';
                 
-                // NOVO: Adicionar o nome formatado da fonte (antena/repetidora)
                 let sourceFormattedName = "";
                 if (closest.isMainAntenna) {
                     sourceFormattedName = getFormattedAntennaOrRepeaterName({
@@ -713,16 +724,17 @@ function addAntenaAoPainel(antena) {
     document.getElementById("antena-item")?.remove();
     const container = document.getElementById("lista-repetidoras");
     const item = document.createElement("div");
-    item.className = "flex justify-between items-center bg-gray-700/60 px-3 py-2 rounded-lg border border-white/10";
+    // MODIFICAÇÃO: classes do item principal igualadas às das repetidoras
+    item.className = "flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `antena-item`;
 
     const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t('tooltips.run_diagnostic_from_source')}" data-action="diagnostico">
         <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
     </button>`;
 
-    // Exibe o nome formatado (o que já está sendo feito)
+    // MODIFICAÇÃO: classes do span da fonte igualadas às das repetidoras
     item.innerHTML = `
-        <span class="text-white/90 font-semibold text-sm">${getFormattedAntennaOrRepeaterName(antena)}</span>
+        <span class="text-white/80 text-sm">${getFormattedAntennaOrRepeaterName(antena)}</span>
         <div class="flex gap-3 items-center">
             ${diagBtnHtml}
             <button class="text-white/60 hover:text-sky-300 transition" title="${t('tooltips.show_hide_coverage')}" data-action="toggle-visibility" data-visible="true">

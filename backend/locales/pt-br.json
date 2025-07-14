@@ -1,26 +1,27 @@
 {
     "ui": {
         "titles": {
-            "main": "Simulador de Sinal - Irricontrol",
+            "main": "Irricontrol: Simulador de Sinal",
             "data_panel": "Painel de Dados",
-            "repeater_panel": "Painel de Repetidoras",
-            "line_of_sight": "Linha de Visada (Obstáculos)",
-            "los_pivots": "Diagnóstico de Visada Pivô-a-Pivô",
-            "find_repeater_locations": "Análise de Local para Repetidora",
+            "repeater_panel": "Repetidoras",
+            "line_of_sight": "Análise de Visada (LoS)",
+            "los_pivots": "Visada entre Pivôs",
+            "find_repeater_locations": "Analisar Locais para Repetidora",
             "legend": "Legendas",
-            "show_pivot_distances": "Exibir Distâncias Entre Pivôs",
-            "hide_pivot_distances": "Ocultar Distâncias Entre Pivôs",
-            "edit_pivots": "Reconfigurar Pivôs",
-            "save_edit": "Salvar Edição",
-            "undo_edit": "Reverter Alterações",
+            "show_pivot_distances": "Mostrar Distâncias",
+            "hide_pivot_distances": "Ocultar Distâncias",
+            "edit_pivots": "Editar Pivôs",
+            "save_edit": "Salvar Alterações",
+            "undo_edit": "Desfazer Alterações",
             "draw_pivot": "Adicionar Pivô Circular Central",
             "draw_sector_pivot": "Adicionar Pivô Setorial Simples",
             "draw_pacman_pivot": "Adicionar Pivô Setorial com Arco Direcional",
             "draw_irripump": "Adicionar Estação de Bomba (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidora",
-            "search_coordinates": "Buscar Coordenadas",
+            "search_coordinates": "Localizar por Coordenadas",
             "toggle_antenna_legends": "Legendas das Antenas",
-            "restore_original_name": "Voltar ao Original"
+            "restore_original_name": "Restaurar Nome Original",
+            "export_pdf_report": "Exportar Relatório PDF"
         },
         "labels": {
             "tools": "Ferramentas",
@@ -31,42 +32,44 @@
             "processing": "Processando...",
             "antenna_height": "Altura do Transmissor (Tx) (m)",
             "receiver_height": "Altura do Receptor (Rx) (m)",
-            "antenna_height_tooltip": "Alt. Tx: {height}m",
-            "receiver_height_tooltip": "Alt. Rx: {height}m",
-            "total_pivots": "Pivôs:",
-            "out_of_coverage": "Fora da cobertura:",
+            "antenna_height_tooltip": "Tx: {height}m",
+            "receiver_height_tooltip": "Rx: {height}m",
+            "total_pivots": "Total de Pivôs:",
+            "out_of_coverage": "Sem Cobertura:",
             "main_antenna": "Antena principal:",
             "main_antenna_default": "Torre Principal",
             "receiver": "Receptor:",
             "total_repeaters": "Total Repetidoras:",
             "pump_houses": "Irripumps:",
             "repeater": "Repetidora",
-            "pivo_distance_label": "Distância ao Alvo:",
+            "pivo_distance_label": "Distância até o Alvo:",
             "powered_by": "Desenvolvido por Irricontrol",
             "radius": "Raio",
             "dry_angle": "Ângulo seco",
             "report_date": "Data do Relatório:",
             "report_generated_by": "Gerado por:",
-            "name": "Nome",             
-            "coordinates": "Coordenadas", 
-            "status": "Status",         
-            "height_short": "Alt.",      
+            "name": "Nome",
+            "coordinates": "Coordenadas",
+            "status": "Status",
+            "height_short": "Alt.",
             "general_info": "Informações Gerais",
             "map_view": "Visualização do Mapa",
-            "pivots": "Pivôs",          
+            "pivots": "Pivôs",
             "repeaters": "Repetidoras",
-            "central_count": "Centrais:"
+            "central_count": "Centrais:",
+            "shown": "exibidas",
+            "hidden": "ocultas"
         },
         "placeholders": {
             "lat_lon_search": "Latitude, Longitude"
         },
         "buttons": {
             "load_kmz": "Importar KMZ",
-            "run_study": "Executar Estudo de Cobertura",
+            "run_study": "Simular Cobertura",
             "run_los_diagnostic": "Diagnóstico de Visada",
             "export_kmz": "Baixar Arquivo KMZ",
             "export_pdf_report": "Exportar Relatório PDF",
-            "reset": "Reiniciar",
+            "reset": "Resetar",
             "simulate": "Executar Simulação"
         }
     },
@@ -84,14 +87,15 @@
         "hide_legends": "Esconder Legendas",
         "show_legends": "Mostrar Legendas",
         "run_diagnostic_from_source": "Executar diagnóstico a partir desta fonte",
-        "los_clear_at_highest_point": "Visada livre (Ponto mais alto: {elevation}m)"
+        "los_clear_at_highest_point": "Visada livre (Ponto mais alto: {elevation}m)",
+        "export_pdf_disabled": "Exporte o KMZ antes de gerar o relatório em PDF."
     },
     "messages": {
         "success": {
-            "new_session_started": "Nova sessão iniciada. Pronto para carregar um KMZ ou desenhar no mapa.",
-            "kmz_loaded_select_tower": "Arquivo KMZ processado. Selecione a antena inicial para simulação.",
-            "simulation_complete": "Estudo de propagação concluído com êxito.",
-            "repeater_added": "Repetidora \"{name}\" adicionada.",
+            "new_session_started": "Sessão iniciada. KMZ pronto para ser carregado ou mapa para edição.",
+            "kmz_loaded_select_tower": "KMZ importado. Escolha uma antena para iniciar a simulação.",
+            "simulation_complete": "Simulação concluída com sucesso.",
+            "repeater_added": "Repetidora “{name}” adicionada ao mapa.",
             "found_candidate_sites": "{count} locais candidatos para repetidora identificados.",
             "pivot_created": "Pivô \"{name}\" criado com sucesso.",
             "sector_pivot_created": "Pivô setorial \"{name}\" criado com sucesso.",
@@ -101,7 +105,7 @@
             "los_diagnostic_complete": "Análise de visada (LoS) finalizada.",
             "kmz_export_preparing": "Preparando exportação KMZ...",
             "pdf_export_preparing": "Preparando relatório PDF...",
-            "pdf_export_complete": "Relatório PDF gerado com sucesso.",
+            "pdf_export_complete": "Relatório em PDF gerado com sucesso.",
             "pivot_distances_shown": "Distâncias entre pivôs exibidas.",
             "pivot_distances_hidden": "Distâncias entre pivôs ocultas.",
             "pivot_distances_toggled": "Distâncias entre pivôs {status}.",
@@ -133,10 +137,11 @@
             "los_source_must_have_signal": "ORIGEM: selecione um alvo (pivô ou irripump) COM sinal.",
             "coordinate_input_empty": "Insira uma coordenada para buscar.",
             "invalid_coordinate_format": "Formato de coordenada inválido. Use DMS (ex.: 19°26'S 44°29'W) ou Decimal (ex.: -19.44 -44.49).",
-            "draw_pivot_radius_too_small": "Raio muito pequeno. Desenho cancelado. Clique para novo centro.",
+            "draw_pivot_radius_too_small": "Raio muito pequeno. Desenho cancelado. Clique novamente para definir o centro.",
             "generic_error": "Erro inesperado. Tente novamente.",
             "template_load_fail": "Falha ao buscar templates. Verifique sua conexão.",
-            "pdf_export_fail": "Falha ao exportar relatório PDF: {error}"
+            "pdf_export_fail": "Falha ao exportar relatório PDF: {error}",
+            "load_kmz_first": "Importe um arquivo KMZ antes de gerar o relatório."
         },
         "info": {
             "no_towers_found": "Nenhuma antena encontrada no KMZ. Adicione manualmente clicando no mapa.",
@@ -144,7 +149,7 @@
             "los_mode_off_find_repeater": "Modo 'Análise de Local para Repetidora' desativado.",
             "target_pivot_selected": "Pivô alvo selecionado: {name}. Buscando locais...",
             "no_promising_sites_found": "Nenhum local promissor encontrado com os critérios atuais.",
-            "draw_pivot_step1": "Modo de Edição Geográfica: clique para definir o centro do pivô.",
+            "draw_pivot_step1": "Clique para definir o centro do pivô.",
             "draw_pivot_step2": "Centro definido. Clique novamente para definir o raio.",
             "draw_pivot_off": "Modo de Edição Geográfica desativado.",
             "draw_pivot_still_active": "Modo de Edição ainda ativo. Clique para um novo pivô.",
@@ -167,7 +172,7 @@
             "los_result_error": "⚠️ Erro na visada {source} → {target} (Dist: {distance}): {error}",
             "los_new_source_prompt": "Selecione novo ORIGEM (com sinal) ou desative o modo.",
             "draw_sector_pivot_step1": "Modo de Edição Setorial: clique para definir o centro.",
-            "draw_sector_pivot_step2": "Centro definido. Ajuste raio/direção e clique para finalizar.",
+            "draw_sector_pivot_step2": "Centro definido. Ajuste o raio e a direção e clique para concluir.",
             "draw_sector_pivot_off": "Modo de Edição Setorial desativado.",
             "draw_sector_pivot_still_active": "Modo Setorial ainda ativo. Clique para novo pivô.",
             "draw_sector_cancelled": "Desenho de pivô setorial cancelado.",
@@ -182,16 +187,13 @@
             "draw_irripump_still_active": "Modo de Irripump ainda ativo. Clique para outro.",
             "draw_irripump_cancelled": "Adição de Irripump cancelada.",
             "nothing_to_undo": "Nenhuma alteração para desfazer.",
-            "find_repeater_long_process_warning": "A busca por locais de repetidora pode levar um minuto ou mais. Por favor, aguarde."
+            "find_repeater_long_process_warning": "A busca por locais de repetidora pode levar um minuto ou mais. Por favor, aguarde.",
+            "pdf_report_unlocked": "Relatório em PDF liberado para download."
         },
         "confirm": {
             "remove_pivot": "Confirma a exclusão do pivô \"{name}\" e suas áreas associadas?",
             "remove_irripump": "Confirma a exclusão do Irripump \"{name}\"?",
             "change_los_source": "ORIGEM já é {sourceName}. Alterar para {newName}? Linhas de diagnóstico serão removidas."
-        },
-        "labels": {
-            "shown": "exibidas",
-            "hidden": "ocultas"
         }
     },
     "entity_names": {

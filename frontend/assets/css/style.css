@@ -98,6 +98,8 @@ html, body {
 #mensagem {
   transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
   opacity: 1;
+  /* Ajustado para uma posição mais à direita, como 40% */
+  left: 40%; /* Ajuste este valor para mover para a direita/esquerda */
   transform: translateY(0);
 }
 
@@ -221,14 +223,82 @@ html, body {
 #painel-dados,
 #painel-repetidoras {
   transition: opacity 0.3s ease, transform 0.3s ease;
+  position: fixed; /* Manter fixo para flutuar */
+  right: 6.5rem; /* Puxa para a esquerda */
+  /* Remove o max-height aqui para o painel de repetidoras,
+     ele será calculado dinamicamente pelo flexbox e pelo JS */
+  display: flex;
+  flex-direction: column;
 }
 
-#painel-dados.hidden,
-#painel-repetidoras.hidden {
-  opacity: 0;
-  transform: translateX(20px); /* Efeito de deslizar para a direita ao desaparecer */
-  pointer-events: none;
+#painel-dados {
+  top: 1rem; /* Sobe o painel de dados */
+  /* O painel de dados PRECISA de um max-height, senão ele pode ocupar a tela toda */
+  max-height: calc(100vh - 4rem - 1rem); /* 100vh - altura_footer - margem_inferior_segurança */
+  /* Ajuste a altura máxima do painel de dados para não colidir com o rodapé */
 }
+
+#painel-repetidoras {
+  /* O top será definido pelo JS. */
+  /* NOVO: A altura máxima do painel de repetidoras deve ser o espaço restante. */
+  /* Considerando o cabeçalho (3.5rem), o painel de dados (variável), e o rodapé (4rem) + a mensagem (4rem).
+     É mais fácil fazer com que o .panel-content interno dele se expanda. */
+  max-height: calc(100vh - 1rem - 56px - 16px - 64px - 64px); /* 100vh - top_antena_dados - header_height - espacamento - bottom_msg - footer_height */
+  /* top_antena_dados (1rem = 16px) + header_height (56px) + espacamento (16px) + bottom_msg (64px) + footer_height (64px)
+     = 16 + 56 + 16 + 64 + 64 = 216px = 13.5rem
+  */
+  max-height: calc(100vh - 13.5rem); /* Altura máxima baseada no espaço restante da viewport */
+}
+
+/* Garante que o conteúdo dentro dos painéis possa rolar e preencher o espaço */
+#painel-dados .panel-content,
+#painel-repetidoras .panel-content {
+  flex-grow: 1; /* Permite que o conteúdo interno se expanda */
+  overflow-y: auto; /* Adiciona barra de rolagem se o conteúdo exceder */
+  padding-right: 8px; /* Para não esconder a barra de rolagem no arredondamento */
+}
+
+/* Este é o contêiner da lista de repetidoras */
+#lista-repetidoras {
+    flex-grow: 1; /* Permite que ele preencha o espaço disponível dentro do .panel-content */
+    overflow-y: auto; /* Garante a barra de rolagem se o conteúdo exceder */
+    padding-bottom: 0.5rem; /* Adiciona um pouco de espaço na parte inferior da rolagem */
+}
+
+/* NOVO: Estilo para os botões de minimizar/maximizar flutuantes */
+/* Aplicado a todos os botões com a classe 'panel-toggle-btn-floating' */
+.panel-toggle-btn-floating {
+    position: absolute !important; /* Essencial para flutuar no canto do painel */
+    display: flex !important; /* Garante que seja um flex container */
+    justify-content: center;
+    align-items: center;
+    width: 36px; /* Tamanho do balão, ajuste conforme necessário (2.25rem) */
+    height: 36px; /* Tamanho do balão, ajuste conforme necessário (2.25rem) */
+    background: rgba(10, 15, 20, 0.75); /* Fundo similar ao painel */
+    border: 1px solid rgba(255, 255, 255, 0.15); /* Borda similar */
+    border-radius: 50%; /* Faz o balão ser redondo */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Sombra para profundidade */
+    color: rgba(255, 255, 255, 0.7); /* Cor do ícone */
+    transition: all 0.3s ease; /* Transição suave */
+    cursor: pointer;
+    z-index: 2000; /* Garante que esteja acima dos painéis */
+    top: 0.5rem; /* Posição padrão superior dentro do painel */
+    right: 0.5rem; /* Posição padrão direita dentro do painel */
+}
+
+.panel-toggle-btn-floating:hover {
+    background: rgba(10, 15, 20, 0.9); /* Um pouco mais opaco no hover */
+    border-color: rgba(34, 197, 94, 0.4); /* Brilho verde na borda */
+    color: #22c55e; /* Ícone verde */
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5); /* Sombra com brilho verde */
+}
+
+/* Garante que o ícone Lucide dentro do botão flutuante tenha o tamanho correto */
+.panel-toggle-btn-floating i {
+    width: 20px; 
+    height: 20px; 
+}
+
 
 /* ========================= */
 /* 🛰️ LINHAS DIAGNÓSTICO */
@@ -498,8 +568,8 @@ button, .glass-button, label[for="arquivo"] {
   padding: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 
-  /* ✅ Posição final corrigida */
-  top: 4rem;
+  /* ✅ Posição final corrigida para subir */
+  top: 1rem !important; /* Mudei para 1rem e adicionei !important para forçar a aplicação */
   right: 0.1rem; /* colado na lateral direita real oficial */
 
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -674,6 +744,133 @@ button, .glass-button, label[for="arquivo"] {
 .rename-menu button:hover {
     background-color: rgba(71, 85, 105, 0.7); /* slate-600 com opacidade no hover */
     color: #fff;
+}
+
+
+/* ======================================= */
+/* ANIMAÇÃO OPÇÃO 3: ONDA DE ENERGIA        */
+/* ======================================= */
+@keyframes ondaEnergia {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(4); /* A onda se expande 4x */
+    opacity: 0;
+  }
+}
+
+/* REGRA PARA O PIVÔ SELECIONADO (COR BRANCO PURO) */
+.pivo-marker-container-selected .pivo-marker-dot {
+  position: relative;
+  background-color: #ffffff; /* Cor alterada para Branco */
+  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.6); /* Sombra no mesmo tom */
+}
+
+.pivo-marker-container-selected .pivo-marker-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid rgba(255, 255, 255, 0.8); /* Onda no mesmo tom */
+  border-radius: 50%;
+  animation: ondaEnergia 2s infinite ease-out;
+}
+
+
+/* ================================================== */
+/* EFEITO DE SELEÇÃO GLOBAL (ONDA DE ENERGIA BRANCA) */
+/* ================================================== */
+
+/* A animação (você já deve ter esta parte, mas incluo para garantir) */
+@keyframes ondaEnergia {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(4); /* A onda se expande 4x */
+    opacity: 0;
+  }
+}
+
+/* Um wrapper para o efeito, para não interferir com a imagem */
+.selection-effect-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* A classe 'marker-selected' será adicionada via JS ao clicar */
+.marker-selected .selection-effect-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  
+  /* Estilo da onda branca */
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  
+  /* Aplica a animação */
+  animation: ondaEnergia 2s infinite ease-out;
+  
+  /* Garante que a onda não capture cliques */
+  pointer-events: none; 
+}
+
+/* Classe para remover o fundo e a borda padrão dos divIcon do Leaflet */
+.leaflet-div-icon-transparent {
+    background: transparent;
+    border: none;
+}
+
+
+/* ============================ */
+/* 💎 MODAL DE CONFIRMAÇÃO      */
+/* ============================ */
+
+#custom-confirm-overlay {
+  opacity: 0;
+  pointer-events: none; /* Impede cliques quando escondido */
+}
+
+#custom-confirm-overlay:not(.hidden) {
+  opacity: 1;
+  pointer-events: auto; /* Permite cliques quando visível */
+}
+
+#custom-confirm-box {
+  transform: scale(0.95) translateY(10px);
+  opacity: 0;
+}
+
+#custom-confirm-overlay:not(.hidden) #custom-confirm-box {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+/* Estilo dos Botões do Modal */
+.confirm-btn-cancel, .confirm-btn-ok {
+    border: none;
+    cursor: pointer;
+}
+
+.confirm-btn-ok:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+}
+
+.confirm-btn-cancel:hover {
+    color: #ffffff;
 }
 
 

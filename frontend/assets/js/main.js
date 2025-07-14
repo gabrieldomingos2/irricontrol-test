@@ -35,7 +35,8 @@ const AppState = {
     isDrawingSector: false,
     
     // --- Referências a Camadas do Mapa (Leaflet) ---
-    selectedPivoMarker: null,
+    selectedPivoNome: null,
+    selectedSpecialMarker: null,
     marcadorAntena: null,
     marcadoresPivos: [],
     circulosPivos: [],
@@ -98,7 +99,8 @@ const AppState = {
         this.modoDesenhoPivoPacman = false;
         this.modoDesenhoIrripump = false;
         this.pontoRaioTemporario = null;
-        this.selectedPivoMarker = null;
+        this.selectedPivoNome = null;
+        this.selectedSpecialMarker = null;
     }
 };
 
@@ -114,28 +116,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     initMap();
     setupUIEventListeners();
     setupMainActionListeners();
-    loadAndPopulateTemplates();
+    await loadAndPopulateTemplates();
+    
     lucide.createIcons();
     
-    await startNewSession();
+    // Esta chamada agora garante que uma nova sessão seja iniciada após o reset inicial do estado.
+    await handleResetClick(false); 
 
     console.log("Aplicação Pronta.");
-
-    const painelDados = document.getElementById('painel-dados');
-    const painelRepetidoras = document.getElementById('painel-repetidoras');
-
-    if (painelDados) painelDados.classList.remove('hidden');
-    if (painelRepetidoras) painelRepetidoras.classList.remove('hidden');
-    if (typeof atualizarPainelDados === 'function') {
-        atualizarPainelDados();
-    }
-
-    if (typeof reposicionarPaineisLaterais === 'function') {
-        reposicionarPaineisLaterais();
-    }
-
-    applyTranslations();
 });
+
+// --- Função de Controle do Botão PDF ---
+/**
+ * Controla o estado (habilitado/desabilitado) e o tooltip do botão de exportar PDF.
+ * @param {boolean} isUnlocked - True para habilitar o botão, false para desabilitar.
+ */
+function updatePdfButtonState(isUnlocked) {
+    const exportarPdfBtn = document.getElementById('exportar-pdf-btn');
+    if (!exportarPdfBtn) return;
+
+    exportarPdfBtn.disabled = !isUnlocked;
+
+    if (isUnlocked) {
+        exportarPdfBtn.title = t('ui.titles.export_pdf_report');
+    } else {
+        exportarPdfBtn.title = t('tooltips.export_pdf_disabled');
+    }
+}
+
 
 async function startNewSession() {
     mostrarLoader(true);
@@ -145,7 +153,9 @@ async function startNewSession() {
             throw new Error("A resposta do servidor não incluiu um ID de job.");
         }
         AppState.setJobId(data.job_id);
-        mostrarMensagem(t('messages.success.new_session_started'), "sucesso");
+        if (AppState.jobId) { 
+            mostrarMensagem(t('messages.success.new_session_started'), "sucesso");
+        }
         
         AppState.currentProcessedKmzData = { antenas: [], pivos: [], ciclos: [], bombas: [] };
         
@@ -158,7 +168,7 @@ async function startNewSession() {
     }
 }
 
-// --- Configuração dos Listeners Principais ---
+// --- Listeners Principais ---
 
 function setupMainActionListeners() {
     document.getElementById('arquivo').addEventListener('change', handleKmzFileSelect);
@@ -175,6 +185,8 @@ function setupMainActionListeners() {
     map.on("click", handleMapClick); 
     map.on("contextmenu", handleCancelDraw);
 
+
+    document.addEventListener('keydown', handleEscapeKey);
     document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
     document.getElementById('btn-draw-pivot-setorial').addEventListener('click', toggleModoDesenhoPivoSetorial);
 
@@ -182,14 +194,10 @@ function setupMainActionListeners() {
     if (toggleDistanciasBtn) {
         toggleDistanciasBtn.addEventListener('click', handleToggleDistanciasPivos);
     }
-    
-    if (typeof applyTranslations === 'function') {
-        applyTranslations();
-    }
 }
 
 
-// --- Handlers de Ações Principais ---
+// --- Handlers de Ações ---
 async function handleKmzFileSelect(event) {
     const fileInput = event.target;
     if (!fileInput.files || fileInput.files.length === 0) {
@@ -208,13 +216,11 @@ async function handleKmzFileSelect(event) {
     const formData = new FormData();
     formData.append("file", file);
 
-    // --- NOVO: Adicionar o idioma atual ao formulário ---
     const currentLanguage = localStorage.getItem('preferredLanguage') || 'pt-br';
     formData.append("language", currentLanguage);
-    // --- FIM DA MODIFICAÇÃO ---
 
     try {
-        handleResetClick(false);
+        await handleResetClick(false);
 
         const data = await processKmz(formData);
         console.log("✅ KMZ Processado:", data);
@@ -285,24 +291,10 @@ async function handleKmzFileSelect(event) {
         reposicionarPaineisLaterais();
         expandAllPanels();
 
-        // ✅ Ativa o botão de exportar PDF
-        const exportarPdfBtn = document.getElementById('exportar-pdf-btn');
-        if (exportarPdfBtn) {
-            exportarPdfBtn.disabled = false;
-            exportarPdfBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
-
     } catch (error) {
         console.error("❌ Erro no submit do formulário:", error);
         mostrarMensagem(t('messages.errors.kmz_load_fail', { error: error.message }), "erro");
-
-        // ❌ Desativa o botão de exportar PDF em caso de erro
-        const exportarPdfBtn = document.getElementById('exportar-pdf-btn');
-        if (exportarPdfBtn) {
-            exportarPdfBtn.disabled = true;
-            exportarPdfBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-
+        updatePdfButtonState(false);
         await startNewSession();
     } finally {
         mostrarLoader(false);
@@ -363,13 +355,17 @@ async function startMainSimulation(antenaData) {
             overlay: drawImageOverlay(data.imagem_salva, data.bounds),
             bounds: data.bounds,
             imagem_filename: data.imagem_filename,
-            // NOVO: Adicionar tipo padrão para a antena principal se não vier dos dados
             type: antenaData.type || 'default', 
-            original_name: antenaData.nome // Guarda o nome original se necessário
+            original_name: antenaData.nome 
         };
 
         if(AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
         AppState.marcadorAntena = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
+
+        AppState.marcadorAntena.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        handleSpecialMarkerSelection(AppState.marcadorAntena);
+        });
 
         const tooltipAntenaContent = `
             <div style="text-align: center;">
@@ -385,7 +381,6 @@ async function startMainSimulation(antenaData) {
             className: 'tooltip-sinal'
         });
 
-        // NOVO: Usar função para obter nome formatado para a legenda
         const nomeAntenaPrincipalFormatado = getFormattedAntennaOrRepeaterName(AppState.antenaGlobal);
         const labelWidth = (nomeAntenaPrincipalFormatado.length * 7) + 10;
         const labelPrincipal = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], {
@@ -400,7 +395,7 @@ async function startMainSimulation(antenaData) {
         
         AppState.marcadoresLegenda.push(labelPrincipal);
         AppState.antenaGlobal.label = labelPrincipal;
-        addAntenaAoPainel(AppState.antenaGlobal); // Atualiza o painel com a antena global
+        addAntenaAoPainel(AppState.antenaGlobal); 
     
         if (data.pivos) {
             AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.map(pivoAntigo => {
@@ -427,29 +422,26 @@ async function startMainSimulation(antenaData) {
     }
 }
 
-// NOVO: Lógica de renomeação de repetidoras
 function handleRenameRepeater(id, newType) {
     const repetidora = AppState.repetidoras.find(r => r.id === id);
     if (repetidora) {
-        repetidora.type = newType; // Define o novo tipo (ex: 'tower', 'post', 'default')
+        repetidora.type = newType; 
 
-        // 1. Atualiza a label no mapa (objeto Leaflet)
-        // Certifique-se que updateAntenaOrRepeaterLabel está disponível (de drawing.js)
         if (typeof updateAntenaOrRepeaterLabel === 'function') {
             updateAntenaOrRepeaterLabel(repetidora);
         }
 
-        // 2. Atualiza o texto no painel de repetidoras
-        const painelItemSpan = document.querySelector(`#rep-item-${repetidora.id} span.text-white\\/80`); // Seleciona o span específico
+        const painelItemSpan = document.querySelector(`#rep-item-${repetidora.id} span`);
         if (painelItemSpan) {
             painelItemSpan.textContent = getFormattedAntennaOrRepeaterName(repetidora);
         }
+        
+        atualizarPainelDados();
 
         mostrarMensagem(t('messages.success.repeater_renamed', { name: getFormattedAntennaOrRepeaterName(repetidora) }), "sucesso");
     }
 }
 
-// NOVO: Lógica de renomeação da antena principal
 function handleRenameMainAntenna(newType) {
     if (AppState.antenaGlobal) {
         AppState.antenaGlobal.type = newType;
@@ -458,10 +450,12 @@ function handleRenameMainAntenna(newType) {
             updateAntenaOrRepeaterLabel(AppState.antenaGlobal);
         }
 
-        const painelItemSpan = document.querySelector("#antena-item span.text-white\\/90");
+        const painelItemSpan = document.querySelector("#antena-item span");
         if (painelItemSpan) {
             painelItemSpan.textContent = getFormattedAntennaOrRepeaterName(AppState.antenaGlobal);
         }
+
+        atualizarPainelDados();
 
         mostrarMensagem(t('messages.success.main_antenna_renamed', {
             name: getFormattedAntennaOrRepeaterName(AppState.antenaGlobal)
@@ -472,30 +466,28 @@ function handleRenameMainAntenna(newType) {
 }
 
 async function handleMapClick(e) {
-    if (AppState.selectedPivoMarker) {
-        const pivoElement = AppState.selectedPivoMarker.getElement();
-    if (pivoElement) {
-            pivoElement.classList.remove('pivo-marker-container-selected');
-        }
-        AppState.selectedPivoMarker = null;
-    }
+    // --- CORREÇÃO PRINCIPAL ---
+    // A primeira ação de um clique no mapa agora é deselecionar tudo.
+    deselectAllMarkers();
 
+    // Se estiver em um modo de desenho que usa múltiplos cliques, não faz mais nada.
     if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo || AppState.modoDesenhoPivoPacman) {
         return;
     }
 
-    if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo || AppState.modoDesenhoPivoPacman) {
-
-        return;
-    }
-    
+    // Se estiver no modo de desenhar irripump, executa a ação e para.
     if (AppState.modoDesenhoIrripump) {
         handleIrripumpDrawClick(e);
         return;
     }
     
-    if (AppState.modoEdicaoPivos || AppState.modoLoSPivotAPivot) return;
+    // Se estiver em outros modos de interação, também não faz mais nada.
+    if (AppState.modoEdicaoPivos || AppState.modoLoSPivotAPivot || AppState.modoBuscaLocalRepetidora) {
+        return;
+    }
 
+    // Se não estiver em nenhum modo especial, prossegue com a lógica original
+    // de posicionar um marcador para uma nova repetidora.
     window.clickedCandidateData = null;
     window.ultimoCliqueFoiSobrePivo = false;
     AppState.coordenadaClicada = e.latlng;
@@ -511,7 +503,7 @@ async function handleMapClick(e) {
         zIndexOffset: 1000
     }).addTo(map);
 
-    document.getElementById("painel-repetidora").classList.remove("hidden");
+    painelRepetidoraSetupDiv.classList.remove("hidden");
 }
 
 async function handleIrripumpDrawClick(e) {
@@ -567,7 +559,7 @@ async function handleConfirmRepetidoraClick() {
     const alturaReceiver = parseFloat(document.getElementById("altura-receiver-rep").value);
     AppState.templateSelecionado = document.getElementById('template-modelo').value;
 
-    document.getElementById('painel-repetidora').classList.add('hidden');
+    painelRepetidoraSetupDiv.classList.add('hidden');
     mostrarLoader(true);
 
     try {
@@ -575,12 +567,11 @@ async function handleConfirmRepetidoraClick() {
         let nomeRep;
         let id;
         let isFromKmz = false;
-        let type = 'default'; // NOVO: Define o tipo padrão como 'default'
+        let type = 'default';
 
         if (!AppState.antenaGlobal && window.clickedCandidateData) {
             const candidateData = { ...window.clickedCandidateData };
             window.clickedCandidateData = null;
-            // Ao iniciar a simulação principal, podemos já definir o tipo se for a "Central"
             await startMainSimulation({ ...candidateData, altura: alturaAntena || candidateData.altura, altura_receiver: alturaReceiver || candidateData.altura_receiver, type: candidateData.type || 'default' });
             return;
         }
@@ -593,7 +584,7 @@ async function handleConfirmRepetidoraClick() {
             const candidateData = { ...window.clickedCandidateData };
             window.clickedCandidateData = null;
             isFromKmz = true;
-            type = candidateData.type || 'default'; // Usa o tipo da candidata se houver
+            type = candidateData.type || 'default'; 
             
             if (AppState.antenaCandidatesLayerGroup) {
                 const idToRemove = `candidate-${candidateData.nome}-${candidateData.lat}`;
@@ -622,7 +613,6 @@ async function handleConfirmRepetidoraClick() {
             type: type
         };
 
-        // NOVO: Formatar nome da repetidora para o label usando a função
         const nomeRepFormatado = getFormattedAntennaOrRepeaterName(repetidoraObj);
         const labelRepetidora = L.marker(AppState.coordenadaClicada, {
             icon: L.divIcon({
@@ -633,7 +623,7 @@ async function handleConfirmRepetidoraClick() {
             labelType: 'repetidora'
         }).addTo(map);
         AppState.marcadoresLegenda.push(labelRepetidora);
-        repetidoraObj.label = labelRepetidora; // Associa a label ao objeto da repetidora
+        repetidoraObj.label = labelRepetidora;
 
         const tooltipRepetidoraContent = `
             <div style="text-align: center;">
@@ -738,9 +728,9 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
         return;
     }
 
-    if (AppState.xSelecionadoMarker) { //
-        map.removeLayer(AppState.xSelecionadoMarker); //
-        AppState.xSelecionadoMarker = null; //
+    if (AppState.xSelecionadoMarker) { 
+        map.removeLayer(AppState.xSelecionadoMarker); 
+        AppState.xSelecionadoMarker = null; 
     }
 
     AppState.pivoAlvoParaLocalRepetidora = {
@@ -934,8 +924,9 @@ async function handlePivotDrawClick(e) {
 }
 
 async function handleExportPdfReportClick() {
-    if (!AppState.jobId) {
-        mostrarMensagem(t('messages.errors.session_not_started'), "erro");
+    // A verificação de desabilitado já impede o clique, mas mantemos por segurança
+    if (!AppState.jobId || !AppState.currentProcessedKmzData) {
+        mostrarMensagem(t('messages.errors.load_kmz_first'), "erro");
         return;
     }
     if (!AppState.antenaGlobal && AppState.repetidoras.length === 0 && AppState.lastPivosDataDrawn.length === 0 && AppState.lastBombasDataDrawn.length === 0) {
@@ -949,20 +940,19 @@ async function handleExportPdfReportClick() {
     try {
         const repetidorasParaRelatorio = [];
         AppState.repetidoras.forEach(rep => {
-            // Inclua apenas repetidoras que têm overlay e estão visíveis
             const visibilityBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
             const isVisible = !visibilityBtn || visibilityBtn.getAttribute('data-visible') === 'true';
 
-            if (isVisible) { // Não precisa do filename para o PDF, apenas os dados básicos
+            if (isVisible) {
                 repetidorasParaRelatorio.push({
-                    nome: rep.nome, // Nome original ou padrão
+                    nome: rep.nome,
                     lat: rep.lat,
                     lon: rep.lon,
                     altura: rep.altura,
                     altura_receiver: rep.altura_receiver,
                     is_from_kmz: rep.is_from_kmz || false,
                     sobre_pivo: rep.sobre_pivo || false,
-                    type: rep.type || 'default' // NOVO: Inclui o tipo
+                    type: rep.type || 'default'
                 });
             }
         });
@@ -975,16 +965,15 @@ async function handleExportPdfReportClick() {
                 lon: AppState.antenaGlobal.lon,
                 altura: AppState.antenaGlobal.altura,
                 altura_receiver: AppState.antenaGlobal.altura_receiver,
-                type: AppState.antenaGlobal.type || 'default' // NOVO: Inclui o tipo
+                type: AppState.antenaGlobal.type || 'default'
             };
         }
 
-        // Coletar status atual dos pivôs para o relatório
         const pivosComStatus = AppState.lastPivosDataDrawn.map(p => ({
             nome: p.nome,
             lat: p.lat,
             lon: p.lon,
-            fora: p.fora // 'fora' já está presente
+            fora: p.fora
         }));
 
         const bombasComStatus = AppState.lastBombasDataDrawn.map(b => ({
@@ -1002,11 +991,9 @@ async function handleExportPdfReportClick() {
             bombas_data: bombasComStatus,
             repetidoras_data: repetidorasParaRelatorio,
             template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,
-            // Você pode adicionar a URL de uma imagem do mapa aqui se tiver um serviço de captura de tela
-            // current_map_screenshot_url: "...", 
         };
 
-        await exportPdfReport(payload); // Chama a função da API
+        await exportPdfReport(payload);
 
         mostrarMensagem(t('messages.success.pdf_export_complete'), "sucesso");
 
@@ -1018,34 +1005,31 @@ async function handleExportPdfReportClick() {
     }
 }
 
-function handleResetClick(showMessage = true) {
-    console.log("🔄 Resetando aplicação...");
+async function handleResetClick(showMessage = true) {
+    if(showMessage) {
+        console.log("🔄 Resetando aplicação...");
+    }
+    
     clearMapLayers();
     AppState.reset();
 
-    if (showMessage) {
-      startNewSession();
-    }
+    // Garante que uma nova sessão SEMPRE seja iniciada após um reset,
+    // seja ele vindo do clique no botão ou do carregamento inicial da página.
+    await startNewSession(); //
 
     const toggleableButtonsIds = [
-        'editar-pivos',
-        'btn-los-pivot-a-pivot',
-        'btn-buscar-locais-repetidora',
-        'btn-draw-pivot',
-        'btn-draw-pivot-setorial',
-        'btn-draw-pivot-pacman',
-        'toggle-distancias-pivos',
-        'toggle-legenda',
-        'btn-draw-irripump',
+        'editar-pivos', 'btn-los-pivot-a-pivot', 'btn-buscar-locais-repetidora',
+        'btn-draw-pivot', 'btn-draw-pivot-setorial', 'btn-draw-pivot-pacman',
+        'toggle-distancias-pivos', 'toggle-legenda', 'btn-draw-irripump',
         'toggle-antenas-legendas'
     ];
 
     toggleableButtonsIds.forEach(id => {
         const btn = document.getElementById(id);
-        if (btn) {
-            btn.classList.remove('glass-button-active');
-        }
+        if (btn) btn.classList.remove('glass-button-active');
     });
+    
+    updatePdfButtonState(false);
 
     const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
@@ -1057,18 +1041,21 @@ function handleResetClick(showMessage = true) {
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         }
+        map.off('click', handlePivotDrawClick);
+        map.off('mousemove', handlePivotDrawMouseMove);
+        map.off('click', handleSectorialPivotDrawClick);
+        map.off('mousemove', handleSectorialDrawMouseMove);
+        map.setView([-15, -55], 5);
     }
-
-    map.off('click', handlePivotDrawClick);
-    map.off('mousemove', handlePivotDrawMouseMove);
-    map.off('click', handleSectorialPivotDrawClick);
-    map.off('mousemove', handleSectorialDrawMouseMove);
 
     document.getElementById("simular-btn")?.classList.add("hidden");
     document.getElementById("lista-repetidoras").innerHTML = "";
 
-    const paineisParaEsconder = ["painel-repetidora", "painel-dados", "painel-repetidoras", "desfazer-edicao"];
-    paineisParaEsconder.forEach(id => document.getElementById(id)?.classList.add("hidden"));
+    const paineisParaEsconder = ["painel-repetidora", "desfazer-edicao"];
+    paineisParaEsconder.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add("hidden");
+    });
 
     const nomeArquivoLabelElement = document.getElementById('nome-arquivo-label');
     if (nomeArquivoLabelElement) {
@@ -1080,16 +1067,13 @@ function handleResetClick(showMessage = true) {
 
     document.getElementById("range-opacidade").value = 1;
 
-    if (map) map.setView([-15, -55], 5);
-
     atualizarPainelDados();
     reposicionarPaineisLaterais();
-
-    AppState.legendasAtivas = true;
-    AppState.antenaLegendasAtivas = true;
     updateLegendsVisibility();
 
-    if (showMessage) mostrarMensagem(t('messages.success.app_reset'), "sucesso");
+    if (showMessage) {
+        mostrarMensagem(t('messages.success.app_reset'), "sucesso");
+    }
 }
 
 async function runTargetedDiagnostic(diagnosticoSource) {
@@ -1101,7 +1085,6 @@ async function runTargetedDiagnostic(diagnosticoSource) {
     AppState.visadaVisivel = true;
     document.getElementById("btn-visada")?.classList.remove("opacity-50");
 
-    // Usa getFormattedAntennaOrRepeaterName para o nome da fonte de diagnóstico
     const sourceName = getFormattedAntennaOrRepeaterName(diagnosticoSource.isMainAntenna ? AppState.antenaGlobal : diagnosticoSource);
     const sourceLatLng = diagnosticoSource.marker ? diagnosticoSource.marker.getLatLng() : L.latLng(diagnosticoSource.lat, diagnosticoSource.lon);
 
@@ -1169,8 +1152,8 @@ async function runTargetedDiagnostic(diagnosticoSource) {
 
     for (const alvo of alvosFiltrados) {
         const alvoLatLng = alvo.latlng;
-        const distanciaEntreAlvos = sourceLatLng.distanceTo(alvoLatLng); // Calculate distance here
-        const distanciaFormatada = distanciaEntreAlvos > 999 ? (distanciaEntreAlvos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntreAlvos) + ' m'; // Format distance
+        const distanciaEntreAlvos = sourceLatLng.distanceTo(alvoLatLng);
+        const distanciaFormatada = distanciaEntreAlvos > 999 ? (distanciaEntreAlvos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntreAlvos) + ' m';
 
         const payload = {
             pontos: [
@@ -1187,7 +1170,7 @@ async function runTargetedDiagnostic(diagnosticoSource) {
             const nomeDiagnostico = `${sourceName} → ${alvo.nome}`;
             drawDiagnostico(
                 payload.pontos[0], payload.pontos[1],
-                data.bloqueio, data.ponto_mais_alto, nomeDiagnostico, distanciaFormatada // Pass formatted distance
+                data.bloqueio, data.ponto_mais_alto, nomeDiagnostico, distanciaFormatada
             );
         } catch (error) {
             console.error(`Erro no diagnóstico do alvo ${alvo.nome}:`, error);
@@ -1224,8 +1207,8 @@ async function handleExportClick() {
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
                     sobre_pivo: rep.sobre_pivo,
-                    nome: rep.is_from_kmz ? rep.nome : null, // Nome original do KMZ
-                    type: rep.type || 'default' // NOVO: Inclui o tipo para KMZ
+                    nome: rep.is_from_kmz ? rep.nome : null, 
+                    type: rep.type || 'default'
                 });
             }
         });
@@ -1241,7 +1224,7 @@ async function handleExportClick() {
                 lon: AppState.antenaGlobal.lon,
                 altura: AppState.antenaGlobal.altura,
                 altura_receiver: AppState.antenaGlobal.altura_receiver,
-                type: AppState.antenaGlobal.type || 'default' // NOVO: Inclui o tipo para KMZ
+                type: AppState.antenaGlobal.type || 'default'
             };
             imagemPrincipal = AppState.antenaGlobal.imagem_filename;
             if (imagemPrincipal) {
@@ -1263,6 +1246,9 @@ async function handleExportClick() {
         };
 
         await exportKmz(payload);
+
+        updatePdfButtonState(true); 
+        mostrarMensagem(t('messages.info.pdf_report_unlocked'), "sucesso");
 
     } catch (error) {
         console.error("Erro no processo de exportação KMZ:", error);
@@ -1388,11 +1374,12 @@ function createEditablePivotMarker(pivoInfo) {
         }
     });
     
-    editMarker.on("contextmenu", (e) => {
+    editMarker.on("contextmenu", async (e) => {
         L.DomEvent.stop(e);
-        if (AppState.modoEdicaoPivos) return;
+        if (!AppState.modoEdicaoPivos) return;
 
-        if (confirm(t('messages.confirm.remove_pivot', { name: nome }))) {
+        const confirmed = await showCustomConfirm(t('messages.confirm.remove_pivot', { name: nome }));
+        if (confirmed) {
             const pivoParaDeletar = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
             const nomeCicloParaDeletar = `Ciclo ${nome}`;
             const cicloParaDeletar = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCicloParaDeletar);
@@ -1506,7 +1493,7 @@ function desfazerUltimaAcao() {
             mostrarMensagem(t('messages.success.action_undone_move', { pivot_name: pivotName }), "sucesso");
         }
     }
-
+    
     else if (lastAction.type === 'delete') {
         const { deletedPivot, deletedCiclo } = lastAction;
 
@@ -1517,6 +1504,7 @@ function desfazerUltimaAcao() {
         
         createEditablePivotMarker(deletedPivot);
         drawCirculos(AppState.ciclosGlobais);  
+        
         atualizarPainelDados();
         mostrarMensagem(t('messages.success.action_undone_delete', { pivot_name: deletedPivot.nome }), "sucesso");
     }
@@ -1566,17 +1554,16 @@ async function handleLoSTargetClick(itemData, itemMarker) {
             return;
         }
         AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
-        // NOVO: Adiciona a propriedade 'isMainAntenna' e 'type' ao losSourcePivot
-        if (itemData.id === 'main_antenna' || itemData.id === AppState.antenaGlobal?.id) { // Assume que main antenna tem um ID ou um ID especial
+        if (itemData.id === 'main_antenna' || itemData.id === AppState.antenaGlobal?.id) {
              AppState.losSourcePivot.isMainAntenna = true;
              AppState.losSourcePivot.type = AppState.antenaGlobal.type;
-             AppState.losSourcePivot.altura = AppState.antenaGlobal.altura; // Garante que a altura da antena principal é usada
+             AppState.losSourcePivot.altura = AppState.antenaGlobal.altura;
         } else {
             const rep = AppState.repetidoras.find(r => r.id === itemData.id);
             if (rep) {
                 AppState.losSourcePivot.isMainAntenna = false;
                 AppState.losSourcePivot.type = rep.type;
-                AppState.losSourcePivot.altura = rep.altura; // Garante que a altura da repetidora é usada
+                AppState.losSourcePivot.altura = rep.altura;
             }
         }
         mostrarMensagem(t('messages.info.los_source_selected', { name: itemData.nome }), "sucesso");
@@ -1586,9 +1573,9 @@ async function handleLoSTargetClick(itemData, itemMarker) {
             return;
         }
         if (hasGoodSignal) {
-            if (confirm(t('messages.confirm.change_los_source', { sourceName: AppState.losSourcePivot.nome, newName: itemData.nome }))) {
+            const confirmed = await showCustomConfirm(t('messages.confirm.change_los_source', { sourceName: AppState.losSourcePivot.nome, newName: itemData.nome }));
+            if (confirmed) {
                 AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
-                // NOVO: Atualiza as propriedades 'isMainAntenna' e 'type' ao mudar a fonte
                 if (itemData.id === 'main_antenna' || itemData.id === AppState.antenaGlobal?.id) {
                     AppState.losSourcePivot.isMainAntenna = true;
                     AppState.losSourcePivot.type = AppState.antenaGlobal.type;
@@ -1609,6 +1596,7 @@ async function handleLoSTargetClick(itemData, itemMarker) {
             }
             return;
         }
+
         AppState.losTargetPivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
         mostrarLoader(true);
         let ocorreuErroNaAnalise = false;
@@ -1629,7 +1617,6 @@ async function handleLoSTargetClick(itemData, itemMarker) {
             const resultadoApi = await getElevationProfile(payload);
             const estaBloqueado = resultadoApi.bloqueio?.diff > 0.1;
             
-            // NOVO: Usa o nome formatado da fonte para o diagnóstico
             const sourceDisplayName = getFormattedAntennaOrRepeaterName(AppState.losSourcePivot);
             drawDiagnostico(payload.pontos[0], payload.pontos[1], resultadoApi.bloqueio, resultadoApi.ponto_mais_alto, `${sourceDisplayName} → ${AppState.losTargetPivot.nome}`, distanciaFormatada);
             
@@ -1749,7 +1736,7 @@ function handleCoordinateSearch() {
         map.setView(latlng, 15);
         mostrarMensagem(t('messages.success.location_found'), "sucesso");
         AppState.coordenadaClicada = latlng;
-        document.getElementById("painel-repetidora").classList.remove("hidden");
+        painelRepetidoraSetupDiv.classList.remove("hidden");
         inputField.value = '';
     } else {
         mostrarMensagem(t('messages.error.invalid_coordinate_format'), "erro");
@@ -1815,7 +1802,7 @@ async function handleSectorialPivotDrawClick(e) {
     const radius = AppState.centroPivoTemporario.distanceTo(finalPoint);
 
     if (typeof removeTempSector === 'function') {
-        removeTempSector();
+        removeTempSector(); // ✨ CORREÇÃO 1: Removendo o setor temporário logo no início da finalização
     }
 
     if (radius < 10) { 
@@ -1863,6 +1850,9 @@ async function handleSectorialPivotDrawClick(e) {
     } finally {
 
         AppState.centroPivoTemporario = null;
+        
+        removeDrawingTooltip(map);
+        
         mostrarLoader(false);
         
         setTimeout(() => {
@@ -2016,6 +2006,9 @@ async function handlePacmanPivotDrawClick(e) {
         AppState.centroPivoTemporario = null;
         AppState.pontoRaioTemporario = null;
         if (typeof removeTempPacman === 'function') removeTempPacman();
+        
+        removeDrawingTooltip(map);
+
         mostrarLoader(false);
 
         setTimeout(() => {
@@ -2047,5 +2040,151 @@ function toggleModoDesenhoIrripump() {
     } else {
         map.getContainer().style.cursor = '';
         mostrarMensagem(t('messages.info.draw_irripump_off'), "sucesso");
+    }
+}
+
+
+function handleSpecialMarkerSelection(marker) {
+    if (AppState.selectedPivoNome) {
+        const pivoMarker = AppState.pivotsMap[AppState.selectedPivoNome];
+        pivoMarker?.getElement()?.classList.remove('pivo-marker-container-selected');
+        AppState.selectedPivoNome = null;
+    }
+
+    const currentSelected = AppState.selectedSpecialMarker;
+    const markerElement = marker.getElement();
+
+    if (currentSelected && currentSelected !== marker) {
+        currentSelected.getElement()?.classList.remove('marker-selected');
+    }
+
+    if (markerElement) {
+        if (markerElement.classList.contains('marker-selected')) {
+            markerElement.classList.remove('marker-selected');
+            AppState.selectedSpecialMarker = null;
+        } else {
+            markerElement.classList.add('marker-selected');
+            AppState.selectedSpecialMarker = marker;
+        }
+    }
+}
+
+
+/**
+ * Remove o efeito de seleção de qualquer marcador ativo no mapa (pivô ou especial).
+ */
+function deselectAllMarkers() {
+    // Deseleciona o pivô ativo, se houver
+    if (AppState.selectedPivoNome) {
+        const pivoMarker = AppState.pivotsMap[AppState.selectedPivoNome];
+        pivoMarker?.getElement()?.classList.remove('pivo-marker-container-selected');
+        AppState.selectedPivoNome = null;
+    }
+    // Deseleciona o marcador especial (antena/torre) ativo, se houver
+    if (AppState.selectedSpecialMarker) {
+        AppState.selectedSpecialMarker.getElement()?.classList.remove('marker-selected');
+        AppState.selectedSpecialMarker = null;
+    }
+}
+
+
+function handleCancelDraw(e) {
+    let drawCancelled = false;
+    let messageKey = '';
+
+    if (AppState.modoDesenhoPivo && AppState.centroPivoTemporario) {
+        if (typeof removeTempCircle === 'function') removeTempCircle();
+        removeDrawingTooltip(map);
+        messageKey = 'messages.info.draw_pivot_cancelled';
+        drawCancelled = true;
+    }
+
+    else if (AppState.modoDesenhoPivoSetorial && AppState.centroPivoTemporario) {
+        if (typeof removeTempSector === 'function') removeTempSector();
+        removeDrawingTooltip(map);
+        messageKey = 'messages.info.draw_sector_cancelled';
+        drawCancelled = true;
+    }
+
+    else if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
+        if (typeof removeTempPacman === 'function') removeTempPacman();
+        removeDrawingTooltip(map);
+        messageKey = 'messages.info.draw_pacman_cancelled';
+        drawCancelled = true;
+    }
+
+    if (drawCancelled) {
+        L.DomEvent.preventDefault(e);
+        L.DomEvent.stopPropagation(e);
+
+        console.log("✏️ Ação de desenho cancelada pelo usuário.");
+        AppState.centroPivoTemporario = null;
+        AppState.pontoRaioTemporario = null;
+        
+        if (messageKey) {
+            mostrarMensagem(t(messageKey), "info");
+        }
+    }
+}
+
+/**
+ * Lida com o pressionamento da tecla ESC para cancelar modos de desenho.
+ * @param {KeyboardEvent} e - O evento de teclado.
+ */
+function handleEscapeKey(e) {
+    if (e.key === 'Escape') {
+        let cancelledSomething = false;
+
+        // Cancela o modo de desenho de pivô circular
+        if (AppState.modoDesenhoPivo) {
+            toggleModoDesenhoPivo();
+            cancelledSomething = true;
+        }
+        // Cancela o modo de desenho de pivô setorial
+        if (AppState.modoDesenhoPivoSetorial) {
+            toggleModoDesenhoPivoSetorial();
+            cancelledSomething = true;
+        }
+        // Cancela o modo de desenho de pivô Pac-Man
+        if (AppState.modoDesenhoPivoPacman) {
+            toggleModoDesenhoPivoPacman();
+            cancelledSomething = true;
+        }
+        // Cancela o modo de desenho de Irripump
+        if (AppState.modoDesenhoIrripump) {
+            toggleModoDesenhoIrripump();
+            cancelledSomething = true;
+        }
+
+        // Se alguma ação de desenho foi cancelada, previne o comportamento padrão do ESC
+        if (cancelledSomething) {
+            e.preventDefault(); // Evita que outras ações do navegador aconteçam com o ESC
+            e.stopPropagation(); // Impede que o evento se propague
+            mostrarMensagem(t('messages.info.drawing_modes_cancelled_by_esc'), "info");
+        }
+        
+        // Também desativa o modo LoS Pivot a Pivot se estiver ativo
+        if (AppState.modoLoSPivotAPivot) {
+            toggleLoSPivotAPivotMode();
+            cancelledSomething = true;
+        }
+
+        // E o modo de busca de locais de repetidora
+        if (AppState.modoBuscaLocalRepetidora) {
+            handleBuscarLocaisRepetidoraActivation();
+            cancelledSomething = true;
+        }
+
+        // Remove o marcador de posicionamento e oculta o painel de repetidora se estiver visível
+        if (AppState.marcadorPosicionamento) {
+            removePositioningMarker();
+            document.getElementById("painel-repetidora")?.classList.add("hidden");
+            cancelledSomething = true;
+        }
+        
+        // Deseleciona qualquer marcador ativo no mapa
+        deselectAllMarkers();
+        
+        if (map) map.getContainer().style.cursor = ''; // Restaura o cursor padrão
     }
 }
