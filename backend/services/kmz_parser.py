@@ -18,18 +18,19 @@ KML_NAMESPACE = {"kml": "http://www.opengis.net/kml/2.2"}
 
 # Keywords e constantes
 PONTA_RETA_KEYWORDS = ["ponta 1 reta", "ponta 2 reta"]
-DEFAULT_ANTENA_HEIGHT = 15
 DEFAULT_RECEIVER_HEIGHT = 3
 CIRCLE_CLOSENESS_THRESHOLD = 0.0005
-HEIGHT_REGEX = re.compile(r"(\d{1,3})\s*(m|metros)")
+# Regex robusta para encontrar a altura no final de um nome
+HEIGHT_REGEX = re.compile(r'[\s-]*(\d+)\s*(m|metros)\s*$', re.IGNORECASE)
 
-# --- TypedDicts para tipagem (mantidas iguais) ---
+# --- TypedDicts para tipagem ---
 class CoordsDict(TypedDict):
     lat: float
     lon: float
 
 class AntenaData(CoordsDict):
-    altura: int
+    altura: Optional[int]
+    had_height_in_kmz: bool 
     altura_receiver: int
     nome: str
 
@@ -39,7 +40,6 @@ class PivoData(CoordsDict):
     tipo: Optional[str]
     coordenadas: Optional[List[List[float]]]
 
-
 class CicloData(TypedDict):
     nome_original_circulo: str
     coordenadas: List[List[float]]
@@ -48,7 +48,7 @@ class BombaData(CoordsDict):
     nome: str
     type: str
 
-# --- Funções auxiliares (normalizar_nome, calcular_meio_reta, ponto_central_da_reta_maior, eh_um_circulo) mantidas iguais ---
+# --- Funções auxiliares ---
 def normalizar_nome(nome: str) -> str:
     if not nome: return ""
     nome_lower = nome.lower()
@@ -74,7 +74,6 @@ def ponto_central_da_reta_maior(coords_list: List[List[float]]) -> Tuple[float, 
 def eh_um_circulo(coords_list: List[List[float]], threshold: float = CIRCLE_CLOSENESS_THRESHOLD) -> bool:
     if len(coords_list) < 3: return False
     return Point(coords_list[0][1], coords_list[0][0]).distance(Point(coords_list[-1][1], coords_list[-1][0])) < threshold
-
 
 def gerar_nome_pivo_sequencial_unico(lista_de_nomes_existentes_normalizados: set[str], nome_base: str) -> str:
     contador = 1
@@ -130,7 +129,6 @@ def _consolidate_pivos(
 
         if centro_lat is not None and centro_lon is not None:
             nome_pivo_gerado = gerar_nome_pivo_sequencial_unico(nomes_pivos_existentes_normalizados, nome_base=nome_base_pivo)
-
             pivo_dict: PivoData = {
                 "nome": nome_pivo_gerado,
                 "lat": centro_lat,
@@ -139,13 +137,10 @@ def _consolidate_pivos(
                 "tipo": "custom",
                 "coordenadas": coordenadas_ciclo
             }
-
             final_pivos_list.append(pivo_dict)
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
-
             ciclo_info['nome_original_circulo'] = f"Ciclo {nome_pivo_gerado}"
             logger.info(f"  -> 🛰️ Pivô de ciclo adicionado como '{nome_pivo_gerado}'. Nome do ciclo atualizado para '{ciclo_info['nome_original_circulo']}'.")
-
     return final_pivos_list
 
 def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
@@ -190,12 +185,7 @@ def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Unio
         logger.warning(f"Não foi possível parsear coordenadas para o placemark '{nome_original}'. Texto: '{coords_text}'")
         return None
 
-
 def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'pt-br') -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
-    """
-    Processa um arquivo KML ou KMZ, extrai os dados relevantes e os retorna,
-    usando as keywords multilíngues da configuração e o idioma fornecido.
-    """
     t = i18n_service.get_translator(lang)
     caminho_gis = Path(caminho_gis_str)
     pasta_extracao = Path(pasta_extracao_str)
@@ -231,48 +221,56 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
         tree = ET.parse(str(caminho_kml_a_ser_lido))
         root = tree.getroot()
 
-        # Regex para capturar padrões de Pivô com ou sem "ô" e número
-        # Ex: "Piv 1", "Pivô 2", "Pivot 3"
         pivot_num_regex = re.compile(r"(?:piv(?:o|ô|ot)?)\s*(\d+)", re.IGNORECASE)
-        # Regex para capturar padrões de bomba
         bomba_name_regex = re.compile(r"^(casa\s+de\s+bomba|pump\s+house|bomba\s*\d*)$", re.IGNORECASE)
 
-
+        # --- LÓGICA REESTRUTURADA E CORRIGIDA ---
         for placemark_node in root.findall(".//kml:Placemark", KML_NAMESPACE):
             parsed_data = _parse_placemark_data(placemark_node)
             if not parsed_data:
                 continue
 
             nome_original = str(parsed_data["nome_original"])
-            nome_norm = normalizar_nome(nome_original)
             coords = parsed_data["coordenadas_lista"]
             geo_type = str(parsed_data["geometry_type"])
 
+            # 1. Primeiro, tenta extrair a altura do NOME ORIGINAL, antes de qualquer normalização.
+            match = HEIGHT_REGEX.search(nome_original)
+            
+            if match:
+                altura = int(match.group(1))
+                had_height = True
+                # Cria um nome "limpo" para a verificação de keywords, removendo a parte da altura.
+                nome_limpo_para_keywords = nome_original[:match.start()].strip()
+            else:
+                altura = None
+                had_height = False
+                nome_limpo_para_keywords = nome_original
+
+            # 2. Normaliza o nome limpo para poder comparar com as palavras-chave.
+            nome_norm = normalizar_nome(nome_limpo_para_keywords)
+
+            # 3. Agora, verifica o tipo de geometria e as keywords no nome já sem a altura.
             if geo_type == "Point" and coords:
                 lat, lon = coords[0][0], coords[0][1]
 
                 if any(kw in nome_norm for kw in antena_kws):
-                    match = HEIGHT_REGEX.search(nome_norm)
-                    altura = int(match.group(1)) if match else DEFAULT_ANTENA_HEIGHT
+                    # Se for uma antena, os dados de altura já foram extraídos corretamente.
                     antenas_list.append({
                         "lat": lat,
                         "lon": lon,
                         "altura": altura,
+                        "had_height_in_kmz": had_height,
                         "altura_receiver": DEFAULT_RECEIVER_HEIGHT,
-                        "nome": nome_original
+                        "nome": nome_original # Sempre envia o nome original completo para o frontend
                     })
 
-                elif any(kw in nome_norm for kw in pivo_kws) or pivot_num_regex.search(nome_original): # Incluindo a regex aqui
-                    final_pivo_name = nome_original # Mantém o original por padrão
+                elif any(kw in nome_norm for kw in pivo_kws) or pivot_num_regex.search(nome_original):
+                    final_pivo_name = nome_original 
                     match_pivot_num = pivot_num_regex.search(nome_original)
                     if match_pivot_num:
-                        # Formata como "Pivô X" usando a tradução
-                        pivo_num = match_pivot_num.group(1) # Pega o grupo do número
+                        pivo_num = match_pivot_num.group(1)
                         final_pivo_name = f"{t('entity_names.pivot')} {pivo_num}"
-                    else:
-                        # Se foi detectado por keyword mas não tem número, pode-se gerar um nome sequencial aqui se for o caso
-                        # Ou manter o nome original (ex: "Pivô Central")
-                        pass
                     
                     pivo_dict: PivoData = {
                         "nome": final_pivo_name,
@@ -284,12 +282,11 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
                     }
                     pivos_de_pontos_list.append(pivo_dict)
 
-                elif any(kw in nome_norm for kw in bomba_kws) or bomba_name_regex.search(nome_original): # Adiciona regex para nome de bomba
-                    # Padroniza o nome da bomba para "Irripump" logo na leitura
+                elif any(kw in nome_norm for kw in bomba_kws) or bomba_name_regex.search(nome_original):
                     final_bomba_name = t('entity_names.irripump')
                     
                     bombas_list.append({
-                        "nome": final_bomba_name, # Agora já padronizado aqui
+                        "nome": final_bomba_name,
                         "lat": lat,
                         "lon": lon,
                         "type": "bomba"
@@ -304,7 +301,8 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
                         "nome_original_circulo": nome_original,
                         "coordenadas": coords
                     })
-
+        # --- FIM DA LÓGICA REESTRUTURADA ---
+        
         nome_base_pivo_traduzido = t('entity_names.pivot')
         pivos_finais_list = _consolidate_pivos(pivos_de_pontos_list, ciclos_list, pontas_retas_map, nome_base_pivo_traduzido)
         

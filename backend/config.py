@@ -46,11 +46,11 @@ class TemplateSettings(BaseModel):
 # --- Dicionário de Internacionalização (i18n) ---
 I18N_KEYWORDS: Dict[str, Dict[str, List[str]]] = {
     "ANTENA": {
-        "pt": ["antena", "torre", "central", "base", "repetidora", "barracão", "galpão", "silo", "caixa"],
-        "en": ["antenna", "tower", "base", "station", "repeater", "radio", "site"],
-        "es": ["antena", "torre", "base", "estación", "repetidora", "radio"],
-        "de": ["antenne", "turm", "basisstation", "repeater", "funkmast"],
-        "ru": ["антенна", "башня", "станция", "репитер", "радиостанция"]
+        "pt": ["antena", "torre", "central", "base", "repetidora", "barracão", "galpão", "silo", "caixa", "caixa d'água", "poste"],
+        "en": ["antenna", "tower", "base", "station", "repeater", "radio", "site", "shed", "warehouse", "silo", "water tank", "pole", "post"],
+        "es": ["antena", "torre", "base", "estación", "repetidora", "radio", "cobertizo", "galpón", "almacén", "silo", "tanque de agua", "depósito de agua", "poste"],
+        "de": ["antenne", "turm", "basisstation", "repeater", "funkmast", "schuppen", "lagerhalle", "silo", "wassertank", "mast", "pfosten"],
+        "ru": ["антенна", "башня", "станция", "репитер", "радиостанция", "сарай", "ангар", "склад", "силос", "водяной бак", "водонапорная башня", "столб", "мачта"]
     },
     "PIVO": {
         "pt": ["pivô", "pivo"],
@@ -60,11 +60,11 @@ I18N_KEYWORDS: Dict[str, Dict[str, List[str]]] = {
         "ru": ["пивот", "ороситель", "спринклер"]
     },
     "BOMBA": {
-        "pt": ["bomba", "irripump", "pump"],
-        "en": ["pump", "pumping station", "irripump"],
-        "es": ["bomba", "estación de bombeo", "irripump"],
-        "de": ["pumpe", "pumpstation", "irripump"],
-        "ru": ["насос", "насосная станция", "irripump"]
+        "pt": ["bomba", "irripump", "pump", "captação", "poço"],
+        "en": ["pump", "pumping station", "irripump", "water intake", "well"],
+        "es": ["bomba", "estación de bombeo", "irripump", "captación", "toma de agua", "pozo"],
+        "de": ["pumpe", "pumpstation", "irripump", "wasserentnahme", "brunnen"],
+        "ru": ["насос", "насосная станция", "irripump", "водозабор", "колодец", "скважина"]
     }
 }
 

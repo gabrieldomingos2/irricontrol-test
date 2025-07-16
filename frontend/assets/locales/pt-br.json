@@ -13,15 +13,16 @@
             "edit_pivots": "Editar Pivôs",
             "save_edit": "Salvar Alterações",
             "undo_edit": "Desfazer Alterações",
-            "draw_pivot": "Adicionar Pivô Circular Central",
-            "draw_sector_pivot": "Adicionar Pivô Setorial Simples",
-            "draw_pacman_pivot": "Adicionar Pivô Setorial com Arco Direcional",
+            "draw_pivot": "Novo Pivô Circular",
+            "draw_sector_pivot": "Novo Pivô Setorial Simples",
+            "draw_pacman_pivot": "Novo Pivô com Arco Direcional",
             "draw_irripump": "Adicionar Estação de Bomba (Irripump)",
             "repeater_panel_setup": "📡 Configurar Repetidora",
             "search_coordinates": "Localizar por Coordenadas",
             "toggle_antenna_legends": "Legendas das Antenas",
             "restore_original_name": "Restaurar Nome Original",
-            "export_pdf_report": "Exportar Relatório PDF"
+            "export_pdf_report": "Exportar Relatório PDF",
+            "confirm_needed": "Confirmação Necessária"
         },
         "labels": {
             "tools": "Ferramentas",
@@ -70,7 +71,9 @@
             "export_kmz": "Baixar Arquivo KMZ",
             "export_pdf_report": "Exportar Relatório PDF",
             "reset": "Resetar",
-            "simulate": "Executar Simulação"
+            "simulate": "Executar Simulação",
+            "cancel": "Cancelar",
+            "confirm": "Confirmar"
         }
     },
     "tooltips": {
@@ -191,8 +194,8 @@
             "pdf_report_unlocked": "Relatório em PDF liberado para download."
         },
         "confirm": {
-            "remove_pivot": "Confirma a exclusão do pivô \"{name}\" e suas áreas associadas?",
-            "remove_irripump": "Confirma a exclusão do Irripump \"{name}\"?",
+            "remove_pivot": "Tem certeza que deseja remover o pivô \"{name}\" e suas áreas associadas?",
+            "remove_irripump": "Tem certeza que deseja remover o Irripump \"{name}\"?",
             "change_los_source": "ORIGEM já é {sourceName}. Alterar para {newName}? Linhas de diagnóstico serão removidas."
         }
     },
@@ -244,7 +247,7 @@
             "tx_antenna": "Tx Antenna",
             "rx_height": "Rx Height",
             "rx_sensitivity": "Rx Sensitivity",
-            "rx_gain": "Rx Rx Gain",
+            "rx_gain": "Rx Gain",
             "modulation": "Modulation",
             "bandwidth": "Bandwidth",
             "file_id": "File ID",

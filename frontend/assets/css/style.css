@@ -98,8 +98,6 @@ html, body {
 #mensagem {
   transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
   opacity: 1;
-  /* Ajustado para uma posição mais à direita, como 40% */
-  left: 40%; /* Ajuste este valor para mover para a direita/esquerda */
   transform: translateY(0);
 }
 
@@ -223,82 +221,21 @@ html, body {
 #painel-dados,
 #painel-repetidoras {
   transition: opacity 0.3s ease, transform 0.3s ease;
-  position: fixed; /* Manter fixo para flutuar */
-  right: 6.5rem; /* Puxa para a esquerda */
-  /* Remove o max-height aqui para o painel de repetidoras,
-     ele será calculado dinamicamente pelo flexbox e pelo JS */
-  display: flex;
-  flex-direction: column;
 }
 
-#painel-dados {
-  top: 1rem; /* Sobe o painel de dados */
-  /* O painel de dados PRECISA de um max-height, senão ele pode ocupar a tela toda */
-  max-height: calc(100vh - 4rem - 1rem); /* 100vh - altura_footer - margem_inferior_segurança */
-  /* Ajuste a altura máxima do painel de dados para não colidir com o rodapé */
+#painel-dados.hidden,
+#painel-repetidoras.hidden {
+  opacity: 0;
+  transform: translateX(20px); /* Efeito de deslizar para a direita ao desaparecer */
+  pointer-events: none;
 }
 
-#painel-repetidoras {
-  /* O top será definido pelo JS. */
-  /* NOVO: A altura máxima do painel de repetidoras deve ser o espaço restante. */
-  /* Considerando o cabeçalho (3.5rem), o painel de dados (variável), e o rodapé (4rem) + a mensagem (4rem).
-     É mais fácil fazer com que o .panel-content interno dele se expanda. */
-  max-height: calc(100vh - 1rem - 56px - 16px - 64px - 64px); /* 100vh - top_antena_dados - header_height - espacamento - bottom_msg - footer_height */
-  /* top_antena_dados (1rem = 16px) + header_height (56px) + espacamento (16px) + bottom_msg (64px) + footer_height (64px)
-     = 16 + 56 + 16 + 64 + 64 = 216px = 13.5rem
-  */
-  max-height: calc(100vh - 13.5rem); /* Altura máxima baseada no espaço restante da viewport */
+/* NOVO: Ajuste padrão para a seção do botão de PDF */
+#painel-dados .text-center {
+    margin-top: 0.25rem; /* Reduz a margem superior (antes era 0.5rem) */
+    padding-top: 0.25rem; /* Reduz o espaçamento interno superior (antes era 0.5rem) */
+    border-top-width: 1px; /* Deixa a linha divisória um pouco mais fina */
 }
-
-/* Garante que o conteúdo dentro dos painéis possa rolar e preencher o espaço */
-#painel-dados .panel-content,
-#painel-repetidoras .panel-content {
-  flex-grow: 1; /* Permite que o conteúdo interno se expanda */
-  overflow-y: auto; /* Adiciona barra de rolagem se o conteúdo exceder */
-  padding-right: 8px; /* Para não esconder a barra de rolagem no arredondamento */
-}
-
-/* Este é o contêiner da lista de repetidoras */
-#lista-repetidoras {
-    flex-grow: 1; /* Permite que ele preencha o espaço disponível dentro do .panel-content */
-    overflow-y: auto; /* Garante a barra de rolagem se o conteúdo exceder */
-    padding-bottom: 0.5rem; /* Adiciona um pouco de espaço na parte inferior da rolagem */
-}
-
-/* NOVO: Estilo para os botões de minimizar/maximizar flutuantes */
-/* Aplicado a todos os botões com a classe 'panel-toggle-btn-floating' */
-.panel-toggle-btn-floating {
-    position: absolute !important; /* Essencial para flutuar no canto do painel */
-    display: flex !important; /* Garante que seja um flex container */
-    justify-content: center;
-    align-items: center;
-    width: 36px; /* Tamanho do balão, ajuste conforme necessário (2.25rem) */
-    height: 36px; /* Tamanho do balão, ajuste conforme necessário (2.25rem) */
-    background: rgba(10, 15, 20, 0.75); /* Fundo similar ao painel */
-    border: 1px solid rgba(255, 255, 255, 0.15); /* Borda similar */
-    border-radius: 50%; /* Faz o balão ser redondo */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Sombra para profundidade */
-    color: rgba(255, 255, 255, 0.7); /* Cor do ícone */
-    transition: all 0.3s ease; /* Transição suave */
-    cursor: pointer;
-    z-index: 2000; /* Garante que esteja acima dos painéis */
-    top: 0.5rem; /* Posição padrão superior dentro do painel */
-    right: 0.5rem; /* Posição padrão direita dentro do painel */
-}
-
-.panel-toggle-btn-floating:hover {
-    background: rgba(10, 15, 20, 0.9); /* Um pouco mais opaco no hover */
-    border-color: rgba(34, 197, 94, 0.4); /* Brilho verde na borda */
-    color: #22c55e; /* Ícone verde */
-    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5); /* Sombra com brilho verde */
-}
-
-/* Garante que o ícone Lucide dentro do botão flutuante tenha o tamanho correto */
-.panel-toggle-btn-floating i {
-    width: 20px; 
-    height: 20px; 
-}
-
 
 /* ========================= */
 /* 🛰️ LINHAS DIAGNÓSTICO */
@@ -399,34 +336,39 @@ input[type="file"].hidden { /* Garante que o input original fique escondido */
 }
 
 
-/* ===================== */
-/* ✒️ TOOLTIP DOS PIVÔS (Sinal) */
-/* ===================== */
+/* ================================== */
+/* ✒️ ESTILO BALÃO DE INFO (CORRIGIDO) */
+/* ================================== */
+
+/* A regra principal para o balão */
 .leaflet-tooltip.tooltip-sinal {
-  background-color: rgba(10, 10, 10, 0.9) !important; /* Fundo mais escuro e opaco */
-  color: white !important;
-  border-radius: 6px !important; /* Borda um pouco menos arredondada */
-  padding: 6px 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Borda sutil */
-  font-size: 12px !important;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5) !important; /* Sombra mais pronunciada */
-  opacity: 0; /* Começa invisível para transição */
-  /* REMOVIDO: transform: translateY(5px) scale(0.95); */
-  transition: opacity 0.2s ease !important; /* AGORA SÓ TRANSICIONA A OPACIDADE */
-  text-align: center;
-  pointer-events: none; /* Tooltips não devem ser interativos */
+    background-color: rgba(6, 11, 16, 0.9) !important; /* Fundo escuro consistente */
+    color: #e5e7eb !important; /* Texto claro */
+    border-radius: 6px !important;
+    padding: 4px 8px !important; /* Padding menor para um balão mais compacto */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    font-size: 0.7rem !important; /* Fonte menor */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+    white-space: nowrap; /* Garante que o conteúdo fique na mesma linha */
+    transition: opacity 0.2s ease !important;
+    opacity: 0; /* Mantém a transição de fade-in */
 }
 
-/* Estado visível do tooltip */
+/* Adiciona um espaço entre o "Tx" e o "Rx" quando estão lado a lado */
+.leaflet-tooltip.tooltip-sinal span + span {
+    margin-left: 0.4rem; /* Diminuído de 0.75rem para aproximar os textos */
+}
+
+/* Mantém o estado visível (não precisa mexer) */
 .leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible {
   opacity: 1;
-  /* REMOVIDO: transform: translateY(0) scale(1); */
 }
 
-/* Esconde a ponta/seta padrão do tooltip do Leaflet, se não desejado */
+/* Mantém a seta escondida (não precisa mexer) */
 .leaflet-tooltip.tooltip-sinal::before {
   display: none;
 }
+
 
 /* ===================== */
 /* Pin de Edição de Pivô */
@@ -564,43 +506,38 @@ button, .glass-button, label[for="arquivo"] {
   backdrop-filter: blur(8px);
   background: rgba(10, 15, 20, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 6px;
+  border-radius: 10px;
+  padding: 4px; 
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-
-  /* ✅ Posição final corrigida para subir */
-  top: 1rem !important; /* Mudei para 1rem e adicionei !important para forçar a aplicação */
-  right: 0.1rem; /* colado na lateral direita real oficial */
-
+  top: 4rem;
+  right: 0.0rem;
   transition: opacity 0.3s ease, transform 0.3s ease;
   z-index: 51;
 }
 
 #legend-image {
-  max-width: 72px;
+  max-width: 42px;
   height: auto;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 
 /* Estilos para o conteúdo sanfona dos painéis */
 .panel-content {
-  max-height: 600px; /* Altura máxima para garantir que todo o conteúdo apareça */
-  overflow: hidden;
+  max-height: 600px;
+  overflow: hidden; 
   transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, margin 0.5s ease-in-out;
   opacity: 1;
 }
 
-/* Estilos para quando o painel está minimizado */
 .panel.minimized .panel-content {
   max-height: 0;
   opacity: 0;
-  margin-top: 0 !important; /* Remove margens para um colapso limpo */
+  margin-top: 0 !important;
   margin-bottom: 0 !important;
 }
 
-/* Garante que o padding suma também quando minimizado */
 .panel.minimized .panel-content > * {
     display: none;
 }
@@ -610,12 +547,10 @@ button, .glass-button, label[for="arquivo"] {
 /* ✨ EFEITO DE PAINEL TRANSPARENTE AO MINIMIZAR */
 /* ===================================== */
 
-/* Adiciona transições suaves ao corpo principal do painel para um efeito de fade */
 .panel {
     transition: background-color 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease, box-shadow 0.4s ease;
 }
 
-/* Quando o painel está minimizado, ele se torna transparente */
 .panel.minimized {
     background-color: transparent !important;
     border-color: transparent !important;
@@ -623,12 +558,10 @@ button, .glass-button, label[for="arquivo"] {
     box-shadow: none !important;
 }
 
-/* Adiciona uma transição suave para o título do painel */
 .panel h2 {
     transition: opacity 0.3s ease;
 }
 
-/* Quando o painel está minimizado, o título desaparece */
 .panel.minimized h2 {
     opacity: 0;
 }
@@ -637,42 +570,33 @@ button, .glass-button, label[for="arquivo"] {
 /* ⏳ LOADER PERSONALIZADO COM LOGO E SPINNER */
 /* ======================================= */
 
-/* Container que posiciona a logo e o spinner um sobre o outro */
 .loading-logo-container {
     position: relative; 
-    width: 90px; /* <- Valor menor */
-    height: 90px; /* <- Valor menor */
+    width: 90px;
+    height: 90px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* Estilo da sua logo */
 .loading-logo {
-    width: 120px; /* Tamanho da logo */
+    width: 120px;
     height: auto;
     opacity: 0.9;
 }
 
-/* O círculo que gira (spinner) */
 .loading-spinner {
-    position: absolute; /* Fica sobre a logo */
+    position: absolute;
     top: 0;
     left: 0;
-    width: 100%; /* Ocupa todo o espaço do container */
-    height: 100%; /* Ocupa todo o espaço do container */
-
-    /* A mágica do círculo: uma borda fina e transparente com o topo colorido */
+    width: 100%;
+    height: 100%;
     border: 4px solid transparent; 
-    border-top-color: #22c55e; /* Cor verde, combine com sua identidade */
-
-    border-radius: 50%; /* Transforma o quadrado em um círculo perfeito */
-
-    /* Aplica a animação de rotação */
+    border-top-color: #22c55e;
+    border-radius: 50%;
     animation: spin 1.5s linear infinite;
 }
 
-/* Animação que faz o elemento girar 360 graus infinitamente */
 @keyframes spin {
     from {
         transform: rotate(0deg);
@@ -688,30 +612,26 @@ button, .glass-button, label[for="arquivo"] {
 /* ============================ */
 
 #footer-logo-link {
-  opacity: 0.7; /* Opacidade inicial, um pouco sutil */
-  transition: opacity 0.3s ease, filter 0.3s ease; /* Transição suave */
+  opacity: 0.7;
+  transition: opacity 0.3s ease, filter 0.3s ease;
 }
 
 #footer-logo-link:hover {
-  opacity: 1; /* Opacidade total no hover */
-
-  /* Este filtro mágico "pinta" a imagem de verde */
+  opacity: 1;
   filter: brightness(0) saturate(100%) invert(58%) sepia(85%) saturate(548%) hue-rotate(95deg) brightness(95%) contrast(90%);
 }
 
 
 .drawing-tooltip {
     position: absolute;
-    /* Remove or significantly reduce background for more transparency */
-    background-color: rgba(10, 15, 20, 0.2); /* More transparent background */
-    /* background-color: transparent; */ /* Or completely transparent background */
-    color: #ffffffa6; /* White color for the number */
-    padding: 2px 5px; /* Reduced padding to make it more compact */
-    border-radius: 4px; /* Slightly smaller border-radius */
-    font-size: 11px; /* Smaller font size for the number */
+    background-color: rgba(10, 15, 20, 0.2);
+    color: #ffffffa6;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
     font-weight: bold;
-    border: none; /* Remove the border */
-    box-shadow: none; /* Remove the shadow */
+    border: none;
+    box-shadow: none;
     pointer-events: none;
     z-index: 10001;
     white-space: nowrap;
@@ -721,29 +641,34 @@ button, .glass-button, label[for="arquivo"] {
 /* NOVO: Estilo para o menu de renomeação */
 .rename-menu {
     position: absolute;
-    background-color: rgba(30, 41, 59, 0.95); /* slate-800 com opacidade */
-    border: 1px solid rgba(71, 85, 105, 0.5); /* slate-600 com opacidade */
-    border-radius: 0.375rem; /* rounded-md */
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+    /* ✅ CORREÇÃO: Fundo preto idêntico aos painéis laterais */
+    background-color: rgba(6, 11, 16, 0.7); /* Cor #060B10 com 70% de opacidade */
+    backdrop-filter: blur(12px); /* Efeito de vidro para combinar (md) */
+    /* Borda com o detalhe em verde */
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     padding: 0.5rem;
-    z-index: 10002; /* Garante que esteja acima de outros elementos */
-    min-width: 120px; /* Largura mínima */
+    z-index: 10002;
+    min-width: 140px;
 }
 
 .rename-menu button {
     display: block;
     width: 100%;
     text-align: left;
-    padding: 0.375rem 0.75rem;
-    color: rgba(226, 232, 240, 0.9); /* slate-200 com opacidade */
-    font-size: 0.875rem; /* text-sm */
-    border-radius: 0.125rem; /* rounded-sm */
+    padding: 0.5rem 0.75rem; /* Aumentar um pouco o padding vertical */
+    color: #d1d5db; /* Cor de texto cinza claro */
+    font-size: 0.875rem;
+    font-weight: 500; /* Levemente mais forte */
+    border-radius: 0.25rem;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+/* Efeito de hover com o detalhe verde */
 .rename-menu button:hover {
-    background-color: rgba(71, 85, 105, 0.7); /* slate-600 com opacidade no hover */
-    color: #fff;
+    background-color: rgba(34, 197, 94, 0.15); /* Fundo verde sutil */
+    color: #34d399; /* Cor do texto verde claro */
 }
 
 
@@ -756,7 +681,7 @@ button, .glass-button, label[for="arquivo"] {
     opacity: 0.8;
   }
   100% {
-    transform: scale(4); /* A onda se expande 4x */
+    transform: scale(4);
     opacity: 0;
   }
 }
@@ -764,8 +689,8 @@ button, .glass-button, label[for="arquivo"] {
 /* REGRA PARA O PIVÔ SELECIONADO (COR BRANCO PURO) */
 .pivo-marker-container-selected .pivo-marker-dot {
   position: relative;
-  background-color: #ffffff; /* Cor alterada para Branco */
-  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.6); /* Sombra no mesmo tom */
+  background-color: #ffffff;
+  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.6);
 }
 
 .pivo-marker-container-selected .pivo-marker-dot::after {
@@ -775,7 +700,7 @@ button, .glass-button, label[for="arquivo"] {
   left: 0;
   width: 100%;
   height: 100%;
-  border: 2px solid rgba(255, 255, 255, 0.8); /* Onda no mesmo tom */
+  border: 2px solid rgba(255, 255, 255, 0.8);
   border-radius: 50%;
   animation: ondaEnergia 2s infinite ease-out;
 }
@@ -785,19 +710,17 @@ button, .glass-button, label[for="arquivo"] {
 /* EFEITO DE SELEÇÃO GLOBAL (ONDA DE ENERGIA BRANCA) */
 /* ================================================== */
 
-/* A animação (você já deve ter esta parte, mas incluo para garantir) */
 @keyframes ondaEnergia {
   0% {
     transform: scale(1);
     opacity: 0.8;
   }
   100% {
-    transform: scale(4); /* A onda se expande 4x */
+    transform: scale(4);
     opacity: 0;
   }
 }
 
-/* Um wrapper para o efeito, para não interferir com a imagem */
 .selection-effect-wrapper {
   position: relative;
   width: 100%;
@@ -807,7 +730,6 @@ button, .glass-button, label[for="arquivo"] {
   justify-content: center;
 }
 
-/* A classe 'marker-selected' será adicionada via JS ao clicar */
 .marker-selected .selection-effect-wrapper::after {
   content: '';
   position: absolute;
@@ -815,19 +737,12 @@ button, .glass-button, label[for="arquivo"] {
   left: 0;
   width: 100%;
   height: 100%;
-  
-  /* Estilo da onda branca */
   border: 2px solid rgba(255, 255, 255, 0.8);
   border-radius: 50%;
-  
-  /* Aplica a animação */
   animation: ondaEnergia 2s infinite ease-out;
-  
-  /* Garante que a onda não capture cliques */
   pointer-events: none; 
 }
 
-/* Classe para remover o fundo e a borda padrão dos divIcon do Leaflet */
 .leaflet-div-icon-transparent {
     background: transparent;
     border: none;
@@ -840,12 +755,12 @@ button, .glass-button, label[for="arquivo"] {
 
 #custom-confirm-overlay {
   opacity: 0;
-  pointer-events: none; /* Impede cliques quando escondido */
+  pointer-events: none;
 }
 
 #custom-confirm-overlay:not(.hidden) {
   opacity: 1;
-  pointer-events: auto; /* Permite cliques quando visível */
+  pointer-events: auto;
 }
 
 #custom-confirm-box {
@@ -858,7 +773,6 @@ button, .glass-button, label[for="arquivo"] {
   opacity: 1;
 }
 
-/* Estilo dos Botões do Modal */
 .confirm-btn-cancel, .confirm-btn-ok {
     border: none;
     cursor: pointer;
@@ -873,6 +787,294 @@ button, .glass-button, label[for="arquivo"] {
     color: #ffffff;
 }
 
+
+/* ================================== */
+/* 🗂️ AJUSTE PAINEL DE REPETIDORAS   */
+/* ================================== */
+#lista-repetidoras span {
+  font-size: 0.75rem; /* Tamanho do texto do nome da repetidora (padrão: 0.875rem) */
+}
+
+#lista-repetidoras button {
+  font-size: 0.8rem; /* Controla o tamanho do ícone '❌' */
+}
+
+#lista-repetidoras button .sidebar-icon,
+#lista-repetidoras button i[data-lucide] {
+  width: 0.875rem; /* Tamanho dos ícones (padrão: 1rem/16px) */
+  height: 0.875rem;
+}
+
+
+/* ======================================== */
+/* 🗂️ AJUSTE ESPAÇAMENTO BOTÕES REPETIDORA */
+/* ======================================== */
+
+/* Alvo: o container que agrupa os botões (visada, olho, X) em cada linha da lista */
+#lista-repetidoras > div > div:last-child {
+    gap: 0.6rem !important; /* Espaçamento um pouco maior para telas grandes. */
+}
+
+
+/* ================================== */
+/* ✨ ESTILIZAÇÃO DA BARRA DE ROLAGEM */
+/* ================================== */
+
+/* Define o estilo para navegadores baseados em WebKit (Chrome, Safari, Edge, etc.) 
+   Alvo: A lista de repetidoras que tem a barra de rolagem. */
+
+/* A barra de rolagem completa */
+#lista-repetidoras::-webkit-scrollbar {
+  width: 8px; /* Largura da barra */
+}
+
+/* A trilha (o fundo da barra) */
+#lista-repetidoras::-webkit-scrollbar-track {
+  background: #1a202c; /* Cinza bem escuro, quase preto, para combinar com o painel */
+  border-radius: 10px;
+}
+
+/* O "polegar" (a parte que se move e que você arrasta) */
+#lista-repetidoras::-webkit-scrollbar-thumb {
+  background-color: #22c55e; /* O verde principal do projeto */
+  border-radius: 10px;       /* Deixa as bordas arredondadas */
+  border: 2px solid #1a202c; /* Cria uma pequena borda com a cor da trilha */
+}
+
+/* Efeito ao passar o mouse sobre o "polegar" */
+#lista-repetidoras::-webkit-scrollbar-thumb:hover {
+  background-color: #34d399; /* Um tom de verde um pouco mais claro */
+}
+
+/* Define o estilo para o Firefox */
+#lista-repetidoras {
+  scrollbar-width: thin;
+  scrollbar-color: #22c55e #1a202c; /* Cor do "polegar" e cor da "trilha" */
+}
+
+
+/* ======================================== */
+/* ↔️ LARGURA PAINÉIS (TELAS GRANDES)      */
+/* ======================================== */
+/* ✔️ É AQUI que você deve adicionar a nova regra para aumentar os painéis em telas grandes */
+#painel-dados, #painel-repetidoras {
+    width: 260px;
+}
+
+
+/* ========================================= */
+/* ✒️ ESTILO BALÃO DE INFO (REPETIDORAS)   */
+/* ========================================= */
+
+/* Container do balão */
+.leaflet-popup-content-wrapper {
+    background-color: rgba(6, 11, 16, 0.85) !important; /* Fundo preto/azulado escuro */
+    color: #e5e7eb;
+    padding: 5px 10px !important; /* Padding menor para um balão mais compacto */
+    border-radius: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* Conteúdo interno */
+.leaflet-popup-content {
+    margin: 0 !important;
+    font-size: 0.75rem; /* Fonte menor */
+    line-height: 1.2;
+    white-space: nowrap; /* Garante que não haja quebra de linha */
+}
+
+/* Adiciona um espaço entre o "Tx" e o "Rx" */
+.leaflet-popup-content span + span {
+    margin-left: 0.75rem;
+}
+
+/* Seta do balão */
+.leaflet-popup-tip {
+    background: rgba(6, 11, 16, 0.85) !important;
+}
+
+/* ======================================================================= */
+/* ✅ ABORDAGEM FINAL: REDUÇÃO PROPORCIONAL DE TODA A INTERFACE ✅           */
+/* ======================================================================= */
+
+@media (max-width: 1366px) {
+
+  /* --- 1. BARRA DE FERRAMENTAS SUPERIOR --- */
+  
+  div.absolute.top-0.left-0.right-0.h-14 {
+    height: 3rem !important; 
+    padding-left: 0.5rem !important;
+    padding-right: 0.0rem !important;
+  }
+
+  div.absolute.top-0 .flex.items-center > span.text-sm.font-medium {
+    font-size: 0.7rem !important; 
+    margin-right: 0.25rem !important;
+  }
+
+  div.absolute.top-0 .glass-button {
+    padding: 4px !important;
+    border-radius: 8px !important;
+  }
+  div.absolute.top-0 .glass-button .sidebar-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  div.absolute.top-0 .flex.items-center.ml-24 {
+    margin-left: 3vw !important;
+  }
+  div.absolute.top-0 .flex.items-center.ml-\[20px\] {
+    margin-left: 1.5vw !important;
+  }
+  div.absolute.top-0 .flex.items-center.gap-2 {
+    gap: 0.3rem !important;
+  }
+  
+  /* --- 2. BARRA LATERAL ESQUERDA --- */
+
+  div.absolute.top-14.bottom-14.left-0.w-\[280px\] {
+    width: 220px !important;
+    padding: 0.75rem !important;
+    top: 3rem !important; 
+  }
+
+  div.absolute.top-14 .mb-4.backdrop-blur {
+    padding: 4px 8px !important;
+  }
+  div.absolute.top-14 .mb-4.backdrop-blur label, 
+  div.absolute.top-14 .mb-4.backdrop-blur select {
+    font-size: 0.75rem !important;
+  }
+  div.absolute.top-14 .focus-within\:ring-1 {
+    height: 2.25rem !important;
+  }
+  div.absolute.top-14 #lat-long-input-field {
+    font-size: 0.75rem !important;
+  }
+  .sidebar-button {
+    height: 2.25rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  .sidebar-button .sidebar-icon {
+    width: 18px !important;
+  }
+  .sidebar-button span.text-sm {
+    font-size: 0.7rem !important; /* Fonte dos botões da barra lateral reduzida */
+  }
+
+  /* --- 3. ÁREA DO MAPA --- */
+  
+  div.absolute.top-14.bottom-14.left-\[280px\].right-12 {
+    top: 3rem !important; 
+    left: 220px !important;
+    bottom: 2.5rem !important;
+  }
+
+  /* --- 4. PAINÉIS FLUTUANTES DA DIREITA (AJUSTADO) --- */
+
+  #overlay-panels-container {
+    top: 3.5rem !important; 
+    right: 3.5rem !important; /* Movido um pouco mais para a esquerda */
+  }
+
+  #painel-dados, #painel-repetidoras {
+    width: 220px !important; /* Aumentado de 190px para dar mais espaço ao texto */
+    padding: 0.4rem !important;
+  }
+
+  #painel-dados h2, #painel-repetidoras h2, #painel-dados p, #template-info {
+    font-size: 0.65rem !important; 
+    line-height: 1.4 !important;
+  }
+  
+  /* Redução específica para a lista de repetidoras */
+  #lista-repetidoras {
+    font-size: 0.6rem !important; /* Revertido para um tamanho legível */
+  }
+
+  #lista-repetidoras > div { 
+      padding-top: 0.2rem !important;
+      padding-bottom: 0.2rem !important;
+      align-items: center; /* Alinha melhor os itens na vertical */
+  }
+
+  #lista-repetidoras button {
+    font-size: 0.7rem !important; /* Tamanho do '❌' reduzido */
+    padding: 1px !important; /* Pequeno ajuste no clique */
+  }
+
+  #lista-repetidoras button .sidebar-icon,
+  #lista-repetidoras button i[data-lucide] {
+    width: 0.75rem !important; /* Tamanho dos ícones de visada/olho reduzido */
+    height: 0.75rem !important;
+  }
+
+  /* ADICIONE ESTA NOVA REGRA ABAIXO */
+  #lista-repetidoras > div > div:last-child {
+    gap: 0.3rem !important; /* Espaçamento um pouco menor para telas pequenas. */
+  }
+  
+  /* --- 5. PAINEL DE NOVA REPETIDORA (AJUSTADO) --- */
+  
+  #painel-repetidora {
+    width: 100% !important; 
+    padding: 0.4rem !important; /* Reduzido o padding geral */
+    margin-top: 0.5rem !important; /* Reduzida a margem superior */
+    border-radius: 0.75rem !important;
+  }
+
+  #painel-repetidora h2 {
+    font-size: 0.7rem !important;   /* Fonte do título reduzida */
+    margin-bottom: 0.4rem !important; /* Espaçamento inferior reduzido */
+  }
+  #painel-repetidora label {
+    font-size: 0.65rem !important; /* Fonte dos labels reduzida */
+    margin-bottom: 2px !important;
+  }
+  #painel-repetidora input[type="number"],
+  #painel-repetidora #confirmar-repetidora {
+    height: 26px !important;      /* Altura dos campos reduzida */
+    font-size: 0.7rem !important; /* Fonte dos campos reduzida */
+  }
+  #painel-repetidora input[type="number"] {
+    margin-bottom: 0.4rem !important; /* Espaçamento entre campos reduzido */
+  }
+  #painel-repetidora #confirmar-repetidora .sidebar-icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+ /* --- 6. LEGENDA DE CORES --- */
+  #legend-container {
+    top: 3.5rem !important;
+    right: 0.25rem !important; /* Aumentado de 0.5rem para mover para a direita */
+    padding: 3px !important;
+  }
+  #legend-image {
+    max-width: 36px !important; /* Reduzido de 48px */
+  }
+
+  /* --- 7. REAJUSTE DA ÁREA INFERIOR --- */
+  
+  div.absolute.bottom-6.left-72 {
+    left: 228px !important;
+    bottom: 0.8rem !important;
+  }
+
+  #range-opacidade {
+    width: 70px !important;
+  }
+  
+  div.absolute.bottom-4.left-1\/2 {
+    bottom: 0.5rem !important; 
+  }
+  #footer-logo-link img {
+    height: 1rem !important;
+  }
+}
 
 /* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */

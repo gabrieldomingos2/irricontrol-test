@@ -186,7 +186,7 @@ function setupMainActionListeners() {
     map.on("contextmenu", handleCancelDraw);
 
 
-    document.addEventListener('keydown', handleEscapeKey);
+    document.addEventListener('keydown', handleGlobalKeys);
     document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
     document.getElementById('btn-draw-pivot-setorial').addEventListener('click', toggleModoDesenhoPivoSetorial);
 
@@ -329,51 +329,54 @@ async function startMainSimulation(antenaData) {
         const data = await simulateSignal(payload);
         console.log("✅ Simulação principal concluída:", data);
 
-        if (AppState.antenaCandidatesLayerGroup) {
-
+        if (AppState.antenaCandidatesLayerGroup && antenaData.nome && antenaData.lat) {
             const idParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
-            
             const camadasParaRemover = [];
             AppState.antenaCandidatesLayerGroup.eachLayer(layer => {
                 if (layer.options.customId === idParaRemover) {
                     camadasParaRemover.push(layer);
                 }
             });
-
-            camadasParaRemover.forEach(layer => {
-                AppState.antenaCandidatesLayerGroup.removeLayer(layer);
-            });
+            camadasParaRemover.forEach(layer => AppState.antenaCandidatesLayerGroup.removeLayer(layer));
+            AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => l.options.customId !== idParaRemover);
         }
         
-        const idLabelParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
-        AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => 
-            !(l.options.labelType === 'antena_candidate' && l.options.customId === idLabelParaRemover)
-        );
-
         AppState.antenaGlobal = {
             ...antenaData,
             overlay: drawImageOverlay(data.imagem_salva, data.bounds),
             bounds: data.bounds,
             imagem_filename: data.imagem_filename,
             type: antenaData.type || 'default', 
-            original_name: antenaData.nome 
+            original_name: antenaData.nome,
+            is_from_kmz: true,
+            had_height_in_kmz: antenaData.had_height_in_kmz || false 
         };
 
         if(AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
+        
         AppState.marcadorAntena = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
 
         AppState.marcadorAntena.on('click', (e) => {
-        L.DomEvent.stopPropagation(e);
-        handleSpecialMarkerSelection(AppState.marcadorAntena);
+            L.DomEvent.stopPropagation(e);
+            handleSpecialMarkerSelection(AppState.marcadorAntena);
         });
+
+        AppState.marcadorAntena.on('contextmenu', (e) => {
+            L.DomEvent.stop(e);
+            showRenameRepeaterMenu(AppState.marcadorAntena, AppState.antenaGlobal.nome, true, null);
+        });
+
+        const alturaAntenaHtml = (AppState.antenaGlobal.altura !== null && AppState.antenaGlobal.altura !== undefined)
+            ? `<span>${t('ui.labels.antenna_height_tooltip', { height: AppState.antenaGlobal.altura })}</span>`
+            : '';
 
         const tooltipAntenaContent = `
             <div style="text-align: center;">
-                ${t('ui.labels.antenna_height_tooltip', { height: AppState.antenaGlobal.altura })}
-                <br>
-                ${t('ui.labels.receiver_height_tooltip', { height: AppState.antenaGlobal.altura_receiver })}
+                ${alturaAntenaHtml}
+                <span>${t('ui.labels.receiver_height_tooltip', { height: AppState.antenaGlobal.altura_receiver })}</span>
             </div>
         `;
+
         AppState.marcadorAntena.bindTooltip(tooltipAntenaContent, {
             permanent: false,
             direction: 'top',
@@ -427,18 +430,28 @@ function handleRenameRepeater(id, newType) {
     if (repetidora) {
         repetidora.type = newType; 
 
+        // ✅ LÓGICA DE NOMENCLATURA ADICIONADA
+        if (newType !== 'default') {
+            const baseName = t(`entity_names.${newType}`); // Pega o nome traduzido (ex: "Poste")
+            const nextNumber = findNextAvailableNumberForType(baseName);
+            repetidora.nome = `${baseName} ${nextNumber}`; // Define o novo nome, ex: "Poste 1"
+        } else {
+            // Se voltou para o padrão, usa o nome original (ex: "Repetidora 03")
+            repetidora.nome = repetidora.original_name;
+        }
+        
         if (typeof updateAntenaOrRepeaterLabel === 'function') {
             updateAntenaOrRepeaterLabel(repetidora);
         }
 
         const painelItemSpan = document.querySelector(`#rep-item-${repetidora.id} span`);
         if (painelItemSpan) {
-            painelItemSpan.textContent = getFormattedAntennaOrRepeaterName(repetidora);
+            painelItemSpan.textContent = getFormattedAntennaOrRepeaterName(repetidora, false);
         }
         
         atualizarPainelDados();
 
-        mostrarMensagem(t('messages.success.repeater_renamed', { name: getFormattedAntennaOrRepeaterName(repetidora) }), "sucesso");
+        mostrarMensagem(t('messages.success.repeater_renamed', { name: repetidora.nome }), "sucesso");
     }
 }
 
@@ -446,19 +459,28 @@ function handleRenameMainAntenna(newType) {
     if (AppState.antenaGlobal) {
         AppState.antenaGlobal.type = newType;
 
+        // ✅ LÓGICA DE NOMENCLATURA ADICIONADA
+        if (newType !== 'default') {
+            const baseName = t(`entity_names.${newType}`);
+            const nextNumber = findNextAvailableNumberForType(baseName);
+            AppState.antenaGlobal.nome = `${baseName} ${nextNumber}`;
+        } else {
+            AppState.antenaGlobal.nome = AppState.antenaGlobal.original_name;
+        }
+
         if (typeof updateAntenaOrRepeaterLabel === 'function') {
             updateAntenaOrRepeaterLabel(AppState.antenaGlobal);
         }
 
         const painelItemSpan = document.querySelector("#antena-item span");
         if (painelItemSpan) {
-            painelItemSpan.textContent = getFormattedAntennaOrRepeaterName(AppState.antenaGlobal);
+            painelItemSpan.textContent = getFormattedAntennaOrRepeaterName(AppState.antenaGlobal, false);
         }
 
         atualizarPainelDados();
 
         mostrarMensagem(t('messages.success.main_antenna_renamed', {
-            name: getFormattedAntennaOrRepeaterName(AppState.antenaGlobal)
+            name: AppState.antenaGlobal.nome
         }), "sucesso");
 
         setTimeout(removeRenameMenu, 50);
@@ -503,7 +525,7 @@ async function handleMapClick(e) {
         zIndexOffset: 1000
     }).addTo(map);
 
-    painelRepetidoraSetupDiv.classList.remove("hidden");
+    document.getElementById("painel-repetidora").classList.remove("hidden");
 }
 
 async function handleIrripumpDrawClick(e) {
@@ -549,6 +571,10 @@ async function handleIrripumpDrawClick(e) {
     }
 }
 
+/**
+ * Lida com a confirmação para criar uma nova antena principal ou repetidora.
+ * Simula o sinal e atualiza o mapa e a UI.
+ */
 async function handleConfirmRepetidoraClick() {
     if (!AppState.coordenadaClicada || !AppState.jobId) {
         mostrarMensagem(t('messages.errors.invalid_data_or_session'), "erro");
@@ -559,7 +585,7 @@ async function handleConfirmRepetidoraClick() {
     const alturaReceiver = parseFloat(document.getElementById("altura-receiver-rep").value);
     AppState.templateSelecionado = document.getElementById('template-modelo').value;
 
-    painelRepetidoraSetupDiv.classList.add('hidden');
+    document.getElementById('painel-repetidora').classList.add('hidden');
     mostrarLoader(true);
 
     try {
@@ -568,11 +594,19 @@ async function handleConfirmRepetidoraClick() {
         let id;
         let isFromKmz = false;
         let type = 'default';
+        let had_height_in_kmz = false;
 
         if (!AppState.antenaGlobal && window.clickedCandidateData) {
             const candidateData = { ...window.clickedCandidateData };
             window.clickedCandidateData = null;
-            await startMainSimulation({ ...candidateData, altura: alturaAntena || candidateData.altura, altura_receiver: alturaReceiver || candidateData.altura_receiver, type: candidateData.type || 'default' });
+            
+            await startMainSimulation({ 
+                ...candidateData, 
+                altura: alturaAntena || candidateData.altura, 
+                altura_receiver: alturaReceiver || candidateData.altura_receiver, 
+                type: candidateData.type || 'default',
+                had_height_in_kmz: candidateData.had_height_in_kmz 
+            });
             return;
         }
 
@@ -585,6 +619,7 @@ async function handleConfirmRepetidoraClick() {
             window.clickedCandidateData = null;
             isFromKmz = true;
             type = candidateData.type || 'default'; 
+            had_height_in_kmz = candidateData.had_height_in_kmz || false;
             
             if (AppState.antenaCandidatesLayerGroup) {
                 const idToRemove = `candidate-${candidateData.nome}-${candidateData.lat}`;
@@ -594,10 +629,11 @@ async function handleConfirmRepetidoraClick() {
                 });
                 camadasParaRemover.forEach(layer => AppState.antenaCandidatesLayerGroup.removeLayer(layer));
             }
-            nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
+            nomeRep = candidateData.nome || `${t('ui.labels.repeater')} ${id}`;
         } else {
-            nomeRep = `${t('ui.labels.repeater')} ${String(id).padStart(2, '0')}`;
+            nomeRep = `${t('ui.labels.repeater')} ${id}`;
             isFromKmz = false;
+            had_height_in_kmz = false;
         }
         
         const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
@@ -610,7 +646,8 @@ async function handleConfirmRepetidoraClick() {
             nome: nomeRep,
             original_name: nomeRep,
             is_from_kmz: isFromKmz,
-            type: type
+            type: type,
+            had_height_in_kmz: had_height_in_kmz
         };
 
         const nomeRepFormatado = getFormattedAntennaOrRepeaterName(repetidoraObj);
@@ -625,13 +662,17 @@ async function handleConfirmRepetidoraClick() {
         AppState.marcadoresLegenda.push(labelRepetidora);
         repetidoraObj.label = labelRepetidora;
 
+        const alturaRepetidoraHtml = (alturaAntena !== null && alturaAntena !== undefined)
+        ? `<span>${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}</span>`
+        : '';
+
         const tooltipRepetidoraContent = `
-            <div style="text-align: center;">
-                ${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}
-                <br>
-                ${t('ui.labels.receiver_height_tooltip', { height: alturaReceiver })}
-            </div>
+        <div style="text-align: center;">
+            ${alturaRepetidoraHtml}
+            <span>${t('ui.labels.receiver_height_tooltip', { height: alturaReceiver })}</span>
+        </div>
         `;
+
         novaRepetidoraMarker.bindTooltip(tooltipRepetidoraContent, {
             permanent: false, direction: 'top', offset: [0, -40], className: 'tooltip-sinal'
         });
@@ -1353,23 +1394,49 @@ function createEditablePivotMarker(pivoInfo) {
         const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
         
         if (pivoEmLastData) {
+            const oldLat = pivoEmLastData.lat;
+            const oldLon = pivoEmLastData.lon;
+
             const historyEntry = {
                 type: 'move',
                 pivotName: nome,
-                from: { lat: pivoEmLastData.lat, lon: pivoEmLastData.lon }
+                from: { lat: oldLat, lon: oldLon }
             };
+
+            // ✅ CORREÇÃO: Guarda as coordenadas do polígono ANTES de movê-lo
+            const nomeCiclo = `Ciclo ${nome}`;
+            const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
+            if (pivoEmLastData.tipo === 'custom' && cicloCorrespondente) {
+                historyEntry.previousCoords = JSON.parse(JSON.stringify(cicloCorrespondente.coordenadas));
+            }
+
             AppState.historyStack.push(historyEntry);
             if(undoButton) undoButton.disabled = false;
 
+            if (cicloCorrespondente) {
+                let novasCoordenadas = null;
+
+                if (pivoEmLastData.tipo === 'custom' && Array.isArray(cicloCorrespondente.coordenadas) && cicloCorrespondente.coordenadas.length > 0) {
+                    const latOffset = novaPos.lat - oldLat;
+                    const lonOffset = novaPos.lng - oldLon;
+                    novasCoordenadas = cicloCorrespondente.coordenadas.map(coord => [coord[0] + latOffset, coord[1] + lonOffset]);
+                } else if (pivoEmLastData.tipo === 'setorial' && pivoEmLastData.raio) {
+                    novasCoordenadas = generateSectorCoords(novaPos, pivoEmLastData.raio, pivoEmLastData.angulo_central, pivoEmLastData.abertura_arco);
+                } else if (pivoEmLastData.tipo === 'pacman' && pivoEmLastData.raio) {
+                     novasCoordenadas = generatePacmanCoords(novaPos, pivoEmLastData.raio, pivoEmLastData.angulo_inicio, pivoEmLastData.angulo_fim);
+                } else if (pivoEmLastData.raio) {
+                    novasCoordenadas = generateCircleCoords(novaPos, pivoEmLastData.raio);
+                }
+
+                if (novasCoordenadas) {
+                    cicloCorrespondente.coordenadas = novasCoordenadas;
+                    pivoEmLastData.coordenadas = novasCoordenadas;
+                }
+            }
+            
             pivoEmLastData.lat = novaPos.lat;
             pivoEmLastData.lon = novaPos.lng;
-
-            const nomeCiclo = `Ciclo ${nome}`;
-            const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
-            if (cicloCorrespondente && pivoEmLastData.raio) {
-                const novasCoordenadas = generateCircleCoords(novaPos, pivoEmLastData.raio);
-                cicloCorrespondente.coordenadas = novasCoordenadas;
-            }
+            
             drawCirculos(AppState.ciclosGlobais);
         }
     });
@@ -1386,9 +1453,9 @@ function createEditablePivotMarker(pivoInfo) {
 
             if(pivoParaDeletar) {
                 const historyEntry = {
-                  type: 'delete',
-                  deletedPivot: { ...pivoParaDeletar },
-                  deletedCiclo: cicloParaDeletar ? { ...cicloParaDeletar } : null
+                    type: 'delete',
+                    deletedPivot: { ...pivoParaDeletar },
+                    deletedCiclo: cicloParaDeletar ? { ...cicloParaDeletar } : null
                 };
                 AppState.historyStack.push(historyEntry);
                 if(undoButton) undoButton.disabled = false;
@@ -1483,9 +1550,18 @@ function desfazerUltimaAcao() {
             const nomeCiclo = `Ciclo ${pivotName}`;
             const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
             
-            if (cicloCorrespondente && pivoEmLastData.raio && typeof generateCircleCoords === 'function') {
-                const novasCoordenadas = generateCircleCoords(posicaoOriginalLatLng, pivoEmLastData.raio);
-                cicloCorrespondente.coordenadas = novasCoordenadas;
+            if (cicloCorrespondente) {
+                // ✅ CORREÇÃO: Verifica se há coordenadas salvas para restaurar
+                if (lastAction.previousCoords) {
+                    cicloCorrespondente.coordenadas = lastAction.previousCoords;
+                    if (pivoEmLastData.coordenadas) {
+                         pivoEmLastData.coordenadas = lastAction.previousCoords;
+                    }
+                } else if (pivoEmLastData.raio) {
+                    // Lógica antiga para círculos perfeitos
+                    const novasCoordenadas = generateCircleCoords(posicaoOriginalLatLng, pivoEmLastData.raio);
+                    cicloCorrespondente.coordenadas = novasCoordenadas;
+                }
             }
 
             drawCirculos(AppState.ciclosGlobais);
@@ -1736,7 +1812,7 @@ function handleCoordinateSearch() {
         map.setView(latlng, 15);
         mostrarMensagem(t('messages.success.location_found'), "sucesso");
         AppState.coordenadaClicada = latlng;
-        painelRepetidoraSetupDiv.classList.remove("hidden");
+        document.getElementById("painel-repetidora").classList.remove("hidden");
         inputField.value = '';
     } else {
         mostrarMensagem(t('messages.error.invalid_coordinate_format'), "erro");
@@ -2128,63 +2204,128 @@ function handleCancelDraw(e) {
 }
 
 /**
- * Lida com o pressionamento da tecla ESC para cancelar modos de desenho.
+ * Lida com atalhos de teclado globais como ESC e R.
  * @param {KeyboardEvent} e - O evento de teclado.
  */
-function handleEscapeKey(e) {
+function handleGlobalKeys(e) {
+    // Ignora os atalhos se o usuário estiver digitando em um campo de texto
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+
+    // Lógica para a tecla 'R' para recentralizar o mapa
+    if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault(); // Previne qualquer ação padrão do navegador para a tecla 'r'
+        focusOnFarm();
+        return; // Sai da função após lidar com a tecla R
+    }
+    
+    // Lógica antiga para a tecla 'Escape' (continua funcionando)
     if (e.key === 'Escape') {
         let cancelledSomething = false;
 
-        // Cancela o modo de desenho de pivô circular
         if (AppState.modoDesenhoPivo) {
             toggleModoDesenhoPivo();
             cancelledSomething = true;
         }
-        // Cancela o modo de desenho de pivô setorial
         if (AppState.modoDesenhoPivoSetorial) {
             toggleModoDesenhoPivoSetorial();
             cancelledSomething = true;
         }
-        // Cancela o modo de desenho de pivô Pac-Man
         if (AppState.modoDesenhoPivoPacman) {
             toggleModoDesenhoPivoPacman();
             cancelledSomething = true;
         }
-        // Cancela o modo de desenho de Irripump
         if (AppState.modoDesenhoIrripump) {
             toggleModoDesenhoIrripump();
             cancelledSomething = true;
         }
-
-        // Se alguma ação de desenho foi cancelada, previne o comportamento padrão do ESC
         if (cancelledSomething) {
-            e.preventDefault(); // Evita que outras ações do navegador aconteçam com o ESC
-            e.stopPropagation(); // Impede que o evento se propague
+            e.preventDefault();
+            e.stopPropagation();
             mostrarMensagem(t('messages.info.drawing_modes_cancelled_by_esc'), "info");
         }
-        
-        // Também desativa o modo LoS Pivot a Pivot se estiver ativo
         if (AppState.modoLoSPivotAPivot) {
             toggleLoSPivotAPivotMode();
             cancelledSomething = true;
         }
-
-        // E o modo de busca de locais de repetidora
         if (AppState.modoBuscaLocalRepetidora) {
             handleBuscarLocaisRepetidoraActivation();
             cancelledSomething = true;
         }
-
-        // Remove o marcador de posicionamento e oculta o painel de repetidora se estiver visível
         if (AppState.marcadorPosicionamento) {
             removePositioningMarker();
             document.getElementById("painel-repetidora")?.classList.add("hidden");
             cancelledSomething = true;
         }
         
-        // Deseleciona qualquer marcador ativo no mapa
         deselectAllMarkers();
         
-        if (map) map.getContainer().style.cursor = ''; // Restaura o cursor padrão
+        if (map) map.getContainer().style.cursor = '';
+    }
+}
+
+/**
+ * Encontra o próximo número sequencial disponível para um tipo de nome.
+ * Ex: Se já existem "Poste 1" e "Poste 3", esta função retornará 2.
+ * @param {string} baseName - O nome base, como "Poste" ou "Torre".
+ * @returns {number} O menor número disponível.
+ */
+function findNextAvailableNumberForType(baseName) {
+    const existingNumbers = [];
+    // Expressão regular para encontrar o número no final de um nome (ex: "Poste 1")
+    const regex = new RegExp(`^${baseName.trim()}\\s+(\\d+)$`, 'i');
+
+    // Junta a antena principal e as repetidoras para verificar todos os nomes existentes
+    const allEntities = [AppState.antenaGlobal, ...AppState.repetidoras].filter(Boolean);
+
+    allEntities.forEach(entity => {
+        if (entity.nome) {
+            const match = entity.nome.match(regex);
+            if (match && match[1]) {
+                existingNumbers.push(parseInt(match[1], 10));
+            }
+        }
+    });
+
+    let nextNumber = 1;
+    // Ordena os números para encontrar a primeira "lacuna"
+    existingNumbers.sort((a, b) => a - b);
+    for (const num of existingNumbers) {
+        if (num === nextNumber) {
+            nextNumber++;
+        } else {
+            // Encontrou uma lacuna (ex: 1, 3 -> a lacuna é 2)
+            break;
+        }
+    }
+    return nextNumber;
+}
+
+/**
+ * Centraliza e ajusta o zoom do mapa para enquadrar todos os elementos relevantes.
+ */
+function focusOnFarm() {
+    const boundsToFit = [];
+
+    // 1. Coleta as coordenadas de todos os itens no mapa
+    if (AppState.lastPivosDataDrawn) {
+        AppState.lastPivosDataDrawn.forEach(p => boundsToFit.push([p.lat, p.lon]));
+    }
+    if (AppState.lastBombasDataDrawn) {
+        AppState.lastBombasDataDrawn.forEach(b => boundsToFit.push([b.lat, b.lon]));
+    }
+    if (AppState.repetidoras) {
+        AppState.repetidoras.forEach(r => boundsToFit.push([r.lat, r.lon]));
+    }
+    if (AppState.antenaGlobal) {
+        boundsToFit.push([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon]);
+    }
+
+    // 2. Verifica se há algo para focar e ajusta o mapa
+    if (boundsToFit.length > 0) {
+        const bounds = L.latLngBounds(boundsToFit);
+        map.fitBounds(bounds, { padding: [70, 70] });
+    } else {
     }
 }

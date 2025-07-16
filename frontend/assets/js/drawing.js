@@ -138,37 +138,29 @@ function findClosestSignalSource(targetLatLng) {
     return closestSource;
 }
 
-// NOVO: Função para obter o nome formatado da antena/repetidora para a legenda
+/**
+ * Retorna o nome formatado para uma antena ou repetidora.
+ * VERSÃO DEFINITIVA: Segue a regra de negócio final.
+ * @param {object} entity - O objeto da antena ou repetidora.
+ * @returns {string} - O nome formatado.
+ */
 function getFormattedAntennaOrRepeaterName(entity) {
-    console.log("DEBUG: getFormattedAntennaOrRepeaterName received entity:", entity);
+    if (!entity) return '';
 
-    const alturaStr = entity.altura ? `${entity.altura}m` : '';
+    const baseName = entity.nome || '';
+    const regexLimpezaAltura = /\s-\s\d+(\.\d+)?m$/i;
+    const cleanBaseName = baseName.replace(regexLimpezaAltura, '').trim();
 
-    if (entity.isMainAntenna) {
-        // Lógica para a ANTENA PRINCIPAL (não alterada)
-        if (entity.type === 'central') {
-            return `${t('entity_names.central')} - ${alturaStr}`;
-        }
-        if (entity.type === 'central_repeater_combined') {
-            return `${t('entity_names.central_repeater_combined')} - ${alturaStr}`;
-        }
-        if (entity.type === 'tower') {
-            return `${t('entity_names.tower')} - ${alturaStr}`;
-        }
-        return entity.original_name || entity.nome || t('ui.labels.main_antenna_default');
+    // --- LÓGICA DEFINITIVA ---
+    // A altura SÓ será exibida se o item veio do KMZ E se ele JÁ TINHA a altura no nome.
+    if (entity.is_from_kmz && entity.had_height_in_kmz) {
+        const alturaValida = entity.altura !== null && entity.altura !== undefined;
+        const alturaStr = alturaValida ? ` - ${entity.altura}m` : '';
+        return `${cleanBaseName}${alturaStr}`;
     } else {
-        // Lógica para as REPETIDORAS (NÃO a antena principal)
-        if (entity.type === 'central') { // <--- ADICIONADO para repetidoras
-            return `${t('entity_names.central')} - ${alturaStr}`;
-        }
-        if (entity.type === 'central_repeater_combined') { // <--- ADICIONADO para repetidoras
-            return `${t('entity_names.central_repeater_combined')} - ${alturaStr}`;
-        }
-        if (entity.type && entity.type !== 'default') { // Tipos como 'tower', 'post', 'water_tank'
-            return `${t(`entity_names.${entity.type}`)} - ${alturaStr}`; // Formata como "Torre - 5m"
-        }
-        // Tipo 'default' ou se não houver tipo específico (ex: "Repetidora 01")
-        return entity.nome;
+        // Para todos os outros casos (repetidora manual, item do KMZ sem altura),
+        // retorna APENAS o nome limpo.
+        return cleanBaseName;
     }
 }
 
@@ -178,7 +170,7 @@ function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
     removeRenameMenu();
 
     const menu = document.createElement('div');
-    menu.className = 'rename-menu absolute bg-gray-900 border border-gray-700 rounded-md shadow-lg p-2 z-[10002]';
+    menu.className = 'rename-menu'; // A classe base que já temos
 
     // Define as opções de renomeação com base no tipo de entidade
     let options = [];
@@ -205,16 +197,15 @@ function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
         button.onclick = (e) => {
             e.stopPropagation();
             if (isMainAntenna) {
-                handleRenameMainAntenna(option.value); // Esta função já cuida de fechar o menu
+                handleRenameMainAntenna(option.value);
             } else {
                 handleRenameRepeater(entityId, option.value);
-                removeRenameMenu(); // Fecha o menu para repetidoras
+                removeRenameMenu();
             }
         };
         menu.appendChild(button);
     });
 
-    // --- LÓGICA CORRIGIDA E SIMPLIFICADA ---
     // Adiciona o botão "Voltar ao Nome Original"
     const restoreOriginalButton = document.createElement('button');
     restoreOriginalButton.textContent = t('ui.titles.restore_original_name');
@@ -223,28 +214,56 @@ function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
     restoreOriginalButton.onclick = (e) => {
         e.stopPropagation();
         if (isMainAntenna) {
-            // Apenas chama a função principal. Ela já tem a lógica para reverter e fechar o menu.
             if (AppState.antenaGlobal?.original_name) {
                 handleRenameMainAntenna('default');
             }
         } else {
-            // Apenas chama a função principal para a repetidora.
             const repetidora = AppState.repetidoras.find(r => r.id === entityId);
             if (repetidora?.original_name) {
                 handleRenameRepeater(entityId, 'default');
-                removeRenameMenu(); // Fecha o menu
+                removeRenameMenu();
             }
         }
     };
     menu.appendChild(restoreOriginalButton);
 
-    // Posiciona o menu no mapa
+    // --- ✅ NOVA LÓGICA DE POSICIONAMENTO INTELIGENTE ---
+    
     const mapContainer = map.getContainer();
-    const markerPos = map.latLngToContainerPoint(marker.getLatLng());
-    menu.style.left = `${markerPos.x + 20}px`;
-    menu.style.top = `${markerPos.y}px`;
-
+    // Adiciona o menu ao DOM (invisível) para podermos medir seu tamanho
+    menu.style.visibility = 'hidden'; 
     mapContainer.appendChild(menu);
+
+    // Mede o tamanho do menu e do container do mapa
+    const menuWidth = menu.offsetWidth;
+    const menuHeight = menu.offsetHeight;
+    const mapWidth = mapContainer.clientWidth;
+    const mapHeight = mapContainer.clientHeight;
+    
+    // Pega a posição do ícone na tela
+    const markerPos = map.latLngToContainerPoint(marker.getLatLng());
+
+    // Calcula a posição final do menu
+    let finalTop = markerPos.y;
+    let finalLeft = markerPos.x + 20; // Posição padrão (à direita do ícone)
+
+    // Verifica se vai vazar para baixo
+    if (markerPos.y + menuHeight + 10 > mapHeight) {
+        // Se vazar, abre para cima do ícone
+        finalTop = markerPos.y - menuHeight - 10;
+    }
+
+    // Verifica se vai vazar para a direita
+    if (finalLeft + menuWidth > mapWidth) {
+        // Se vazar, abre para a esquerda do ícone
+        finalLeft = markerPos.x - menuWidth - 20;
+    }
+
+    // Aplica a posição calculada e torna o menu visível
+    menu.style.left = `${finalLeft}px`;
+    menu.style.top = `${finalTop}px`;
+    menu.style.visibility = 'visible';
+    // --- FIM DA NOVA LÓGICA ---
 
     // Adiciona um listener para fechar o menu se o usuário clicar fora
     setTimeout(() => {
@@ -265,6 +284,10 @@ function removeRenameMenu() {
 
 // --- Funções de Desenho ---
 
+/**
+ * Desenha os marcadores para as antenas candidatas extraídas do KMZ.
+ * @param {Array<Object>} antenasList - Lista de objetos de antena do backend.
+ */
 function drawAntenaCandidates(antenasList) {
     if (!map || !AppState.antenaCandidatesLayerGroup) return;
 
@@ -276,15 +299,16 @@ function drawAntenaCandidates(antenasList) {
         const marker = L.marker([antenaData.lat, antenaData.lon], { icon: antenaIcon, customData: antenaData, customId: uniqueId })
             .addTo(AppState.antenaCandidatesLayerGroup);
 
-        const nomeAntena = antenaData.nome;
-        // Modificado: a label agora considera o tipo, mesmo para candidatas se aplicável.
-        // As candidatas não terão um `type` definido, então `getFormattedAntennaOrRepeaterName` usará o `nome` original.
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Agora passamos todo o objeto 'antenaData' e a flag 'is_from_kmz'.
+        // Isso garante que a função de formatação tenha todas as informações
+        // (incluindo 'had_height_in_kmz') para exibir a etiqueta corretamente.
         const formattedName = getFormattedAntennaOrRepeaterName({
-            isMainAntenna: true, // É uma candidata para antena principal
-            type: antenaData.type, // Pega o tipo se existir (do KMZ, por exemplo)
-            nome: nomeAntena,
-            altura: antenaData.altura
+            ...antenaData,
+            is_from_kmz: true
         });
+        // --- FIM DA CORREÇÃO ---
+
         const labelWidth = (formattedName.length * 7) + 10;
         const label = L.marker([antenaData.lat, antenaData.lon], {
             icon: L.divIcon({ 
@@ -305,11 +329,21 @@ function drawAntenaCandidates(antenasList) {
             handleSpecialMarkerSelection(marker);
             const data = e.target.options.customData;
             AppState.coordenadaClicada = e.latlng;
-            window.clickedCandidateData = data;
-            const painelRepetidora = document.getElementById("painel-repetidora-setup");
+            
+            const painelRepetidora = document.getElementById("painel-repetidora");
             const inputAltura = document.getElementById("altura-antena-rep");
-            if (painelRepetidora && inputAltura) {
+
+            // Lógica para definir o padrão de 5m e a flag
+            if (data.altura === null) {
+                inputAltura.value = 5; 
+                // A flag 'had_height_in_kmz' já vem do backend, não precisamos redefinir.
+            } else {
                 inputAltura.value = data.altura;
+            }
+            
+            window.clickedCandidateData = data;
+            
+            if (painelRepetidora) {
                 const inputAlturaRx = document.getElementById("altura-receiver-rep");
                 if (inputAlturaRx && data.altura_receiver) {
                     inputAlturaRx.value = data.altura_receiver;
@@ -320,7 +354,7 @@ function drawAntenaCandidates(antenasList) {
         });
     });
 
-    updateLegendsVisibility()
+    updateLegendsVisibility();
 }
 
 function drawPivos(pivosData, useEdited = false) {
@@ -431,7 +465,7 @@ function drawPivos(pivosData, useEdited = false) {
                 window.ultimoCliqueFoiSobrePivo = true;
                 AppState.coordenadaClicada = e.latlng;
                 removePositioningMarker();
-                painelRepetidoraSetupDiv.classList.remove("hidden");
+                document.getElementById("painel-repetidora")?.classList.remove("hidden");
             }
         });
         
@@ -724,7 +758,6 @@ function addAntenaAoPainel(antena) {
     document.getElementById("antena-item")?.remove();
     const container = document.getElementById("lista-repetidoras");
     const item = document.createElement("div");
-    // MODIFICAÇÃO: classes do item principal igualadas às das repetidoras
     item.className = "flex justify-between items-center bg-gray-800/60 px-3 py-2 rounded-lg border border-white/10";
     item.id = `antena-item`;
 
@@ -732,7 +765,6 @@ function addAntenaAoPainel(antena) {
         <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
     </button>`;
 
-    // MODIFICAÇÃO: classes do span da fonte igualadas às das repetidoras
     item.innerHTML = `
         <span class="text-white/80 text-sm">${getFormattedAntennaOrRepeaterName(antena)}</span>
         <div class="flex gap-3 items-center">
@@ -745,21 +777,13 @@ function addAntenaAoPainel(antena) {
     container.firstChild ? container.insertBefore(item, container.firstChild) : container.appendChild(item);
     lucide.createIcons();
 
-    // ADICIONE AQUI O LISTENER PARA O CLIQUE DIREITO NO ELEMENTO DO PAINEL,
-    // ALÉM DO MARCADOR NO MAPA. Isso garante que a atualização do tipo funcione de ambos.
+    // Listener para o clique direito no item do PAINEL
     item.addEventListener('contextmenu', (e) => {
-        L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
-        // Passa o marcador da antena, nome atual, true para antena principal e null para ID
-        showRenameRepeaterMenu(AppState.marcadorAntena, antena.nome, true, null); // Passa o marcador da antena
-    });
-
-    // O listener do marcador do mapa já está OK
-    if (AppState.marcadorAntena) {
-        AppState.marcadorAntena.on('contextmenu', (e) => {
-            L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
+        L.DomEvent.stop(e);
+        if (AppState.marcadorAntena) {
             showRenameRepeaterMenu(AppState.marcadorAntena, antena.nome, true, null);
-        });
-    }
+        }
+    });
 
     item.querySelector('[data-action="diagnostico"]').addEventListener('click', () => runTargetedDiagnostic(antena));
     
