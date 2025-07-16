@@ -284,10 +284,6 @@ function removeRenameMenu() {
 
 // --- Funções de Desenho ---
 
-/**
- * Desenha os marcadores para as antenas candidatas extraídas do KMZ.
- * @param {Array<Object>} antenasList - Lista de objetos de antena do backend.
- */
 function drawAntenaCandidates(antenasList) {
     if (!map || !AppState.antenaCandidatesLayerGroup) return;
 
@@ -299,15 +295,10 @@ function drawAntenaCandidates(antenasList) {
         const marker = L.marker([antenaData.lat, antenaData.lon], { icon: antenaIcon, customData: antenaData, customId: uniqueId })
             .addTo(AppState.antenaCandidatesLayerGroup);
 
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Agora passamos todo o objeto 'antenaData' e a flag 'is_from_kmz'.
-        // Isso garante que a função de formatação tenha todas as informações
-        // (incluindo 'had_height_in_kmz') para exibir a etiqueta corretamente.
         const formattedName = getFormattedAntennaOrRepeaterName({
             ...antenaData,
             is_from_kmz: true
         });
-        // --- FIM DA CORREÇÃO ---
 
         const labelWidth = (formattedName.length * 7) + 10;
         const label = L.marker([antenaData.lat, antenaData.lon], {
@@ -333,15 +324,17 @@ function drawAntenaCandidates(antenasList) {
             const painelRepetidora = document.getElementById("painel-repetidora");
             const inputAltura = document.getElementById("altura-antena-rep");
 
-            // Lógica para definir o padrão de 5m e a flag
             if (data.altura === null) {
                 inputAltura.value = 5; 
-                // A flag 'had_height_in_kmz' já vem do backend, não precisamos redefinir.
             } else {
                 inputAltura.value = data.altura;
             }
             
-            window.clickedCandidateData = data;
+            // --- INÍCIO DA CORREÇÃO ---
+            // A linha abaixo foi corrigida para usar AppState em vez de window.
+            // Esta era a causa raiz de todo o problema.
+            AppState.clickedCandidateData = data;
+            // --- FIM DA CORREÇÃO ---
             
             if (painelRepetidora) {
                 const inputAlturaRx = document.getElementById("altura-receiver-rep");
@@ -621,7 +614,9 @@ function drawCirculos(ciclosData) {
     AppState.circulosPivos.forEach(c => map.removeLayer(c));
     AppState.circulosPivos = [];
     AppState.lastPivosDataDrawn.forEach(pivo => {
-        const pivoLatLng = L.latLng(pivo.lat, pivo.lon);
+        const pivoCenterLatLng = (pivo.circle_center_lat && pivo.circle_center_lon)
+            ? L.latLng(pivo.circle_center_lat, pivo.circle_center_lon)
+            : L.latLng(pivo.lat, pivo.lon);
 
         if (pivo.tipo === 'custom' && Array.isArray(pivo.coordenadas) && pivo.coordenadas.length > 0) {
             const polygon = L.polygon(pivo.coordenadas, {
@@ -635,7 +630,7 @@ function drawCirculos(ciclosData) {
         }
 
         else if (pivo.tipo === 'setorial') {
-            const sectorCoords = generateSectorCoords(pivoLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
+            const sectorCoords = generateSectorCoords(pivoCenterLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
             const sectorPolygon = L.polygon(sectorCoords, {
                 color: '#cc0000',
                 weight: 3,
@@ -647,7 +642,7 @@ function drawCirculos(ciclosData) {
         }
 
         else if (pivo.tipo === 'pacman') {
-            const pacmanCoords = generatePacmanCoords(pivoLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
+            const pacmanCoords = generatePacmanCoords(pivoCenterLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
             const pacmanPolygon = L.polygon(pacmanCoords, {
                 color: '#cc0000',
                 weight: 3,
@@ -659,7 +654,7 @@ function drawCirculos(ciclosData) {
         }
 
         else {
-            const circle = L.circle(pivoLatLng, {
+            const circle = L.circle(pivoCenterLatLng, {
                 radius: pivo.raio || 100,
                 color: '#cc0000',
                 weight: 3,
@@ -676,16 +671,10 @@ function drawCirculos(ciclosData) {
 function drawImageOverlay(url, bounds, opacity = 1.0) {
     if (!map || !url || !bounds) return null;
 
-    // Determina se estamos em ambiente local.
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    // Define a URL base do backend.
     const BACKEND_URL = isLocal ? "http://localhost:8000" : "https://irricontrol-test.onrender.com";
-
-    // Constrói a URL completa para a imagem, garantindo que ela seja carregada do servidor backend.
     const fullUrl = url.startsWith('http') ? url : `${BACKEND_URL}${url}`;
-
     const imageBounds = [[bounds[0], bounds[1]], [bounds[2], bounds[3]]];
-    // Usa a URL completa para criar o overlay.
     const overlay = L.imageOverlay(fullUrl, imageBounds, { opacity, interactive: false }).addTo(map);
     AppState.overlaysVisiveis.push(overlay);
     return overlay;
@@ -702,7 +691,6 @@ function addRepetidoraNoPainel(repetidora) {
         <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/mountain.svg); mask-image: url(assets/images/mountain.svg);"></span>
     </button>`;
 
-    // NOVO: Exibe o nome formatado
     item.innerHTML = `
         <span class="text-white/80 text-sm">${getFormattedAntennaOrRepeaterName(repetidora)}</span>
         <div class="flex gap-3 items-center">
@@ -718,9 +706,8 @@ function addRepetidoraNoPainel(repetidora) {
     container.appendChild(item);
     lucide.createIcons();
 
-    // NOVO: Adiciona o event listener para o menu de contexto no marcador da repetidora
     repetidora.marker.on('contextmenu', (e) => {
-        L.DomEvent.stop(e); // Previne o menu de contexto padrão do navegador
+        L.DomEvent.stop(e);
         showRenameRepeaterMenu(repetidora.marker, repetidora.nome, false, repetidora.id, repetidora.type);
     });
 
@@ -972,15 +959,16 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
         const siteLatLng = [site.lat, site.lon];
         const uniqueMarkerId = `candidate-${index}-${site.lat.toFixed(5)}`;
         const iconHtml = `
-            <div class="candidate-icon-wrapper">
-                ⛰️ ${(site.elevation || 0).toFixed(1)}m
-                ${site.has_los ? `<span class="los-ok">${t('tooltips.los_ok')}</span>` : `<span class="los-no">${t('tooltips.los_no')}</span>`}
-                <br><span class="distancia-info">${t('ui.labels.pivo_distance_label')} ${site.distance_to_target ? site.distance_to_target.toFixed(0) + 'm' : 'N/A'}</span>
-            </div>`;
+    <div class="candidate-icon-wrapper">
+        ⛰️ ${(site.elevation || 0).toFixed(1)}m
+        <br>
+        ${site.has_los ? `<span class="los-ok">${t('tooltips.los_ok')}</span>` : `<span class="los-no">${t('tooltips.los_no')}</span>`}
+        <br><span class="distancia-info">${t('ui.labels.pivo_distance_label')} ${site.distance_to_target ? site.distance_to_target.toFixed(0) + 'm' : 'N/A'}</span>
+    </div>`;
         const candidateIcon = L.divIcon({
             className: 'custom-div-icon-ponto-alto',
             html: iconHtml,
-            iconSize: [95, 48], iconAnchor: [47.5, 24]
+            iconSize: [130, 48], iconAnchor: [65, 24]
         });
         const marker = L.marker(siteLatLng, { icon: candidateIcon, customId: uniqueMarkerId, interactive: false });
         marker.addTo(window.candidateRepeaterSitesLayerGroup);

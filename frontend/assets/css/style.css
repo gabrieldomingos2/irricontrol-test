@@ -429,9 +429,11 @@ button, .glass-button, label[for="arquivo"] {
 /* Cores específicas dentro do ícone do candidato */
 .candidate-icon-wrapper .los-ok { /* Para ✅LoS */
     color: #4CAF50; /* Verde */
+    font-weight: bold; /* Adicionado para negrito */
 }
 .candidate-icon-wrapper .los-no { /* Para ❌¬LoS */
     color: #FF9800; /* Laranja */
+    font-weight: bold; /* Opcional: Adiciona um negrito para dar mais destaque */
 }
 .candidate-icon-wrapper .distancia-info { /* Para Dist: N/A */
     color: #B0BEC5; /* Cinza azulado claro */

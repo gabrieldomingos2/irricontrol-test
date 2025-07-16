@@ -68,7 +68,7 @@ function toggleVisada() {
 
     const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
-        btnVisada.classList.toggle("glass-button-active", AppState.visadaVisivel);
+        btnVisada.classList.toggle("glass-button-active", !AppState.visadaVisivel);
     }
 
     console.log(`Visibilidade da visada: ${AppState.visadaVisivel ? 'Ativada' : 'Desativada'}`);
