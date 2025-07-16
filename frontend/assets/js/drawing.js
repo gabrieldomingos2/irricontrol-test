@@ -888,7 +888,6 @@ function clearMapLayers() {
 
 }
 
-
 function updateLegendsVisibility() {
     if (!AppState.marcadoresLegenda) return;
 
@@ -903,6 +902,10 @@ function updateLegendsVisibility() {
             shouldBeVisible = AppState.legendasAtivas;
         } else if (type === 'antena' || type === 'repetidora' || type === 'antena_candidate') {
             shouldBeVisible = AppState.antenaLegendasAtivas;
+        }
+        
+        if (type === 'antena' || type === 'repetidora') {
+            el.style.opacity = AppState.antenaLegendasAtivas ? '1' : '0.5';
         }
 
         el.style.display = shouldBeVisible ? '' : 'none';

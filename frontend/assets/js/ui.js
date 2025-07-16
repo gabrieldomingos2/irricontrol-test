@@ -15,6 +15,7 @@ const customConfirmTitle = document.getElementById('custom-confirm-title');
 const customConfirmMessage = document.getElementById('custom-confirm-message');
 const customConfirmOkBtn = document.getElementById('custom-confirm-ok-btn');
 const customConfirmCancelBtn = document.getElementById('custom-confirm-cancel-btn');
+const btnMoverPivoSemCirculo = document.getElementById('btn-mover-pivo-sem-circulo');
 
 
 /**
@@ -217,19 +218,27 @@ function togglePivoEditing() {
 
     const btn = document.getElementById("editar-pivos");
     const btnUndo = document.getElementById("desfazer-edicao");
+    const btnMoverPivo = document.getElementById("btn-mover-pivo-sem-circulo");
+
     btn.innerHTML = novoEstadoDeEdicao ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
     btn.title = novoEstadoDeEdicao ? t('ui.titles.save_edit') : t('ui.titles.edit_pivots');
     btn.classList.toggle('glass-button-active', novoEstadoDeEdicao);
     btnUndo.classList.toggle("hidden", !novoEstadoDeEdicao);
-    
+    btnMoverPivo.classList.toggle("hidden", !novoEstadoDeEdicao);
+
     if (novoEstadoDeEdicao) {
         if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
         if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
         if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
         if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
+        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
+        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
         
         enablePivoEditingMode();
     } else {
+        if (AppState.modoMoverPivoSemCirculo) {
+            toggleModoMoverPivoSemCirculo();
+        }
         disablePivoEditingMode();
     }
 
@@ -275,13 +284,12 @@ function setupUIEventListeners() {
         AppState.antenaLegendasAtivas = !AppState.antenaLegendasAtivas;
         const btn = document.getElementById("toggle-antenas-legendas");
         btn.classList.toggle("glass-button-active", !AppState.antenaLegendasAtivas);
-        
+
         const icon = btn.querySelector('.sidebar-icon');
         
         if(icon) {
             icon.style.webkitMaskImage = `url('assets/images/radio.svg')`;
             icon.style.maskImage = `url('assets/images/radio.svg')`;
-            icon.style.opacity = AppState.antenaLegendasAtivas ? '1' : '0.5';
         }
 
         updateLegendsVisibility();

@@ -16,6 +16,7 @@ const AppState = {
     modoDesenhoPivoSetorial: false,
     modoDesenhoPivoPacman: false,
     modoDesenhoIrripump: false,
+    modoMoverPivoSemCirculo: false,
     pontoRaioTemporario: null,
     distanciasPivosVisiveis: false,
     legendasAtivas: true,
@@ -181,6 +182,7 @@ function setupMainActionListeners() {
     document.getElementById('coord-search-btn').addEventListener('click', handleCoordinateSearch);
     document.getElementById('btn-draw-pivot-pacman').addEventListener('click', toggleModoDesenhoPivoPacman);
     document.getElementById('btn-draw-irripump').addEventListener('click', toggleModoDesenhoIrripump);
+    document.getElementById('btn-mover-pivo-sem-circulo').addEventListener('click', toggleModoMoverPivoSemCirculo);
     
     map.on("click", handleMapClick); 
     map.on("contextmenu", handleCancelDraw);
@@ -1054,28 +1056,65 @@ async function handleResetClick(showMessage = true) {
     clearMapLayers();
     AppState.reset();
 
-    // Garante que uma nova sessão SEMPRE seja iniciada após um reset,
-    // seja ele vindo do clique no botão ou do carregamento inicial da página.
-    await startNewSession(); //
+    await startNewSession();
 
     const toggleableButtonsIds = [
-        'editar-pivos', 'btn-los-pivot-a-pivot', 'btn-buscar-locais-repetidora',
-        'btn-draw-pivot', 'btn-draw-pivot-setorial', 'btn-draw-pivot-pacman',
-        'toggle-distancias-pivos', 'toggle-legenda', 'btn-draw-irripump',
-        'toggle-antenas-legendas'
+        'btn-los-pivot-a-pivot',
+        'btn-buscar-locais-repetidora',
+        'btn-visada',
+        'toggle-legenda',
+        'toggle-antenas-legendas',
+        'toggle-distancias-pivos',
+        'btn-draw-pivot',
+        'btn-draw-pivot-setorial',
+        'btn-draw-pivot-pacman',
+        'btn-draw-irripump',
+        'editar-pivos',
+        'btn-mover-pivo-sem-circulo',
+        'desfazer-edicao'
     ];
 
     toggleableButtonsIds.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) btn.classList.remove('glass-button-active');
     });
-    
-    updatePdfButtonState(false);
 
-    const btnVisada = document.getElementById("btn-visada");
-    if (btnVisada) {
-        btnVisada.classList.add("opacity-50");
+    const editButton = document.getElementById("editar-pivos");
+    if (editButton) {
+        editButton.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
     }
+
+    const undoButton = document.getElementById("desfazer-edicao");
+    if (undoButton) {
+        undoButton.classList.add('hidden');
+    }
+    
+    const moveButton = document.getElementById("btn-mover-pivo-sem-circulo");
+    if (moveButton) {
+        moveButton.classList.add('hidden');
+    }
+
+    const toggleLegendaBtn = document.getElementById('toggle-legenda');
+    if (toggleLegendaBtn) {
+        const icon = toggleLegendaBtn.querySelector('.sidebar-icon');
+        const iconPath = 'assets/images/captions.svg';
+        if (icon) {
+            icon.style.webkitMaskImage = `url(${iconPath})`;
+            icon.style.maskImage = `url(${iconPath})`;
+        }
+    }
+    
+    const toggleAntenasLegendasBtn = document.getElementById('toggle-antenas-legendas');
+    if (toggleAntenasLegendasBtn) {
+        const icon = toggleAntenasLegendasBtn.querySelector('.sidebar-icon');
+        if (icon) {
+            icon.style.webkitMaskImage = `url('assets/images/radio.svg')`;
+            icon.style.maskImage = `url('assets/images/radio.svg')`;
+        }
+    }
+
+
+    updatePdfButtonState(false);
 
     if (map) {
         map.getContainer().style.cursor = '';
@@ -1115,6 +1154,8 @@ async function handleResetClick(showMessage = true) {
     if (showMessage) {
         mostrarMensagem(t('messages.success.app_reset'), "sucesso");
     }
+
+    lucide.createIcons();
 }
 
 async function runTargetedDiagnostic(diagnosticoSource) {
@@ -1389,13 +1430,18 @@ function createEditablePivotMarker(pivoInfo) {
     const editMarker = L.marker(currentLatLng, { draggable: true, icon: editMarkerIcon }).addTo(map);
     AppState.pivotsMap[nome] = editMarker;
 
-    editMarker.on("dragend", (e) => {
+    editMarker.on("dragend", async (e) => {
         const novaPos = e.target.getLatLng();
         const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
         
         if (pivoEmLastData) {
             const oldLat = pivoEmLastData.lat;
             const oldLon = pivoEmLastData.lon;
+            const latOffset = novaPos.lat - oldLat;
+            const lonOffset = novaPos.lng - oldLon;
+
+            pivoEmLastData.lat = novaPos.lat;
+            pivoEmLastData.lon = novaPos.lng;
 
             const historyEntry = {
                 type: 'move',
@@ -1403,39 +1449,34 @@ function createEditablePivotMarker(pivoInfo) {
                 from: { lat: oldLat, lon: oldLon }
             };
 
-            // ✅ CORREÇÃO: Guarda as coordenadas do polígono ANTES de movê-lo
-            const nomeCiclo = `Ciclo ${nome}`;
-            const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
-            if (pivoEmLastData.tipo === 'custom' && cicloCorrespondente) {
-                historyEntry.previousCoords = JSON.parse(JSON.stringify(cicloCorrespondente.coordenadas));
+            if (AppState.modoMoverPivoSemCirculo) {
+                historyEntry.previousCoords = pivoEmLastData.coordenadas;
+            } else {
+                const nomeCiclo = `Ciclo ${nome}`;
+                const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
+                
+                if (cicloCorrespondente) {
+                    historyEntry.previousCoords = JSON.parse(JSON.stringify(cicloCorrespondente.coordenadas));
+                    
+                    let novasCoordenadas = null;
+                    if (pivoEmLastData.tipo === 'custom' && Array.isArray(cicloCorrespondente.coordenadas) && cicloCorrespondente.coordenadas.length > 0) {
+                        novasCoordenadas = cicloCorrespondente.coordenadas.map(coord => [coord[0] + latOffset, coord[1] + lonOffset]);
+                    } else if (pivoEmLastData.tipo === 'setorial' && pivoEmLastData.raio) {
+                        novasCoordenadas = generateSectorCoords(novaPos, pivoEmLastData.raio, pivoEmLastData.angulo_central, pivoEmLastData.abertura_arco);
+                    } else if (pivoEmLastData.tipo === 'pacman' && pivoEmLastData.raio) {
+                         novasCoordenadas = generatePacmanCoords(novaPos, pivoEmLastData.raio, pivoEmLastData.angulo_inicio, pivoEmLastData.angulo_fim);
+                    } else if (pivoEmLastData.raio) {
+                        novasCoordenadas = generateCircleCoords(novaPos, pivoEmLastData.raio);
+                    }
+                    if (novasCoordenadas) {
+                        cicloCorrespondente.coordenadas = novasCoordenadas;
+                        pivoEmLastData.coordenadas = novasCoordenadas;
+                    }
+                }
             }
 
             AppState.historyStack.push(historyEntry);
             if(undoButton) undoButton.disabled = false;
-
-            if (cicloCorrespondente) {
-                let novasCoordenadas = null;
-
-                if (pivoEmLastData.tipo === 'custom' && Array.isArray(cicloCorrespondente.coordenadas) && cicloCorrespondente.coordenadas.length > 0) {
-                    const latOffset = novaPos.lat - oldLat;
-                    const lonOffset = novaPos.lng - oldLon;
-                    novasCoordenadas = cicloCorrespondente.coordenadas.map(coord => [coord[0] + latOffset, coord[1] + lonOffset]);
-                } else if (pivoEmLastData.tipo === 'setorial' && pivoEmLastData.raio) {
-                    novasCoordenadas = generateSectorCoords(novaPos, pivoEmLastData.raio, pivoEmLastData.angulo_central, pivoEmLastData.abertura_arco);
-                } else if (pivoEmLastData.tipo === 'pacman' && pivoEmLastData.raio) {
-                     novasCoordenadas = generatePacmanCoords(novaPos, pivoEmLastData.raio, pivoEmLastData.angulo_inicio, pivoEmLastData.angulo_fim);
-                } else if (pivoEmLastData.raio) {
-                    novasCoordenadas = generateCircleCoords(novaPos, pivoEmLastData.raio);
-                }
-
-                if (novasCoordenadas) {
-                    cicloCorrespondente.coordenadas = novasCoordenadas;
-                    pivoEmLastData.coordenadas = novasCoordenadas;
-                }
-            }
-            
-            pivoEmLastData.lat = novaPos.lat;
-            pivoEmLastData.lon = novaPos.lng;
             
             drawCirculos(AppState.ciclosGlobais);
         }
@@ -2327,5 +2368,22 @@ function focusOnFarm() {
         const bounds = L.latLngBounds(boundsToFit);
         map.fitBounds(bounds, { padding: [70, 70] });
     } else {
+    }
+}
+
+// Crie esta nova função de toggle
+function toggleModoMoverPivoSemCirculo() {
+    const isActivating = !AppState.modoMoverPivoSemCirculo;
+    AppState.modoMoverPivoSemCirculo = isActivating;
+
+    const btn = document.getElementById('btn-mover-pivo-sem-circulo');
+    if (btn) {
+        btn.classList.toggle('glass-button-active', isActivating);
+    }
+
+    if (isActivating) {
+        mostrarMensagem(t('messages.info.move_pivot_center_on'), "sucesso");
+    } else {
+        mostrarMensagem(t('messages.info.move_pivot_center_off'), "sucesso");
     }
 }

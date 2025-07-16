@@ -27,7 +27,6 @@ function initMap() {
     const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
         btnVisada.addEventListener("click", toggleVisada);
-        btnVisada.classList.add("opacity-50");
     } else {
         console.error("Botão #btn-visada não encontrado!");
     }
@@ -67,7 +66,11 @@ function toggleVisada() {
         });
     }
 
-    document.getElementById("btn-visada")?.classList.toggle("opacity-50", !AppState.visadaVisivel);
+    const btnVisada = document.getElementById("btn-visada");
+    if (btnVisada) {
+        btnVisada.classList.toggle("glass-button-active", AppState.visadaVisivel);
+    }
+
     console.log(`Visibilidade da visada: ${AppState.visadaVisivel ? 'Ativada' : 'Desativada'}`);
 }
 

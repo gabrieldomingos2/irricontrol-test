@@ -92,6 +92,7 @@ html, body {
   /* A transição da cor do ícone será herdada da transição de 'color' do .glass-button */
 }
 
+
 /* ==================== */
 /* 💬 MENSAGENS */
 /* ==================== */
@@ -1073,6 +1074,68 @@ button, .glass-button, label[for="arquivo"] {
   }
   #footer-logo-link img {
     height: 1rem !important;
+  }
+}
+
+
+/* ================================================== */
+/* 📱 AJUSTES PARA TABLETS (LARGURA MÁXIMA: 768PX)   */
+/* ================================================== */
+@media (max-width: 768px) {
+  /* Oculta a barra lateral e os painéis de dados */
+  .absolute.top-14.bottom-14.left-0.w-\[280px\] {
+    display: none;
+  }
+
+  /* Faz o mapa ocupar toda a tela, exceto pela barra superior */
+  .absolute.top-14.bottom-14.left-\[280px\].right-12 {
+    left: 0 !important;
+    right: 0 !important;
+  }
+  
+  /* Reduz ainda mais os botões da barra de ferramentas superior */
+  div.absolute.top-0 .flex.items-center > span {
+    display: none; /* Oculta os labels 'Ferramentas', 'Legendas', etc. */
+  }
+
+  /* Move os painéis flutuantes para o centro da tela */
+  #overlay-panels-container {
+      top: 50% !important;
+      left: 50% !important;
+      right: auto !important;
+      transform: translate(-50%, -50%) !important;
+      width: 90% !important;
+  }
+}
+
+/* ================================================== */
+/* 📱 AJUSTES PARA SMARTPHONES (LARGURA MÁXIMA: 480PX) */
+/* ================================================== */
+@media (max-width: 480px) {
+  /* Oculta completamente a barra de ferramentas superior para um layout limpo */
+  div.absolute.top-0.left-0.right-0 {
+    display: none;
+  }
+
+  /* Faz o mapa ocupar toda a tela sem barras */
+  #map {
+    height: 100vh;
+  }
+  
+  /* Oculta os painéis flutuantes para liberar espaço */
+  #overlay-panels-container {
+    display: none;
+  }
+
+  /* Exibe botões essenciais flutuantes na parte inferior da tela */
+  #mobile-buttons-container { /* Você precisaria adicionar este container no HTML */
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    gap: 1rem;
   }
 }
 
