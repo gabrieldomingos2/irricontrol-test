@@ -488,21 +488,28 @@ function handleRenameMainAntenna(newType) {
 }
 
 async function handleMapClick(e) {
+    // --- CORREÇÃO PRINCIPAL ---
+    // A primeira ação de um clique no mapa agora é deselecionar tudo.
     deselectAllMarkers();
 
+    // Se estiver em um modo de desenho que usa múltiplos cliques, não faz mais nada.
     if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo || AppState.modoDesenhoPivoPacman) {
         return;
     }
 
+    // Se estiver no modo de desenhar irripump, executa a ação e para.
     if (AppState.modoDesenhoIrripump) {
         handleIrripumpDrawClick(e);
         return;
     }
-
+    
+    // Se estiver em outros modos de interação, também não faz mais nada.
     if (AppState.modoEdicaoPivos || AppState.modoLoSPivotAPivot || AppState.modoBuscaLocalRepetidora) {
         return;
     }
 
+    // Se não estiver em nenhum modo especial, prossegue com a lógica original
+    // de posicionar um marcador para uma nova repetidora.
     window.clickedCandidateData = null;
     window.ultimoCliqueFoiSobrePivo = false;
     AppState.coordenadaClicada = e.latlng;
@@ -779,51 +786,29 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     if (map) map.getContainer().style.cursor = 'wait';
 
     const activeOverlaysForSearch = [];
-    const signal_sources = []; // ✅ NOVO: Array para guardar as fontes de sinal
 
     const antenaVisBtn = document.querySelector("#antena-item button[data-visible]");
     const isAntenaVisible = !antenaVisBtn || antenaVisBtn.getAttribute('data-visible') === 'true';
 
-    // Coleta dados da antena principal, se visível
-    if (AppState.antenaGlobal && isAntenaVisible) {
-        // ✅ NOVO: Adiciona a antena principal à lista de fontes de sinal
-        signal_sources.push({
-            lat: AppState.antenaGlobal.lat,
-            lon: AppState.antenaGlobal.lon,
-            altura: AppState.antenaGlobal.altura || 15.0
+    if (AppState.antenaGlobal?.overlay && map.hasLayer(AppState.antenaGlobal.overlay) && isAntenaVisible && AppState.antenaGlobal.imagem_filename) {
+        const b = AppState.antenaGlobal.overlay.getBounds();
+        activeOverlaysForSearch.push({
+            id: 'antena_principal',
+            imagem: AppState.antenaGlobal.imagem_filename,
+            bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
         });
-
-        if (AppState.antenaGlobal.overlay && map.hasLayer(AppState.antenaGlobal.overlay) && AppState.antenaGlobal.imagem_filename) {
-            const b = AppState.antenaGlobal.overlay.getBounds();
-            activeOverlaysForSearch.push({
-                id: 'antena_principal',
-                imagem: AppState.antenaGlobal.imagem_filename,
-                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-            });
-        }
     }
 
-    // Coleta dados das repetidoras visíveis
     AppState.repetidoras.forEach(rep => {
         const repVisBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
         const isRepVisible = !repVisBtn || repVisBtn.getAttribute('data-visible') === 'true';
-        
-        if (isRepVisible) {
-            // ✅ NOVO: Adiciona a repetidora à lista de fontes de sinal
-            signal_sources.push({
-                lat: rep.lat,
-                lon: rep.lon,
-                altura: rep.altura || 15.0
+        if (rep.overlay && map.hasLayer(rep.overlay) && isRepVisible && rep.imagem_filename) {
+            const b = rep.overlay.getBounds();
+            activeOverlaysForSearch.push({
+                id: `repetidora_${rep.id}`,
+                imagem: rep.imagem_filename,
+                bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
             });
-
-            if (rep.overlay && map.hasLayer(rep.overlay) && rep.imagem_filename) {
-                const b = rep.overlay.getBounds();
-                activeOverlaysForSearch.push({
-                    id: `repetidora_${rep.id}`,
-                    imagem: rep.imagem_filename,
-                    bounds: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
-                });
-            }
         }
     });
 
@@ -843,7 +828,6 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
             altura_antena_repetidora_proposta: parseFloat(document.getElementById("altura-antena-rep").value) || 5,
             altura_receiver_pivo: AppState.pivoAlvoParaLocalRepetidora.altura_receiver,
             active_overlays: activeOverlaysForSearch,
-            signal_sources_data: signal_sources, // ✅ CORREÇÃO: Novo campo adicionado ao payload
             pivot_polygons_coords: AppState.ciclosGlobais ? AppState.ciclosGlobais.map(c => c.coordenadas) : []
         };
 

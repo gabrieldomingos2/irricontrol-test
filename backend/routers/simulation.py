@@ -2,7 +2,7 @@
 import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Tuple, Literal, Any
+from typing import List, Dict, Optional, Tuple, Literal
 from pathlib import Path
 import logging
 import json
@@ -61,7 +61,6 @@ class FindRepeaterSitesPayload(BaseModel):
     job_id: str; target_pivot_lat: float; target_pivot_lon: float; target_pivot_nome: str
     altura_antena_repetidora_proposta: Optional[float] = 5.0; altura_receiver_pivo: Optional[float] = 3.0
     active_overlays: List[OverlayData]
-    signal_sources_data: List[Dict[str, Any]]
     pivot_polygons_coords: Optional[List[List[Tuple[float, float]]]] = None
 
 class GeneratePivotPayload(BaseModel):
@@ -258,18 +257,12 @@ async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
         ]
 
         if not active_overlays_for_analysis:
-            # Se não houver overlays, a busca por sinal é impossível. Retorna vazio.
             return {"candidate_sites": []}
 
-        # ✅ CORREÇÃO 2: Passar 'payload.signal_sources_data' para a função de serviço
         candidate_sites = await analysis_service.encontrar_locais_altos_para_repetidora(
-            alvo_lat=payload.target_pivot_lat,
-            alvo_lon=payload.target_pivot_lon,
-            alvo_nome=payload.target_pivot_nome,
-            altura_antena_repetidora_proposta=payload.altura_antena_repetidora_proposta,
-            altura_receptor_pivo=payload.altura_receiver_pivo,
-            active_overlays_data=active_overlays_for_analysis,
-            signal_sources_data=payload.signal_sources_data,  # <-- ARGUMENTO ADICIONADO AQUI
+            alvo_lat=payload.target_pivot_lat, alvo_lon=payload.target_pivot_lon,
+            alvo_nome=payload.target_pivot_nome, altura_antena_repetidora_proposta=payload.altura_antena_repetidora_proposta,
+            altura_receptor_pivo=payload.altura_receiver_pivo, active_overlays_data=active_overlays_for_analysis,
             pivot_polygons_coords_data=payload.pivot_polygons_coords
         )
         logger.info(f"✅ Busca por locais de repetidora concluída para o job {payload.job_id}. {len(candidate_sites)} candidatos.")
