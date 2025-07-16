@@ -488,28 +488,21 @@ function handleRenameMainAntenna(newType) {
 }
 
 async function handleMapClick(e) {
-    // --- CORREÇÃO PRINCIPAL ---
-    // A primeira ação de um clique no mapa agora é deselecionar tudo.
     deselectAllMarkers();
 
-    // Se estiver em um modo de desenho que usa múltiplos cliques, não faz mais nada.
     if (AppState.modoDesenhoPivoSetorial || AppState.modoDesenhoPivo || AppState.modoDesenhoPivoPacman) {
         return;
     }
 
-    // Se estiver no modo de desenhar irripump, executa a ação e para.
     if (AppState.modoDesenhoIrripump) {
         handleIrripumpDrawClick(e);
         return;
     }
-    
-    // Se estiver em outros modos de interação, também não faz mais nada.
+
     if (AppState.modoEdicaoPivos || AppState.modoLoSPivotAPivot || AppState.modoBuscaLocalRepetidora) {
         return;
     }
 
-    // Se não estiver em nenhum modo especial, prossegue com a lógica original
-    // de posicionar um marcador para uma nova repetidora.
     window.clickedCandidateData = null;
     window.ultimoCliqueFoiSobrePivo = false;
     AppState.coordenadaClicada = e.latlng;

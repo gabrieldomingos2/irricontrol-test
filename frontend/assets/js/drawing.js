@@ -958,6 +958,12 @@ function drawVisadaComGradiente(pontoA, pontoB) {
     }).addTo(AppState.visadaLayerGroup);
 }
 
+/**
+ * Desenha os locais candidatos para repetidoras no mapa com ranking visual
+ * e linhas de visada dinâmicas ao passar o mouse.
+ * @param {Array<Object>} sites - A lista de locais candidatos, agora com 'score' e 'source_connected_to'.
+ * @param {Object} targetPivotData - Os dados do pivô alvo.
+ */
 function drawCandidateRepeaterSites(sites, targetPivotData) {
     if (!map || !window.candidateRepeaterSitesLayerGroup) return;
     
@@ -966,28 +972,85 @@ function drawCandidateRepeaterSites(sites, targetPivotData) {
 
     sites.forEach((site, index) => {
         if (typeof site.lat === 'undefined') return;
+
         const siteLatLng = [site.lat, site.lon];
         const uniqueMarkerId = `candidate-${index}-${site.lat.toFixed(5)}`;
+
+        // --- 1. Lógica de Ranking Visual ---
+        const score = site.score || 0;
+        let iconClass = 'custom-div-icon-ponto-alto'; // Classe CSS base
+        let rankIcon = '⛰️'; // Ícone padrão
+
+        // Define o ícone e a classe com base na pontuação (ajuste os valores conforme necessário)
+        if (score > 1200) {
+            iconClass += ' rank-gold';
+            rankIcon = '🏆';
+        } else if (score > 1100) {
+            iconClass += ' rank-silver';
+            rankIcon = '🥈';
+        } else if (score > 1000) {
+            iconClass += ' rank-bronze';
+            rankIcon = '🥉';
+        }
+
+        // --- 2. HTML do Marcador Aprimorado ---
         const iconHtml = `
             <div class="candidate-icon-wrapper">
-                ⛰️ ${(site.elevation || 0).toFixed(1)}m
-                ${site.has_los ? `<span class="los-ok">${t('tooltips.los_ok')}</span>` : `<span class="los-no">${t('tooltips.los_no')}</span>`}
-                <br><span class="distancia-info">${t('ui.labels.pivo_distance_label')} ${site.distance_to_target ? site.distance_to_target.toFixed(0) + 'm' : 'N/A'}</span>
+                <span class="rank-icon">${rankIcon}</span>
+                <div class="candidate-details">
+                    <span class="elevation-info">${(site.elevation || 0).toFixed(0)}m</span>
+                    <span class="los-status los-ok">${t('tooltips.los_ok')}</span>
+                    <span class="score-info">Score: ${Math.round(score)}</span>
+                </div>
             </div>`;
+        
         const candidateIcon = L.divIcon({
-            className: 'custom-div-icon-ponto-alto',
+            className: iconClass,
             html: iconHtml,
-            iconSize: [95, 48], iconAnchor: [47.5, 24]
+            iconSize: [120, 40], // Tamanho ajustado para o novo layout
+            iconAnchor: [60, 20]  // Centraliza o ícone
         });
-        const marker = L.marker(siteLatLng, { icon: candidateIcon, customId: uniqueMarkerId, interactive: false });
-        marker.addTo(window.candidateRepeaterSitesLayerGroup);
 
-        if (targetPivotData?.lat) {
-            const targetLatLng = [targetPivotData.lat, targetPivotData.lon];
-            const lineColor = site.has_los ? 'rgba(76, 175, 80, 0.7)' : 'rgba(255, 152, 0, 0.7)';
-            const line = L.polyline([siteLatLng, targetLatLng], { color: lineColor, weight: 2, dashArray: '5, 5', opacity: 0.75, customId: uniqueMarkerId });
-            line.addTo(window.candidateRepeaterSitesLayerGroup);
-        }
+        const marker = L.marker(siteLatLng, { 
+            icon: candidateIcon, 
+            customId: uniqueMarkerId, 
+            interactive: true // Habilita eventos de mouse
+        });
+
+        // --- 3. Visualização Dinâmica das Linhas de Visada ---
+        let losLineToTarget = null;
+        let losLineToSource = null;
+
+        marker.on('mouseover', function() {
+            // Desenha a linha para o pivô alvo (ciano)
+            if (targetPivotData?.lat) {
+                const targetLatLng = [targetPivotData.lat, targetPivotData.lon];
+                losLineToTarget = L.polyline([siteLatLng, targetLatLng], { 
+                    color: 'cyan', 
+                    weight: 2, 
+                    dashArray: '5, 5',
+                    interactive: false 
+                }).addTo(map);
+            }
+            // Desenha a linha para a fonte de sinal conectada (verde-limão)
+            if (site.source_connected_to?.lat) {
+                const sourceLatLng = [site.source_connected_to.lat, site.source_connected_to.lon];
+                losLineToSource = L.polyline([siteLatLng, sourceLatLng], { 
+                    color: 'lime', 
+                    weight: 2, 
+                    dashArray: '5, 5',
+                    interactive: false
+                }).addTo(map);
+            }
+        });
+
+        marker.on('mouseout', function() {
+            // Remove as linhas quando o mouse sai
+            if (losLineToTarget) map.removeLayer(losLineToTarget);
+            if (losLineToSource) map.removeLayer(losLineToSource);
+        });
+
+        marker.addTo(window.candidateRepeaterSitesLayerGroup);
     });
 }
 
