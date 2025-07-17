@@ -17,6 +17,8 @@ const customConfirmOkBtn = document.getElementById('custom-confirm-ok-btn');
 const customConfirmCancelBtn = document.getElementById('custom-confirm-cancel-btn');
 const btnMoverPivoSemCirculo = document.getElementById('btn-mover-pivo-sem-circulo');
 
+let dicaLoaderInterval = null;
+
 
 /**
  * Exibe um modal de confirmação customizado e retorna uma Promise.
@@ -98,15 +100,47 @@ function mostrarMensagem(texto, tipo = 'sucesso') {
     setTimeout(() => mensagemDiv.classList.add('hidden'), 4000);
 }
 
-function mostrarLoader(ativo, textoAdicional = '') {
+function mostrarLoader(ativo, textoOuDicas = '') {
+    if (dicaLoaderInterval) {
+        clearInterval(dicaLoaderInterval);
+        dicaLoaderInterval = null;
+    }
+
     loaderDiv.classList.toggle('hidden', !ativo);
     const processingTextSpan = loaderDiv.querySelector('span[data-i18n="ui.labels.processing"]');
-    if (processingTextSpan) {
-        if (ativo && textoAdicional) {
-            processingTextSpan.textContent = textoAdicional;
+    
+    if (!processingTextSpan) return;
+
+    processingTextSpan.style.transition = 'opacity 0.4s ease-in-out';
+
+    if (ativo) {
+        if (Array.isArray(textoOuDicas) && textoOuDicas.length > 0) {
+            let currentIndex = 0;
+            processingTextSpan.textContent = textoOuDicas[currentIndex];
+            processingTextSpan.style.opacity = 1;
+
+            dicaLoaderInterval = setInterval(() => {
+                currentIndex = (currentIndex + 1) % textoOuDicas.length;
+                
+                processingTextSpan.style.opacity = 0;
+
+                setTimeout(() => {
+                    processingTextSpan.textContent = textoOuDicas[currentIndex];
+                    processingTextSpan.style.opacity = 1;
+                }, 400);
+
+            }, 6500);
+
+        } else if (typeof textoOuDicas === 'string' && textoOuDicas) {
+            processingTextSpan.textContent = textoOuDicas;
+            processingTextSpan.style.opacity = 1;
         } else {
             processingTextSpan.textContent = t('ui.labels.processing');
+            processingTextSpan.style.opacity = 1;
         }
+    } else {
+        processingTextSpan.textContent = t('ui.labels.processing');
+        processingTextSpan.style.opacity = 1;
     }
 }
 

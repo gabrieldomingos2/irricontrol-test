@@ -888,7 +888,14 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
     };
 
     mostrarMensagem(t('messages.info.target_pivot_selected', { name: AppState.pivoAlvoParaLocalRepetidora.nome }), "info");
-    mostrarLoader(true, t('messages.info.find_repeater_long_process_warning'));
+    const dicasLoader = [
+        t('messages.info.find_repeater_long_process_warning'),
+        t('loader_tips.inaccurate_search'),
+        t('loader_tips.try_manual_repeater'),
+        t('loader_tips.consider_nearby_locations'),
+        t('loader_tips.blocked_los_compensation')
+    ];
+    mostrarLoader(true, dicasLoader);
     if (map) map.getContainer().style.cursor = 'wait';
 
     const activeOverlaysForSearch = [];

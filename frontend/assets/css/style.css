@@ -823,8 +823,12 @@ button, .glass-button, label[for="arquivo"] {
 /* ✨ ESTILIZAÇÃO DA BARRA DE ROLAGEM */
 /* ================================== */
 
-/* Define o estilo para navegadores baseados em WebKit (Chrome, Safari, Edge, etc.) 
-   Alvo: A lista de repetidoras que tem a barra de rolagem. */
+#lista-repetidoras {
+    /* Altura máxima calculada para se adaptar à tela.
+       Subtrai uma aproximação do espaço ocupado acima da lista 
+       (barra superior, painel de dados, etc.) e um espaço no final da página. */
+    max-height: calc(100vh - 360px);
+}
 
 /* A barra de rolagem completa */
 #lista-repetidoras::-webkit-scrollbar {
@@ -903,6 +907,11 @@ button, .glass-button, label[for="arquivo"] {
 
 @media (max-width: 1366px) {
 
+  #lista-repetidoras {
+      /* Valor ajustado para telas menores, onde os outros elementos são mais compactos */
+      max-height: calc(100vh - 320px);
+  }
+
   /* --- 1. BARRA DE FERRAMENTAS SUPERIOR --- */
   
   div.absolute.top-0.left-0.right-0.h-14 {
@@ -925,15 +934,30 @@ button, .glass-button, label[for="arquivo"] {
     height: 16px !important;
   }
 
+  /* Regra para redimensionar os ícones Lucide em telas pequenas */
+  div.absolute.top-0 .glass-button i[data-lucide] {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+/* Código Modificado - Dentro da seção @media (max-width: 1366px) */
   div.absolute.top-0 .flex.items-center.ml-24 {
-    margin-left: 3vw !important;
+    margin-left: 6vw !important; /* Aumentado de 3vw para 5vw */
   }
   div.absolute.top-0 .flex.items-center.ml-\[20px\] {
-    margin-left: 1.5vw !important;
+    margin-left: 3vw !important; /* Aumentado de 1.5vw para 2.5vw */
   }
   div.absolute.top-0 .flex.items-center.gap-2 {
     gap: 0.3rem !important;
   }
+
+      #editar-pivos.glass-button {
+        padding: 2px !important;
+    }
+    #editar-pivos.glass-button i[data-lucide] {
+        width: 14px !important;
+        height: 14px !important;
+    }
   
   /* --- 2. BARRA LATERAL ESQUERDA --- */
 
@@ -1064,7 +1088,7 @@ button, .glass-button, label[for="arquivo"] {
   
   div.absolute.bottom-6.left-72 {
     left: 228px !important;
-    bottom: 0.8rem !important;
+    bottom: 1.2rem !important;
   }
 
   #range-opacidade {
@@ -1075,9 +1099,22 @@ button, .glass-button, label[for="arquivo"] {
     bottom: 0.5rem !important; 
   }
   #footer-logo-link img {
-    height: 1rem !important;
+    height: 1.5rem !important;
   }
+
+  /* --- 8. AJUSTE BANDEIRAS DE IDIOMA --- */
+  button[data-lang] img {
+    width: 20px !important;
+    height: 13px !important;
+  }
+
+  /* Alvo no container das bandeiras para diminuir o espaçamento */
+  div.absolute.top-0 > .flex.items-center.gap-3 {
+    gap: 0.5rem !important; /* 8px */
+  }
+
 }
+
 
 
 /* ================================================== */
@@ -1140,6 +1177,7 @@ button, .glass-button, label[for="arquivo"] {
     gap: 1rem;
   }
 }
+
 
 /* ============================ */
 /* 🧠 FIM DO CSS DO FUTURO 🧠 */

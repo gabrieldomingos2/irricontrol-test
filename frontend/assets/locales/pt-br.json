@@ -259,5 +259,11 @@
             "file_id": "File ID",
             "colour_key": "Colour Key"
         }
+    },
+        "loader_tips": {
+           "inaccurate_search": "A busca de locais para repetidora às vezes pode não ser precisa!",
+           "try_manual_repeater": "Tente pôr repetidoras em pivôs próximos antes de buscar repetidoras por IA.",
+           "consider_nearby_locations": "Sempre considere os locais indicados mais próximos do pivô e em áreas que possam ser posicionados postes.",
+          "blocked_los_compensation": "Locais com visada bloqueada podem ser compensados com a instalação de postes!"
     }
 }

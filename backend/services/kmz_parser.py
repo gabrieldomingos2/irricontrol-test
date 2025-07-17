@@ -89,28 +89,52 @@ def _consolidate_pivos(
     pontas_retas_map: Dict[str, CoordsDict],
     nome_base_pivo: str
 ) -> List[PivoData]:
-    final_pivos_list = list(pivos_de_pontos)
-    nomes_pivos_existentes_normalizados = {normalizar_nome(p["nome"]) for p in final_pivos_list}
-    pivos_pontos_geometrias = [Point(p['lon'], p['lat']) for p in pivos_de_pontos]
+    final_pivos_list = []
+    ciclos_ja_associados = set()
 
-    for ciclo_info in ciclos_parsed:
-        nome_ciclo_original = ciclo_info["nome_original_circulo"]
-        coordenadas_ciclo = ciclo_info["coordenadas"]
+    for pivo in pivos_de_pontos:
+        pivo_geom = Point(pivo['lon'], pivo['lat'])
+        ciclo_associado = None
+        indice_ciclo_associado = -1
 
-        try:
-            poligono_ciclo = Polygon([(lon, lat) for lat, lon in coordenadas_ciclo])
-            if not poligono_ciclo.is_valid:
+        for i, ciclo in enumerate(ciclos_parsed):
+            if i in ciclos_ja_associados:
                 continue
-        except Exception:
+            
+            try:
+                poligono_ciclo = Polygon([(lon, lat) for lat, lon in ciclo["coordenadas"]])
+                if not poligono_ciclo.is_valid:
+                    continue
+            except Exception:
+                continue
+
+            if poligono_ciclo.contains(pivo_geom):
+                ciclo_associado = ciclo
+                indice_ciclo_associado = i
+                break 
+        
+        pivo_final = pivo.copy()
+
+        if ciclo_associado:
+            pivo_final["tipo"] = "custom" #
+            pivo_final["coordenadas"] = ciclo_associado["coordenadas"] #
+            ciclos_ja_associados.add(indice_ciclo_associado)
+            ciclo_associado['nome_original_circulo'] = f"Ciclo {pivo['nome']}"
+            
+            logger.info(f"  -> ✅ Pivô '{pivo['nome']}' associado a um polígono de círculo existente.")
+
+        final_pivos_list.append(pivo_final)
+
+    nomes_pivos_existentes_normalizados = {normalizar_nome(p["nome"]) for p in final_pivos_list}
+    for i, ciclo_info in enumerate(ciclos_parsed):
+        if i in ciclos_ja_associados:
             continue
 
-        if any(poligono_ciclo.contains(p_geom) for p_geom in pivos_pontos_geometrias):
-            continue
-
+        coordenadas_ciclo = ciclo_info["coordenadas"]
         centro_lat: Optional[float] = None
         centro_lon: Optional[float] = None
 
-        nome_ciclo_norm = normalizar_nome(nome_ciclo_original)
+        nome_ciclo_norm = normalizar_nome(ciclo_info["nome_original_circulo"])
         ponta1 = pontas_retas_map.get(f"ponta 1 reta {nome_ciclo_norm}")
         ponta2 = pontas_retas_map.get(f"ponta 2 reta {nome_ciclo_norm}")
         if not (ponta1 and ponta2):
@@ -134,13 +158,14 @@ def _consolidate_pivos(
                 "lat": centro_lat,
                 "lon": centro_lon,
                 "type": "pivo",
-                "tipo": "custom",
-                "coordenadas": coordenadas_ciclo
+                "tipo": "custom", #
+                "coordenadas": coordenadas_ciclo #
             }
             final_pivos_list.append(pivo_dict)
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
-            ciclo_info['nome_original_circulo'] = f"Ciclo {nome_pivo_gerado}"
-            logger.info(f"  -> 🛰️ Pivô de ciclo adicionado como '{nome_pivo_gerado}'. Nome do ciclo atualizado para '{ciclo_info['nome_original_circulo']}'.")
+            ciclo_info['nome_original_circulo'] = f"Ciclo {nome_pivo_gerado}" #
+            logger.info(f"  -> 🛰️ Pivô de ciclo órfão adicionado como '{nome_pivo_gerado}'.")
+
     return final_pivos_list
 
 def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
