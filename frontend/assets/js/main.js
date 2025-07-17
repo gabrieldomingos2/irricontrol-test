@@ -273,7 +273,18 @@ async function handleKmzFileSelect(event) {
         const antenasCandidatas = data.antenas || [];
         const bombasParaDesenhar = data.bombas || [];
         const pivosParaDesenhar = data.pivos || [];
-        const pivosComStatusInicial = pivosParaDesenhar.map(p => ({ ...p, fora: true }));
+
+        // --- INÍCIO DA CORREÇÃO ---
+        // Normaliza os dados dos pivôs do KMZ para que todos tenham um centro de círculo definido.
+        // Isso garante que eles se comportem da mesma forma que os pivôs desenhados manualmente.
+        const pivosComStatusInicial = pivosParaDesenhar.map(p => ({
+            ...p,
+            fora: true,
+            // Garante que o centro do círculo seja inicializado com a posição do pivô
+            circle_center_lat: p.lat,
+            circle_center_lon: p.lon
+        }));
+        // --- FIM DA CORREÇÃO ---
 
         AppState.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
         AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(bombasParaDesenhar));
@@ -1529,50 +1540,77 @@ function createEditablePivotMarker(pivoInfo) {
     const editMarker = L.marker(currentLatLng, { draggable: true, icon: editMarkerIcon }).addTo(map);
     AppState.pivotsMap[nome] = editMarker;
 
-    editMarker.on("dragend", async (e) => {
-    const novaPos = e.target.getLatLng();
-    const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
+    let lastDragPosition = null;
+    let originalPivotDataForHistory = null;
 
-    if (pivoEmLastData) {
-        const oldLat = pivoEmLastData.lat;
-        const oldLon = pivoEmLastData.lon;
+    editMarker.on("dragstart", (e) => {
+        lastDragPosition = e.target.getLatLng().clone();
+        const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
+        if (pivoEmLastData) {
+            originalPivotDataForHistory = JSON.parse(JSON.stringify(pivoEmLastData));
+        }
+    });
 
-        const historyEntry = {
-            type: 'move',
-            pivotName: nome,
-            from: { lat: oldLat, lon: oldLon },
-            previousCircleCenter: (pivoEmLastData.circle_center_lat)
-                ? { lat: pivoEmLastData.circle_center_lat, lon: pivoEmLastData.circle_center_lon }
-                : null
-        };
+    editMarker.on("drag", (e) => {
+        const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
+        if (!pivoEmLastData || !lastDragPosition) return;
 
-        pivoEmLastData.lat = novaPos.lat;
-        pivoEmLastData.lon = novaPos.lng;
+        const currentPos = e.target.getLatLng();
 
+        // ✅ INÍCIO DA CORREÇÃO (Botão Mover Centro)
+        // Apenas move o círculo/polígono se o modo "Mover Sem Círculo" NÃO estiver ativo.
         if (!AppState.modoMoverPivoSemCirculo) {
-            if (pivoEmLastData.circle_center_lat && pivoEmLastData.circle_center_lon) {
-                pivoEmLastData.circle_center_lat = novaPos.lat;
-                pivoEmLastData.circle_center_lon = novaPos.lng;
-            } else {
-                const nomeCiclo = `Ciclo ${nome}`;
-                const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
-                if (cicloCorrespondente && cicloCorrespondente.coordenadas) {
-                    const latOffset = novaPos.lat - oldLat;
-                    const lonOffset = novaPos.lng - oldLon;
-                    const novasCoordenadas = cicloCorrespondente.coordenadas.map(coord => [coord[0] + latOffset, coord[1] + lonOffset]);
-                    
-                    cicloCorrespondente.coordenadas = novasCoordenadas;
-                    pivoEmLastData.coordenadas = novasCoordenadas;
-                }
+            // Lógica para pivôs com polígonos customizados (do KMZ)
+            if (pivoEmLastData.tipo === 'custom' && pivoEmLastData.coordenadas) {
+                const latOffset = currentPos.lat - lastDragPosition.lat;
+                const lonOffset = currentPos.lng - lastDragPosition.lng;
+                pivoEmLastData.coordenadas = pivoEmLastData.coordenadas.map(coord => [coord[0] + latOffset, coord[1] + lonOffset]);
+            }
+            
+            // Lógica para pivôs circulares, setoriais ou pacman
+            if (pivoEmLastData.circle_center_lat !== undefined) {
+                 pivoEmLastData.circle_center_lat = currentPos.lat;
+                 pivoEmLastData.circle_center_lon = currentPos.lng;
             }
         }
+        // ✅ FIM DA CORREÇÃO (Botão Mover Centro)
 
-        AppState.historyStack.push(historyEntry);
-        if (undoButton) undoButton.disabled = false;
+        // Força o redesenho (importante para redesenhar o círculo ou polígono quando ele se move)
+        drawCirculos();
+        
+        // Atualiza a última posição para o próximo evento 'drag'
+        lastDragPosition = currentPos.clone();
+    });
 
-        drawCirculos(AppState.ciclosGlobais);
-    }
-});
+    editMarker.on("dragend", async (e) => {
+        const novaPos = e.target.getLatLng();
+        const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === nome);
+
+        if (pivoEmLastData && originalPivotDataForHistory) {
+            const historyEntry = {
+                type: 'move',
+                pivotName: nome,
+                from: { lat: originalPivotDataForHistory.lat, lon: originalPivotDataForHistory.lon },
+                previousCoordenadas: originalPivotDataForHistory.coordenadas || null,
+                previousCircleCenter: (originalPivotDataForHistory.circle_center_lat !== undefined)
+                    ? { lat: originalPivotDataForHistory.circle_center_lat, lon: originalPivotDataForHistory.circle_center_lon }
+                    : null
+            };
+            AppState.historyStack.push(historyEntry);
+            if (undoButton) undoButton.disabled = false;
+        }
+
+        // A posição do pivô (ponto central) é sempre atualizada, independentemente do modo.
+        pivoEmLastData.lat = novaPos.lat;
+        pivoEmLastData.lon = novaPos.lng;
+        
+        // Limpa as variáveis de controle do arrasto
+        lastDragPosition = null;
+        originalPivotDataForHistory = null;
+        
+        // Redesenha uma última vez para garantir a consistência visual
+        drawCirculos();
+    });
     
     editMarker.on("contextmenu", async (e) => {
         L.DomEvent.stop(e);
@@ -1597,7 +1635,7 @@ function createEditablePivotMarker(pivoInfo) {
             map.removeLayer(editMarker);
             AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.filter(p => p.nome !== nome);
             AppState.ciclosGlobais = AppState.ciclosGlobais.filter(c => c.nome_original_circulo !== nomeCicloParaDeletar);
-            drawCirculos(AppState.ciclosGlobais);
+            drawCirculos();
             delete AppState.pivotsMap[nome];
             
             mostrarMensagem(t('messages.success.pivot_removed', { name: nome }), "sucesso");
@@ -1667,7 +1705,10 @@ function desfazerUltimaAcao() {
     const undoButton = document.getElementById("desfazer-edicao");
 
     if (lastAction.type === 'move') {
-        const { pivotName, from } = lastAction;
+        // ✅ INÍCIO DA CORREÇÃO (Histórico)
+        const { pivotName, from, previousCircleCenter, previousCoordenadas } = lastAction;
+        // ✅ FIM DA CORREÇÃO (Histórico)
+        
         const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === pivotName);
         const editMarker = AppState.pivotsMap[pivotName];
 
@@ -1677,39 +1718,33 @@ function desfazerUltimaAcao() {
             pivoEmLastData.lat = from.lat;
             pivoEmLastData.lon = from.lon;
 
-            editMarker.setLatLng(posicaoOriginalLatLng);
-
-            const nomeCiclo = `Ciclo ${pivotName}`;
-            const cicloCorrespondente = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCiclo);
-            
-            if (cicloCorrespondente) {
-                if (lastAction.previousCoords) {
-                    cicloCorrespondente.coordenadas = lastAction.previousCoords;
-                    if (pivoEmLastData.coordenadas) {
-                         pivoEmLastData.coordenadas = lastAction.previousCoords;
-                    }
-                } else if (pivoEmLastData.raio) {
-                    const novasCoordenadas = generateCircleCoords(posicaoOriginalLatLng, pivoEmLastData.raio);
-                    cicloCorrespondente.coordenadas = novasCoordenadas;
-                }
+            if (previousCircleCenter) {
+                pivoEmLastData.circle_center_lat = previousCircleCenter.lat;
+                pivoEmLastData.circle_center_lon = previousCircleCenter.lon;
             }
 
-            drawCirculos(AppState.ciclosGlobais);
+            // ✅ INÍCIO DA CORREÇÃO (Histórico)
+            // Restaura o array de coordenadas para polígonos customizados
+            if (previousCoordenadas) {
+                pivoEmLastData.coordenadas = previousCoordenadas;
+            }
+            // ✅ FIM DA CORREÇÃO (Histórico)
+
+            editMarker.setLatLng(posicaoOriginalLatLng);
+            drawCirculos(); // A função drawCirculos agora usará as coordenadas restauradas
+            
             mostrarMensagem(t('messages.success.action_undone_move', { pivot_name: pivotName }), "sucesso");
         }
     }
     
     else if (lastAction.type === 'delete') {
         const { deletedPivot, deletedCiclo } = lastAction;
-
         AppState.lastPivosDataDrawn.push(deletedPivot);
         if (deletedCiclo) {
             AppState.ciclosGlobais.push(deletedCiclo);
         }
-        
         createEditablePivotMarker(deletedPivot);
-        drawCirculos(AppState.ciclosGlobais);  
-        
+        drawCirculos();  
         atualizarPainelDados();
         mostrarMensagem(t('messages.success.action_undone_delete', { pivot_name: deletedPivot.nome }), "sucesso");
     }

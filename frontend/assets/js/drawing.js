@@ -106,11 +106,11 @@ function findClosestSignalSource(targetLatLng) {
         if (distance < minDistance) {
             minDistance = distance;
             closestSource = {
-                id: 'main_antenna', // ID para referência
-                name: AppState.antenaGlobal.nome || t('ui.labels.main_antenna_default'), // Nome original ou padrão
+                id: 'main_antenna', 
+                name: AppState.antenaGlobal.nome || t('ui.labels.main_antenna_default'), 
                 distance: distance,
                 isMainAntenna: true,
-                type: AppState.antenaGlobal.type // Adiciona o tipo
+                type: AppState.antenaGlobal.type
             };
         }
     }
@@ -126,10 +126,10 @@ function findClosestSignalSource(targetLatLng) {
                 minDistance = distance;
                 closestSource = {
                     id: rep.id, // ID da repetidora
-                    name: rep.nome, // Nome original da repetidora
+                    name: rep.nome,
                     distance: distance,
                     isMainAntenna: false,
-                    type: rep.type // Adiciona o tipo
+                    type: rep.type
                 };
             }
         }
@@ -151,35 +151,30 @@ function getFormattedAntennaOrRepeaterName(entity) {
     const regexLimpezaAltura = /\s-\s\d+(\.\d+)?m$/i;
     const cleanBaseName = baseName.replace(regexLimpezaAltura, '').trim();
 
-    // --- LÓGICA DEFINITIVA ---
-    // A altura SÓ será exibida se o item veio do KMZ E se ele JÁ TINHA a altura no nome.
     if (entity.is_from_kmz && entity.had_height_in_kmz) {
         const alturaValida = entity.altura !== null && entity.altura !== undefined;
         const alturaStr = alturaValida ? ` - ${entity.altura}m` : '';
         return `${cleanBaseName}${alturaStr}`;
     } else {
-        // Para todos os outros casos (repetidora manual, item do KMZ sem altura),
-        // retorna APENAS o nome limpo.
         return cleanBaseName;
     }
 }
 
 // Função auxiliar para criar e exibir o menu de contexto
 function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
-    // Remove qualquer menu existente para evitar múltiplos menus
+
     removeRenameMenu();
 
     const menu = document.createElement('div');
-    menu.className = 'rename-menu'; // A classe base que já temos
+    menu.className = 'rename-menu';
 
-    // Define as opções de renomeação com base no tipo de entidade
     let options = [];
     if (isMainAntenna) {
         options = [
             { text: t('entity_names.central'), value: 'central' },
             { text: t('entity_names.central_repeater_combined'), value: 'central_repeater_combined' }
         ];
-    } else { // Opções para REPETIDORAS
+    } else {
         options = [
             { text: t('entity_names.tower'), value: 'tower' },
             { text: t('entity_names.post'), value: 'post' },
@@ -189,7 +184,6 @@ function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
         ];
     }
 
-    // Cria os botões de opção
     options.forEach(option => {
         const button = document.createElement('button');
         button.textContent = option.text;
@@ -206,7 +200,6 @@ function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
         menu.appendChild(button);
     });
 
-    // Adiciona o botão "Voltar ao Nome Original"
     const restoreOriginalButton = document.createElement('button');
     restoreOriginalButton.textContent = t('ui.titles.restore_original_name');
     restoreOriginalButton.className = 'block w-full text-left px-3 py-1 text-white hover:bg-gray-700 rounded-sm text-sm mt-2 border-t border-gray-600 pt-2';
@@ -225,47 +218,32 @@ function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
             }
         }
     };
-    menu.appendChild(restoreOriginalButton);
 
-    // --- ✅ NOVA LÓGICA DE POSICIONAMENTO INTELIGENTE ---
-    
+    menu.appendChild(restoreOriginalButton);
     const mapContainer = map.getContainer();
-    // Adiciona o menu ao DOM (invisível) para podermos medir seu tamanho
     menu.style.visibility = 'hidden'; 
     mapContainer.appendChild(menu);
-
-    // Mede o tamanho do menu e do container do mapa
     const menuWidth = menu.offsetWidth;
     const menuHeight = menu.offsetHeight;
     const mapWidth = mapContainer.clientWidth;
     const mapHeight = mapContainer.clientHeight;
-    
-    // Pega a posição do ícone na tela
     const markerPos = map.latLngToContainerPoint(marker.getLatLng());
 
-    // Calcula a posição final do menu
     let finalTop = markerPos.y;
-    let finalLeft = markerPos.x + 20; // Posição padrão (à direita do ícone)
+    let finalLeft = markerPos.x + 20;
 
-    // Verifica se vai vazar para baixo
     if (markerPos.y + menuHeight + 10 > mapHeight) {
-        // Se vazar, abre para cima do ícone
         finalTop = markerPos.y - menuHeight - 10;
     }
 
-    // Verifica se vai vazar para a direita
     if (finalLeft + menuWidth > mapWidth) {
-        // Se vazar, abre para a esquerda do ícone
         finalLeft = markerPos.x - menuWidth - 20;
     }
 
-    // Aplica a posição calculada e torna o menu visível
     menu.style.left = `${finalLeft}px`;
     menu.style.top = `${finalTop}px`;
     menu.style.visibility = 'visible';
-    // --- FIM DA NOVA LÓGICA ---
 
-    // Adiciona um listener para fechar o menu se o usuário clicar fora
     setTimeout(() => {
         document.addEventListener('click', removeRenameMenu, { once: true });
     }, 100);
@@ -278,7 +256,6 @@ function removeRenameMenu() {
     const existingMenu = document.querySelector('.rename-menu');
     if (existingMenu) {
         existingMenu.remove();
-        // O listener de clique fora é removido automaticamente com `once: true`
     }
 }
 
@@ -330,11 +307,7 @@ function drawAntenaCandidates(antenasList) {
                 inputAltura.value = data.altura;
             }
             
-            // --- INÍCIO DA CORREÇÃO ---
-            // A linha abaixo foi corrigida para usar AppState em vez de window.
-            // Esta era a causa raiz de todo o problema.
             AppState.clickedCandidateData = data;
-            // --- FIM DA CORREÇÃO ---
             
             if (painelRepetidora) {
                 const inputAlturaRx = document.getElementById("altura-receiver-rep");
