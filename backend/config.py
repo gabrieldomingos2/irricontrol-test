@@ -155,9 +155,9 @@ class AppSettings(BaseSettings):
         # ... (sem alteração aqui)
         {
             "id": "Brazil_V6", "nome": "🇧🇷 Brazil V6", "frq": 915,
-            "col": "IRRICONTRO.dBm", "site": "Brazil_V6", "rxs": -90,
+            "col": "IRRICONTRO.dBm", "site": "Brazil_V6", "rxs": -100,
             "transmitter": {"txw": 0.3, "bwi": 0.1},
-            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 3, "rxs": -90},
+            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 3, "rxs": -100},
             "antenna": {"txg": 3, "fbr": 3}
         },
         {
