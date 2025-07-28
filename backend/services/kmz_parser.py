@@ -158,8 +158,8 @@ def _consolidate_pivos(
                 "lat": centro_lat,
                 "lon": centro_lon,
                 "type": "pivo",
-                "tipo": "custom", #
-                "coordenadas": coordenadas_ciclo #
+                "tipo": "custom",
+                "coordenadas": coordenadas_ciclo
             }
             final_pivos_list.append(pivo_dict)
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
@@ -249,7 +249,6 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
         pivot_num_regex = re.compile(r"(?:piv(?:o|ô|ot)?)\s*(\d+)", re.IGNORECASE)
         bomba_name_regex = re.compile(r"^(casa\s+de\s+bomba|pump\s+house|bomba\s*\d*)$", re.IGNORECASE)
 
-        # --- LÓGICA REESTRUTURADA E CORRIGIDA ---
         for placemark_node in root.findall(".//kml:Placemark", KML_NAMESPACE):
             parsed_data = _parse_placemark_data(placemark_node)
             if not parsed_data:
@@ -258,36 +257,30 @@ def parse_gis_file(caminho_gis_str: str, pasta_extracao_str: str, lang: str = 'p
             nome_original = str(parsed_data["nome_original"])
             coords = parsed_data["coordenadas_lista"]
             geo_type = str(parsed_data["geometry_type"])
-
-            # 1. Primeiro, tenta extrair a altura do NOME ORIGINAL, antes de qualquer normalização.
             match = HEIGHT_REGEX.search(nome_original)
             
             if match:
                 altura = int(match.group(1))
                 had_height = True
-                # Cria um nome "limpo" para a verificação de keywords, removendo a parte da altura.
                 nome_limpo_para_keywords = nome_original[:match.start()].strip()
             else:
                 altura = None
                 had_height = False
                 nome_limpo_para_keywords = nome_original
 
-            # 2. Normaliza o nome limpo para poder comparar com as palavras-chave.
             nome_norm = normalizar_nome(nome_limpo_para_keywords)
 
-            # 3. Agora, verifica o tipo de geometria e as keywords no nome já sem a altura.
             if geo_type == "Point" and coords:
                 lat, lon = coords[0][0], coords[0][1]
 
                 if any(kw in nome_norm for kw in antena_kws):
-                    # Se for uma antena, os dados de altura já foram extraídos corretamente.
                     antenas_list.append({
                         "lat": lat,
                         "lon": lon,
                         "altura": altura,
                         "had_height_in_kmz": had_height,
                         "altura_receiver": DEFAULT_RECEIVER_HEIGHT,
-                        "nome": nome_original # Sempre envia o nome original completo para o frontend
+                        "nome": nome_original
                     })
 
                 elif any(kw in nome_norm for kw in pivo_kws) or pivot_num_regex.search(nome_original):

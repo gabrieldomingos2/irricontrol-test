@@ -84,7 +84,7 @@ def _get_formatted_entity_name_for_backend(
         elif entity_type == 'tower':
             return f"{t('entity_names.tower')} - {altura_str_formatada}"
         return nome_original_do_frontend or t('ui.labels.main_antenna_default')
-    else: # Lógica para as Repetidoras Adicionais
+    else:
         if entity_type == 'central':
             return f"{t('entity_names.central')} - {altura_str_formatada}"
         elif entity_type == 'central_repeater_combined':
@@ -111,22 +111,20 @@ def _create_html_description_table(entity_data: dict, template: Any, file_id_inf
     """Cria a tabela HTML de descrição usando chaves de tradução."""
     txw, txg_dbi = template.transmitter.txw, template.antenna.txg
     
-    # --- ALTERAÇÃO AQUI para tratar isnan e garantir inicialização ---
-    tx_power_dbm = -float('inf') # Inicializa com valor padrão
+    tx_power_dbm = -float('inf')
     if txw > 0:
         tx_power_dbm = 10 * log10(txw * 1000)
 
-    eirp_dbm = -float('inf') # Inicializa com valor padrão
+    eirp_dbm = -float('inf')
     if not isnan(tx_power_dbm) and tx_power_dbm != -float('inf'):
         eirp_dbm = tx_power_dbm + txg_dbi
     
-    erp_dbm = -float('inf') # Inicializa com valor padrão
+    erp_dbm = -float('inf')
     if not isnan(eirp_dbm) and eirp_dbm != -float('inf'):
         erp_dbm = eirp_dbm - 2.15
 
     eirp_w = (10**(eirp_dbm / 10)) / 1000 if not isnan(eirp_dbm) and eirp_dbm != -float('inf') else 0
     erp_w = (10**(erp_dbm / 10)) / 1000 if not isnan(erp_dbm) and erp_dbm != -float('inf') else 0
-    # --- FIM DA ALTERAÇÃO ---
     
     lat, lon = entity_data.get('lat'), entity_data.get('lon')
     lat_str, lon_str = (f"{lat:.6f}", f"{lon:.6f}") if isinstance(lat, float) else ("N/A", "N/A")

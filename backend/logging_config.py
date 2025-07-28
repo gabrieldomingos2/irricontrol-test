@@ -26,7 +26,7 @@ LOGGING_CONFIG = {
             "class": "logging.StreamHandler",
             "stream": "ext://sys.stderr",
         },
-        # ✅ NOVO: Handler para salvar em arquivo com rotação
+        # Handler para salvar em arquivo com rotação
         "rotating_file": {
             "formatter": "json", # Usando o novo formatter JSON
             "class": "logging.handlers.RotatingFileHandler",
@@ -39,19 +39,19 @@ LOGGING_CONFIG = {
 
     "loggers": {
         "irricontrol": {
-            # ✅ ALTERADO: Envia logs para o console E para o arquivo
+            # Envia logs para o console E para o arquivo
             "handlers": ["default", "rotating_file"],
             "level": settings.LOG_LEVEL.upper(),
             "propagate": False
         },
         "uvicorn.error": {
-            # ✅ ALTERADO: Envia erros do Uvicorn para o arquivo também
+            # Envia erros do Uvicorn para o arquivo também
             "handlers": ["default", "rotating_file"],
             "level": "INFO",
             "propagate": False
         },
         "uvicorn.access": {
-            "handlers": ["default"], # Mantemos o acesso apenas no console (ou podemos remover se quisermos)
+            "handlers": ["default"], # Mantemos o acesso apenas no console
             "level": "WARNING",
             "propagate": False
         },
