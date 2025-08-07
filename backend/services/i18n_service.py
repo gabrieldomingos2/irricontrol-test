@@ -57,7 +57,7 @@ class TranslationService:
         logger.error(f"Chave de tradução '{key}' não encontrada para '{lang}' ou no fallback '{self.default_lang}'.")
         return key
 
-    def get_translator(self, lang_code: str) -> Callable[[str, ...], str]:
+    def get_translator(self, lang_code: str) -> Callable[..., str]:
         """Retorna uma função 't' que traduz para o idioma especificado."""
         def translator(key: str, **kwargs: Any) -> str:
             text = self._get_text(lang_code, key)
@@ -69,6 +69,7 @@ class TranslationService:
                     return text
             return text
         return translator
+
 
 locales_path = Path(__file__).resolve().parent.parent / "locales"
 i18n_service = TranslationService(locales_dir=locales_path)

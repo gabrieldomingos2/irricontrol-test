@@ -273,18 +273,12 @@ async function handleKmzFileSelect(event) {
         const antenasCandidatas = data.antenas || [];
         const bombasParaDesenhar = data.bombas || [];
         const pivosParaDesenhar = data.pivos || [];
-
-        // --- INÍCIO DA CORREÇÃO ---
-        // Normaliza os dados dos pivôs do KMZ para que todos tenham um centro de círculo definido.
-        // Isso garante que eles se comportem da mesma forma que os pivôs desenhados manualmente.
         const pivosComStatusInicial = pivosParaDesenhar.map(p => ({
             ...p,
             fora: true,
-            // Garante que o centro do círculo seja inicializado com a posição do pivô
             circle_center_lat: p.lat,
             circle_center_lon: p.lon
         }));
-        // --- FIM DA CORREÇÃO ---
 
         AppState.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
         AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(bombasParaDesenhar));
@@ -600,13 +594,9 @@ function handleRenameMainAntenna(newType) {
 }
 
 async function handleMapClick(e) {
-    // --- INÍCIO DA CORREÇÃO ---
-    // Esta é a verificação mais segura. Se o elemento clicado (ou qualquer um
-    // de seus pais) for um ícone de marcador do Leaflet, a função é interrompida.
     if (e.originalEvent.target.closest('.leaflet-marker-icon')) {
         return;
     }
-    // --- FIM DA CORREÇÃO ---
 
     deselectAllMarkers();
 
@@ -1569,8 +1559,8 @@ function createEditablePivotMarker(pivoInfo) {
             
             // Lógica para pivôs circulares, setoriais ou pacman
             if (pivoEmLastData.circle_center_lat !== undefined) {
-                 pivoEmLastData.circle_center_lat = currentPos.lat;
-                 pivoEmLastData.circle_center_lon = currentPos.lng;
+                pivoEmLastData.circle_center_lat = currentPos.lat;
+                pivoEmLastData.circle_center_lon = currentPos.lng;
             }
         }
         // ✅ FIM DA CORREÇÃO (Botão Mover Centro)
@@ -1798,9 +1788,9 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         }
         AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
         if (itemData.id === 'main_antenna' || itemData.id === AppState.antenaGlobal?.id) {
-             AppState.losSourcePivot.isMainAntenna = true;
-             AppState.losSourcePivot.type = AppState.antenaGlobal.type;
-             AppState.losSourcePivot.altura = AppState.antenaGlobal.altura;
+            AppState.losSourcePivot.isMainAntenna = true;
+            AppState.losSourcePivot.type = AppState.antenaGlobal.type;
+            AppState.losSourcePivot.altura = AppState.antenaGlobal.altura;
         } else {
             const rep = AppState.repetidoras.find(r => r.id === itemData.id);
             if (rep) {
@@ -2184,7 +2174,7 @@ async function handlePacmanPivotDrawClick(e) {
         const raio = centro.distanceTo(AppState.pontoRaioTemporario);
 
         if (raio < 10) {
-             throw new Error(t('messages.errors.draw_pivot_radius_too_small'));
+            throw new Error(t('messages.errors.draw_pivot_radius_too_small'));
         }
 
         const anguloInicio = calculateBearing(centro, AppState.pontoRaioTemporario);

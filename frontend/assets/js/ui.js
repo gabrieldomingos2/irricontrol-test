@@ -200,9 +200,7 @@ function atualizarPainelDados() {
     document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${totalPivos}`;
     document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${foraCobertura}`;
     document.getElementById("template-info").textContent = `🌐 Template: ${AppState.templateSelecionado || '--'}`;
-    
     document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${totalRepetidorasContagem}`;
-
     const centralCountElement = document.getElementById('total-centrais');
     const centralCountValueElement = document.getElementById('central-count-value');
     if (centralCountElement && centralCountValueElement) {
@@ -249,11 +247,9 @@ async function loadAndPopulateTemplates() {
 function togglePivoEditing() {
     const novoEstadoDeEdicao = !AppState.modoEdicaoPivos;
     AppState.modoEdicaoPivos = novoEstadoDeEdicao;
-
     const btn = document.getElementById("editar-pivos");
     const btnUndo = document.getElementById("desfazer-edicao");
     const btnMoverPivo = document.getElementById("btn-mover-pivo-sem-circulo");
-
     btn.innerHTML = novoEstadoDeEdicao ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
     btn.title = novoEstadoDeEdicao ? t('ui.titles.save_edit') : t('ui.titles.edit_pivots');
     btn.classList.toggle('glass-button-active', novoEstadoDeEdicao);

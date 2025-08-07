@@ -165,7 +165,14 @@ class AppSettings(BaseSettings):
             "transmitter": {"txw": 0.02, "bwi": 0.05},
             "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 2.1, "rxs": -105},
             "antenna": {"txg": 2.1, "fbr": 2.1}
-        }
+        },
+        {
+            "id": "Brazil_V6_90", "nome": "🇧🇷 Brazil V6 90", "frq": 915,
+            "col": "CONTROL90.dBm", "site": "Brazil_V6_90", "rxs": -90,
+            "transmitter": {"txw": 0.3, "bwi": 0.1},
+            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 3, "rxs": -90},
+            "antenna": {"txg": 3, "fbr": 3}
+        }        
     ]
 
     # --- Métodos de Inicialização e Utilitários ---
