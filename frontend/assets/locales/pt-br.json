@@ -24,7 +24,8 @@
             "export_pdf_report": "Exportar Relatório PDF",
             "confirm_needed": "Confirmação Necessária",
             "move_pivot_center": "Selecione para Mover Apenas o Centro do Pivô",
-            "save_position": "Salvar Posição"
+            "save_position": "Salvar Posição",
+            "session_recovery": "Recuperação de Sessão"
         },
         "labels": {
             "tools": "Ferramentas",
@@ -123,7 +124,8 @@
             "action_undone_move": "Movimentação do pivô \"{pivot_name}\" desfeita.",
             "action_undone_delete": "Exclusão do pivô \"{pivot_name}\" revertida.",
             "main_antenna_renamed": "Antena principal renomeada para \"{name}\".",
-            "repeater_renamed": "Repetidora renomeada para \"{name}\"."
+            "repeater_renamed": "Repetidora renomeada para \"{name}\".",
+            "session_recovered": "Sessão anterior recuperada com sucesso."
         },
         "errors": {
             "session_start_fail": "Falha crítica ao iniciar nova sessão. Recarregue a página.",
@@ -147,7 +149,9 @@
             "generic_error": "Erro inesperado. Tente novamente.",
             "template_load_fail": "Falha ao buscar templates. Verifique sua conexão.",
             "pdf_export_fail": "Falha ao exportar relatório PDF: {error}",
-            "load_kmz_first": "Importe um arquivo KMZ antes de gerar o relatório."
+            "load_kmz_first": "Importe um arquivo KMZ antes de gerar o relatório.",
+            "export_fail_recovery_on": "A exportação falhou, mas seu trabalho está salvo. Recarregue a página para recuperar.",
+            "session_recovery_fail": "Falha ao recuperar a sessão: {error}"
         },
         "info": {
             "no_towers_found": "Nenhuma antena encontrada no KMZ. Adicione manualmente clicando no mapa.",
@@ -202,7 +206,8 @@
         "confirm": {
             "remove_pivot": "Tem certeza que deseja remover o pivô \"{name}\" e suas áreas associadas?",
             "remove_irripump": "Tem certeza que deseja remover o Irripump \"{name}\"?",
-            "change_los_source": "ORIGEM já é {sourceName}. Alterar para {newName}? Linhas de diagnóstico serão removidas."
+            "change_los_source": "ORIGEM já é {sourceName}. Alterar para {newName}? Linhas de diagnóstico serão removidas.",
+            "recover_session_prompt": "Encontramos um trabalho não salvo da sua última sessão. Deseja recuperá-lo?"
         }
     },
     "entity_names": {
@@ -260,10 +265,10 @@
             "colour_key": "Colour Key"
         }
     },
-        "loader_tips": {
-            "inaccurate_search": "A busca de locais para repetidora às vezes pode não ser precisa!",
-            "try_manual_repeater": "Tente pôr repetidoras em pivôs próximos antes de buscar repetidoras por IA.",
-            "consider_nearby_locations": "Sempre considere os locais indicados mais próximos do pivô e em áreas que possam ser posicionados postes.",
-            "blocked_los_compensation": "Locais com visada bloqueada podem ser compensados com a instalação de postes!"
+    "loader_tips": {
+        "inaccurate_search": "A busca de locais para repetidora às vezes pode não ser precisa!",
+        "try_manual_repeater": "Tente pôr repetidoras em pivôs próximos antes de buscar repetidoras por IA.",
+        "consider_nearby_locations": "Sempre considere os locais indicados mais próximos do pivô e em áreas que possam ser posicionados postes.",
+        "blocked_los_compensation": "Locais com visada bloqueada podem ser compensados com a instalação de postes!"
     }
 }

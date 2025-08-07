@@ -144,23 +144,40 @@ function mostrarLoader(ativo, textoOuDicas = '') {
     }
 }
 
-function updateLegendImage(templateName) {
-    if (!legendContainer || !legendImage) return;
+/**
+ * Constante de configuração para os templates do frontend.
+ * Define o ID, nome para exibição e o nome do arquivo da legenda (`col`).
+ * Adicione novos templates aqui no futuro.
+ */
+const TEMPLATES_CONFIG = [
+    { id: "Brazil_V6", nome: "🇧🇷 Brazil V6", col: "IRRICONTRO.dBm" },
+    { id: "Europe_V6_XR", nome: "🇪🇺 Europe V6 XR", col: "IRRIEUROPE.dBm" },
+    { id: "Brazil_V6_90", nome: "🇧🇷 Brazil V6 90", col: "CONTROL90.dBm" }
+];
 
-    let imagePath = null;
-    const normalizedName = templateName.toLowerCase();
+/**
+ * Atualiza a imagem da legenda com base no ID do template selecionado.
+ * Esta função agora busca a configuração do template para encontrar o nome correto do arquivo da legenda.
+ * @param {string} templateId
+ */
+function updateLegendImage(templateId) {
+    const legendContainer = document.getElementById('legend-container');
+    const legendImage = document.getElementById('legend-image');
 
-    if (normalizedName.includes("brazil_v6")) {
-        imagePath = "assets/images/IRRICONTRO.dBm.key.png";
-    } else if (normalizedName.includes("europe") && normalizedName.includes("v6")) {
-        imagePath = "assets/images/IRRIEUROPE.dBm.key.png";
+    if (!legendContainer || !legendImage) {
+        console.error("Elementos da legenda não encontrados no DOM.");
+        return;
     }
 
-    if (imagePath) {
+    const template = TEMPLATES_CONFIG.find(t => t.id === templateId);
+
+    if (template && template.col) {
+        const imagePath = `assets/images/${template.col}.key.png`;
         legendImage.src = imagePath;
         legendContainer.classList.remove('hidden');
     } else {
         legendContainer.classList.add('hidden');
+        console.warn(`Configuração de legenda para o template ID '${templateId}' não foi encontrada.`);
     }
 }
 

@@ -136,11 +136,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     initMap();
     setupUIEventListeners();
     setupMainActionListeners();
-    await loadAndPopulateTemplates();
-    
+    await loadAndPopulateTemplates();   
     lucide.createIcons();
-    
-    await handleResetClick(false); 
+    await loadSessionState();
+
+    // Inicia uma nova sessão somente se nenhuma foi recuperada.
+    if (!AppState.jobId) {
+        await handleResetClick(false); 
+    }
 
     console.log("Aplicação Pronta.");
 });
@@ -215,6 +218,116 @@ function setupMainActionListeners() {
 
 
 // --- Handlers de Ações ---
+
+/**
+ * NOVO: Salva o estado crítico da sessão no localStorage do navegador.
+ */
+function saveSessionState() {
+    try {
+        const stateToSave = {
+            jobId: AppState.jobId,
+            antenaGlobal: AppState.antenaGlobal,
+            lastPivosDataDrawn: AppState.lastPivosDataDrawn,
+            lastBombasDataDrawn: AppState.lastBombasDataDrawn,
+            ciclosGlobais: AppState.ciclosGlobais,
+            repetidoras: AppState.repetidoras,
+            templateSelecionado: AppState.templateSelecionado,
+            // ATENÇÃO: Não salvamos objetos complexos como marcadores Leaflet, apenas os dados.
+        };
+
+        // Limpa os dados de overlay e marcadores que não podem ser salvos diretamente
+        if (stateToSave.antenaGlobal) {
+            stateToSave.antenaGlobal.overlay = null;
+            stateToSave.antenaGlobal.marker = null;
+            stateToSave.antenaGlobal.label = null;
+        }
+        stateToSave.repetidoras.forEach(rep => {
+            rep.overlay = null;
+            rep.marker = null;
+            rep.label = null;
+        });
+
+        localStorage.setItem('irricontrol-session-backup', JSON.stringify(stateToSave));
+        console.log("💾 Sessão salva em backup local.");
+    } catch (error) {
+        console.error("Falha ao salvar o estado da sessão:", error);
+    }
+}
+
+/**
+ * NOVO: Limpa o backup da sessão do localStorage.
+ */
+function clearSessionState() {
+    localStorage.removeItem('irricontrol-session-backup');
+    console.log("🗑️ Backup da sessão local limpo.");
+}
+
+/**
+ * NOVO: Tenta carregar uma sessão salva do backup e recriar o estado no mapa.
+ */
+async function loadSessionState() {
+    const backup = localStorage.getItem('irricontrol-session-backup');
+    if (!backup) return;
+
+    const confirmed = await showCustomConfirm(
+        t('messages.confirm.recover_session_prompt'), // "Encontramos um trabalho não salvo. Deseja recuperá-lo?"
+        t('ui.titles.session_recovery') // "Recuperação de Sessão"
+    );
+
+    if (confirmed) {
+        mostrarLoader(true);
+        try {
+            const recoveredState = JSON.parse(backup);
+
+            // Restaura o estado da aplicação
+            AppState.jobId = recoveredState.jobId;
+            AppState.antenaGlobal = recoveredState.antenaGlobal;
+            AppState.lastPivosDataDrawn = recoveredState.lastPivosDataDrawn;
+            AppState.lastBombasDataDrawn = recoveredState.lastBombasDataDrawn;
+            AppState.ciclosGlobais = recoveredState.ciclosGlobais;
+            AppState.repetidoras = recoveredState.repetidoras;
+            AppState.templateSelecionado = recoveredState.templateSelecionado;
+            
+            // Recria visualmente os elementos no mapa
+            if (AppState.antenaGlobal) {
+                // Simula novamente a antena principal para recriar o overlay
+                await startMainSimulation(AppState.antenaGlobal);
+            }
+
+            // Redesenha repetidoras, pivôs, bombas e círculos
+            AppState.repetidoras.forEach(async (rep) => {
+                const repMarker = L.marker([rep.lat, rep.lon], { icon: antenaIcon }).addTo(map);
+                rep.marker = repMarker;
+                addRepetidoraNoPainel(rep);
+                const payload = { job_id: AppState.jobId, lat: rep.lat, lon: rep.lon, altura: rep.altura, altura_receiver: rep.altura_receiver, template: AppState.templateSelecionado, pivos_atuais: [] };
+                const data = await simulateManual(payload);
+                rep.overlay = drawImageOverlay(data.imagem_salva, data.bounds, 1.0);
+                rep.imagem_filename = data.imagem_filename.split('/').pop();
+            });
+
+            drawPivos(AppState.lastPivosDataDrawn);
+            drawBombas(AppState.lastBombasDataDrawn);
+            drawCirculos();
+            
+            atualizarPainelDados();
+            reposicionarPaineisLaterais();
+
+            focusOnFarm();
+
+            mostrarMensagem(t('messages.success.session_recovered'), "sucesso");
+        } catch (error) {
+            console.error("Erro ao recuperar sessão:", error);
+            mostrarMensagem(t('messages.errors.session_recovery_fail', { error: error.message }), "erro");
+            await handleResetClick(false); // Se a recuperação falhar, inicia do zero
+        } finally {
+            mostrarLoader(false);
+        }
+    }
+    
+    // Limpa o backup após a tentativa (bem-sucedida ou não)
+    clearSessionState();
+}
+
 async function handleKmzFileSelect(event) {
     const fileInput = event.target;
     if (!fileInput.files || fileInput.files.length === 0) {
@@ -1378,6 +1491,8 @@ async function handleExportClick() {
         return;
     }
 
+    saveSessionState();
+
     mostrarLoader(true);
     mostrarMensagem(t('messages.success.kmz_export_preparing'), "info");
 
@@ -1392,12 +1507,12 @@ async function handleExportClick() {
                     imagem: rep.imagem_filename,
                     altura: rep.altura,
                     sobre_pivo: rep.sobre_pivo,
-                    nome: rep.is_from_kmz ? rep.nome : null, 
+                    nome: rep.is_from_kmz ? rep.nome : null,
                     type: rep.type || 'default'
                 });
             }
         });
-        
+
         let antenaDataParaExport = null;
         let imagemPrincipal = null;
         let boundsFilePrincipal = null;
@@ -1419,8 +1534,8 @@ async function handleExportClick() {
 
         const payload = {
             job_id: AppState.jobId,
-            template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,   
-            language: localStorage.getItem('preferredLanguage') || 'pt-br',         
+            template_id: AppState.templateSelecionado || document.getElementById('template-modelo').value,
+            language: localStorage.getItem('preferredLanguage') || 'pt-br',
             antena_principal_data: antenaDataParaExport,
             imagem: imagemPrincipal,
             bounds_file: boundsFilePrincipal,
@@ -1432,12 +1547,13 @@ async function handleExportClick() {
 
         await exportKmz(payload);
 
-        updatePdfButtonState(true); 
+        updatePdfButtonState(true);
         mostrarMensagem(t('messages.info.pdf_report_unlocked'), "sucesso");
+        clearSessionState();
 
     } catch (error) {
         console.error("Erro no processo de exportação KMZ:", error);
-        mostrarMensagem(t('messages.errors.generic_error', { error: error.message }), "erro");
+        mostrarMensagem(t('messages.errors.export_fail_recovery_on'), "erro");
     } finally {
         mostrarLoader(false);
     }
