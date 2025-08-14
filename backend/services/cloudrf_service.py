@@ -118,7 +118,7 @@ async def _perform_simulation_and_save_to_cache(
         "antenna": { "mode": "template", "txg": tpl.antenna.txg, "txl": 0, "ant": 1, "azi": 0, "tlt": 0, "hbw": 360, "vbw": 90, "fbr": tpl.antenna.fbr, "pol": "v" },
         "model": {"pm": 1, "pe": 2, "ked": 4, "rel": 95, "rcs": 1},
         "environment": {"elevation": 1, "landcover": 1, "buildings": 0, "clt": "Minimal.clt"},
-        "output": { "units": "m", "col": tpl.col, "out": 2, "ber": 1, "mod": 7, "nf": -120, "res": 30, "rad": 10 }
+        "output": { "units": "m", "col": tpl.col, "out": 2, "ber": 1, "mod": 7, "nf": -120, "res": 30, "rad": 7 }
     }
 
     if not settings.CLOUDRF_API_KEY:
