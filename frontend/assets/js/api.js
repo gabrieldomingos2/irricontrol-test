@@ -37,15 +37,12 @@ async function apiRequest(endpoint, options = {}) {
     // Para a maioria dos casos, retorna o JSON já processado
     return await response.json();
   } catch (error) {
-    // Loga o erro em baixo nível e o re-lança para que o contexto específico possa tratá-lo
     console.error(`Erro na requisição para ${endpoint}:`, error);
     throw error;
   }
 }
 
 // --- Funções da API Refatoradas para Usar o Wrapper ---
-// Note como cada função agora é mais curta e focada em seu propósito,
-// delegando a lógica de comunicação para o apiRequest.
 
 async function startEmptyJob() {
   return apiRequest('/kmz/iniciar_job_vazio', { method: 'POST' })
@@ -117,15 +114,13 @@ async function getElevationProfile(payload) {
 
 async function exportKmz(payload) {
   try {
-    // A chamada à API agora usa o wrapper, informando que espera uma resposta do tipo 'blob'
     const response = await apiRequest('/kmz/exportar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      responseType: 'blob' // <-- Opção especial para o wrapper
+      responseType: 'blob'
     });
 
-    // O restante da lógica de download do arquivo é mantido exatamente como estava
     const disposition = response.headers.get('content-disposition');
     let filename = 'estudo-irricontrol.kmz';
     if (disposition?.includes('attachment')) {
@@ -147,7 +142,6 @@ async function exportKmz(payload) {
     a.remove();
 
   } catch (error) {
-    // A lógica de captura de erro e mensagem ao usuário é mantida
     mostrarMensagem(`Falha ao exportar KMZ: ${error.message}`, "erro");
     throw error;
   }

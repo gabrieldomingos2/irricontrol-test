@@ -273,18 +273,12 @@ async function handleKmzFileSelect(event) {
         const antenasCandidatas = data.antenas || [];
         const bombasParaDesenhar = data.bombas || [];
         const pivosParaDesenhar = data.pivos || [];
-
-        // --- INÍCIO DA CORREÇÃO ---
-        // Normaliza os dados dos pivôs do KMZ para que todos tenham um centro de círculo definido.
-        // Isso garante que eles se comportem da mesma forma que os pivôs desenhados manualmente.
         const pivosComStatusInicial = pivosParaDesenhar.map(p => ({
             ...p,
             fora: true,
-            // Garante que o centro do círculo seja inicializado com a posição do pivô
             circle_center_lat: p.lat,
             circle_center_lon: p.lon
         }));
-        // --- FIM DA CORREÇÃO ---
 
         AppState.lastPivosDataDrawn = JSON.parse(JSON.stringify(pivosComStatusInicial));
         AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(bombasParaDesenhar));
@@ -600,13 +594,9 @@ function handleRenameMainAntenna(newType) {
 }
 
 async function handleMapClick(e) {
-    // --- INÍCIO DA CORREÇÃO ---
-    // Esta é a verificação mais segura. Se o elemento clicado (ou qualquer um
-    // de seus pais) for um ícone de marcador do Leaflet, a função é interrompida.
     if (e.originalEvent.target.closest('.leaflet-marker-icon')) {
         return;
     }
-    // --- FIM DA CORREÇÃO ---
 
     deselectAllMarkers();
 
@@ -704,8 +694,6 @@ async function handleConfirmRepetidoraClick() {
         let type = 'default';
         let had_height_in_kmz = false;
 
-        // CASO 1: A lógica para definir a ANTENA PRINCIPAL a partir de um candidato KMZ.
-        // Esta parte não é a causa do problema e permanece a mesma.
         if (!AppState.antenaGlobal && AppState.clickedCandidateData) {
             const candidateData = { ...AppState.clickedCandidateData };
             AppState.clickedCandidateData = null;
@@ -717,27 +705,21 @@ async function handleConfirmRepetidoraClick() {
                 type: candidateData.type || 'default',
                 had_height_in_kmz: candidateData.had_height_in_kmz 
             });
-            return; // Encerra a função aqui, pois já tratou da antena principal.
+            return;
         }
         
         removePositioningMarker();
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // A lógica de nomeação foi reestruturada para ser mais explícita e corrigir o bug.
-
-        // CENÁRIO A: Criando uma repetidora a partir de um placemark existente do KMZ.
-        // Verifica se um candidato com nome foi clicado.
         if (AppState.clickedCandidateData && AppState.clickedCandidateData.nome) {
             const candidateData = { ...AppState.clickedCandidateData };
-            AppState.clickedCandidateData = null; // Limpa o estado do candidato
+            AppState.clickedCandidateData = null;
             
-            nomeRep = candidateData.nome; // USA O NOME ORIGINAL DO KMZ
+            nomeRep = candidateData.nome;
             isFromKmz = true;
             type = candidateData.type || 'default';
             had_height_in_kmz = candidateData.had_height_in_kmz || false;
-            id = ++AppState.contadorRepetidoras; // Atribui um ID interno, mas não o usa para o nome.
+            id = ++AppState.contadorRepetidoras;
 
-            // Remove o marcador de "candidato" para não duplicar no mapa.
             if (AppState.antenaCandidatesLayerGroup) {
                 const idToRemove = `candidate-${candidateData.nome}-${candidateData.lat}`;
                 const camadasParaRemover = [];
@@ -747,16 +729,13 @@ async function handleConfirmRepetidoraClick() {
                 camadasParaRemover.forEach(layer => AppState.antenaCandidatesLayerGroup.removeLayer(layer));
             }
         
-        // CENÁRIO B: Criando uma repetidora a partir de um clique em local aleatório no mapa.
         } else {
             id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
-            nomeRep = `${t('ui.labels.repeater')} ${id}`; // GERA UM NOVO NOME "Repetidora X".
+            nomeRep = `${t('ui.labels.repeater')} ${id}`;
             isFromKmz = false;
             had_height_in_kmz = false;
-            // Garante que qualquer resquício de dados de candidato seja limpo.
             AppState.clickedCandidateData = null;
         }
-        // --- FIM DA CORREÇÃO ---
         
         const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
         
@@ -1557,28 +1536,21 @@ function createEditablePivotMarker(pivoInfo) {
 
         const currentPos = e.target.getLatLng();
 
-        // ✅ INÍCIO DA CORREÇÃO (Botão Mover Centro)
-        // Apenas move o círculo/polígono se o modo "Mover Sem Círculo" NÃO estiver ativo.
         if (!AppState.modoMoverPivoSemCirculo) {
-            // Lógica para pivôs com polígonos customizados (do KMZ)
             if (pivoEmLastData.tipo === 'custom' && pivoEmLastData.coordenadas) {
                 const latOffset = currentPos.lat - lastDragPosition.lat;
                 const lonOffset = currentPos.lng - lastDragPosition.lng;
                 pivoEmLastData.coordenadas = pivoEmLastData.coordenadas.map(coord => [coord[0] + latOffset, coord[1] + lonOffset]);
             }
             
-            // Lógica para pivôs circulares, setoriais ou pacman
             if (pivoEmLastData.circle_center_lat !== undefined) {
-                 pivoEmLastData.circle_center_lat = currentPos.lat;
-                 pivoEmLastData.circle_center_lon = currentPos.lng;
+                    pivoEmLastData.circle_center_lat = currentPos.lat;
+                    pivoEmLastData.circle_center_lon = currentPos.lng;
             }
         }
-        // ✅ FIM DA CORREÇÃO (Botão Mover Centro)
 
-        // Força o redesenho (importante para redesenhar o círculo ou polígono quando ele se move)
         drawCirculos();
         
-        // Atualiza a última posição para o próximo evento 'drag'
         lastDragPosition = currentPos.clone();
     });
 
@@ -1600,15 +1572,12 @@ function createEditablePivotMarker(pivoInfo) {
             if (undoButton) undoButton.disabled = false;
         }
 
-        // A posição do pivô (ponto central) é sempre atualizada, independentemente do modo.
         pivoEmLastData.lat = novaPos.lat;
         pivoEmLastData.lon = novaPos.lng;
         
-        // Limpa as variáveis de controle do arrasto
         lastDragPosition = null;
         originalPivotDataForHistory = null;
         
-        // Redesenha uma última vez para garantir a consistência visual
         drawCirculos();
     });
     
@@ -1705,10 +1674,7 @@ function desfazerUltimaAcao() {
     const undoButton = document.getElementById("desfazer-edicao");
 
     if (lastAction.type === 'move') {
-        // ✅ INÍCIO DA CORREÇÃO (Histórico)
         const { pivotName, from, previousCircleCenter, previousCoordenadas } = lastAction;
-        // ✅ FIM DA CORREÇÃO (Histórico)
-        
         const pivoEmLastData = AppState.lastPivosDataDrawn.find(p => p.nome === pivotName);
         const editMarker = AppState.pivotsMap[pivotName];
 
@@ -1723,15 +1689,12 @@ function desfazerUltimaAcao() {
                 pivoEmLastData.circle_center_lon = previousCircleCenter.lon;
             }
 
-            // ✅ INÍCIO DA CORREÇÃO (Histórico)
-            // Restaura o array de coordenadas para polígonos customizados
             if (previousCoordenadas) {
                 pivoEmLastData.coordenadas = previousCoordenadas;
             }
-            // ✅ FIM DA CORREÇÃO (Histórico)
 
             editMarker.setLatLng(posicaoOriginalLatLng);
-            drawCirculos(); // A função drawCirculos agora usará as coordenadas restauradas
+            drawCirculos();
             
             mostrarMensagem(t('messages.success.action_undone_move', { pivot_name: pivotName }), "sucesso");
         }
@@ -1798,9 +1761,9 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         }
         AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
         if (itemData.id === 'main_antenna' || itemData.id === AppState.antenaGlobal?.id) {
-             AppState.losSourcePivot.isMainAntenna = true;
-             AppState.losSourcePivot.type = AppState.antenaGlobal.type;
-             AppState.losSourcePivot.altura = AppState.antenaGlobal.altura;
+            AppState.losSourcePivot.isMainAntenna = true;
+            AppState.losSourcePivot.type = AppState.antenaGlobal.type;
+            AppState.losSourcePivot.altura = AppState.antenaGlobal.altura;
         } else {
             const rep = AppState.repetidoras.find(r => r.id === itemData.id);
             if (rep) {

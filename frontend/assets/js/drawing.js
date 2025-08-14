@@ -30,10 +30,10 @@ const bombaIconVermelho = L.divIcon({
 });
 
 const posicionamentoIcon = L.icon({
-  iconUrl: TORRE_ICON_PATH,
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-  popupAnchor: [0, -30]
+    iconUrl: TORRE_ICON_PATH,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -30]
 });
 
 let tempSectorShape = null;
@@ -177,7 +177,7 @@ function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
     } else {
         options = [
             { text: t('entity_names.tower'), value: 'tower' },
-            { text: t('entity_names.post'), value: 'post' },
+            { text: t('entity_names.pole'), value: 'pole' },
             { text: t('entity_names.water_tank'), value: 'water_tank' },
             { text: t('entity_names.central'), value: 'central' },
             { text: t('entity_names.central_repeater_combined'), value: 'central_repeater_combined' }
@@ -422,7 +422,7 @@ function drawPivos(pivosData, useEdited = false) {
             }
         
             if (AppState.modoEdicaoPivos) {
-                 marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
+                marker.bindPopup(`<div class="popup-glass">✏️ ${pivo.fora ? t('tooltips.out_of_signal') : t('tooltips.in_signal')}</div>`).openPopup();
             } else if (AppState.modoLoSPivotAPivot) {
                 if (typeof handleLoSTargetClick === 'function') handleLoSTargetClick(pivo, marker);
             } else if (AppState.modoBuscaLocalRepetidora) {

@@ -53,12 +53,12 @@ function toggleVisada() {
             } else if (layer.getElement) {
                 const element = layer.getElement();
                 if(element) {
-                   element.style.opacity = opacity;
-                   element.style.pointerEvents = AppState.visadaVisivel ? 'auto' : 'none';
+                    element.style.opacity = opacity;
+                    element.style.pointerEvents = AppState.visadaVisivel ? 'auto' : 'none';
                 }
             } else if (layer._icon) {
-                 layer._icon.style.opacity = opacity;
-                 layer._icon.style.pointerEvents = AppState.visadaVisivel ? 'auto' : 'none';
+                    layer._icon.style.opacity = opacity;
+                    layer._icon.style.pointerEvents = AppState.visadaVisivel ? 'auto' : 'none';
             }
             if(layer.options) {
                 layer.options.interactive = AppState.visadaVisivel;

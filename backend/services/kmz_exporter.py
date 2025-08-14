@@ -94,8 +94,8 @@ def _get_formatted_entity_name_for_backend(
                 return f"{t('entity_names.central_repeater_combined')} - {altura_str_formatada}"
         elif entity_type == 'tower':
             return t("kml.repeaters.solar_type_repeater", type_name=t('entity_names.tower'), height=altura_str_formatada)
-        elif entity_type == 'post':
-            return t("kml.repeaters.solar_type_repeater", type_name=t('entity_names.post'), height=altura_str_formatada)
+        elif entity_type == 'pole':
+            return t("kml.repeaters.solar_type_repeater", type_name=t('entity_names.pole'), height=altura_str_formatada)
         elif entity_type == 'water_tank':
             return t("kml.repeaters.solar_type_repeater", type_name=t('entity_names.water_tank'), height=altura_str_formatada)
         else:

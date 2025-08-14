@@ -209,7 +209,7 @@
     "irripump": "Irripump",
     "central": "Central",
     "tower": "Tower",
-    "post": "Post",
+    "pole": "Pole",
     "water_tank": "Water Tank",
     "central_repeater_combined": "Central + Repeater",
     "central_repeater_combined_solar": "Central + Solar Repeater",
@@ -262,7 +262,7 @@
   "loader_tips": {
     "inaccurate_search": "The search for repeater locations can sometimes be inaccurate!",
     "try_manual_repeater": "Try placing repeaters on nearby pivots before searching with AI.",
-    "consider_nearby_locations": "Always consider the locations indicated closest to the pivot and in areas where posts can be positioned.",
-    "blocked_los_compensation": "Locations with blocked line of sight can be compensated by installing posts!"
+    "consider_nearby_locations": "Always consider the locations indicated closest to the pivot and in areas where poles can be positioned.",
+    "blocked_los_compensation": "Locations with blocked line of sight can be compensated by installing poles!"
   }
 }
