@@ -3,16 +3,16 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import zipfile
-import json 
-import simplekml 
-from datetime import datetime 
+import json
+import simplekml
+from datetime import datetime
 from pathlib import Path
 import logging
 import uuid
 
 from backend.services import kmz_parser
-from backend.services import kmz_exporter 
-from backend.services import pdf_service # Mantém este import por segurança, caso outros módulos o usem
+from backend.services import kmz_exporter
+from backend.services import pdf_service 
 from backend.config import settings
 from backend.services.i18n_service import i18n_service
 
@@ -23,18 +23,31 @@ router = APIRouter(
     tags=["KMZ Operations"],
 )
 
+# --- utilzinha para garantir diretórios (robustez) ---
+def _ensure_dir(p: Path) -> None:
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"❌ Falha ao criar diretório '{p}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Falha ao criar diretório '{p}': {type(e).__name__} - {str(e)}")
+
+
 @router.post("/iniciar_job_vazio")
 async def iniciar_job_vazio_endpoint():
     job_id = str(uuid.uuid4())
     logger.info(f"🆕 Novo job VAZIO iniciado com ID: {job_id}")
+
     job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / job_id
-    job_input_dir.mkdir(parents=True, exist_ok=True)
-    job_images_dir.mkdir(parents=True, exist_ok=True)
+
+    _ensure_dir(job_input_dir)
+    _ensure_dir(job_images_dir)
+
     parsed_data_path = job_input_dir / "parsed_data.json"
     parsed_content_vazio = {"antenas": [], "pivos": [], "ciclos": [], "bombas": []}
     with open(parsed_data_path, "w", encoding="utf-8") as f:
         json.dump(parsed_content_vazio, f, ensure_ascii=False, indent=4)
+
     logger.info(f"  -> Estrutura de diretórios para job vazio '{job_id}' criada.")
     return {"job_id": job_id}
 
@@ -44,10 +57,12 @@ async def processar_kmz_endpoint(file: UploadFile = File(...), language: str = F
     job_id = str(uuid.uuid4())
 
     logger.info(f"🆕 Novo job de processamento de arquivo GIS ({file.filename}) iniciado com ID: {job_id} para o idioma: '{language}'")
+
     job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / job_id
-    job_input_dir.mkdir(parents=True, exist_ok=True)
-    job_images_dir.mkdir(parents=True, exist_ok=True)
+
+    _ensure_dir(job_input_dir)
+    _ensure_dir(job_images_dir)
 
     input_file_path = job_input_dir / file.filename
 
@@ -58,13 +73,15 @@ async def processar_kmz_endpoint(file: UploadFile = File(...), language: str = F
         logger.info(f"  -> Arquivo de entrada salvo em: {input_file_path}")
 
         antenas, pivos, ciclos, bombas = kmz_parser.parse_gis_file(str(input_file_path), str(job_input_dir), lang=language)
-        
+
         parsed_data_path = job_input_dir / "parsed_data.json"
         parsed_content = {"antenas": antenas, "pivos": pivos, "ciclos": ciclos, "bombas": bombas}
         with open(parsed_data_path, "w", encoding="utf-8") as f:
             json.dump(parsed_content, f, ensure_ascii=False, indent=4)
+
         logger.info(f"  -> Dados parseados salvos para o job em: {parsed_data_path}")
         return {"job_id": job_id, "antenas": antenas, "pivos": pivos, "ciclos": ciclos, "bombas": bombas}
+
     except ValueError as ve:
         logger.error(f"❌ Erro de Validação de Arquivo (job: {job_id}): {ve}", exc_info=True)
         raise HTTPException(status_code=400, detail=str(ve))
@@ -92,9 +109,13 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
 
     job_input_dir = settings.ARQUIVOS_DIR_PATH / payload.job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / payload.job_id
-    
+
+    # ✅ GARANTIR diretórios SEMPRE (conserta o FileNotFoundError observado)
+    _ensure_dir(job_input_dir)
+    _ensure_dir(job_images_dir)
+
     bounds_principal_data = None
-    
+
     if payload.antena_principal_data and payload.imagem and payload.bounds_file:
         logger.info(" -> Antena principal detectada no payload. Verificando arquivos...")
         caminho_imagem_principal_servidor = job_images_dir / payload.imagem
@@ -103,8 +124,9 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
             raise HTTPException(status_code=404, detail=f"Imagem principal '{payload.imagem}' não encontrada no job '{payload.job_id}'.")
         if not caminho_bounds_principal_servidor.exists():
             raise HTTPException(status_code=404, detail=f"Bounds '{payload.bounds_file}' não encontrados no job '{payload.job_id}'.")
-        with open(caminho_bounds_principal_servidor, "r") as f:
-            bounds_principal_data = json.load(f).get("bounds")
+        with open(caminho_bounds_principal_servidor, "r", encoding="utf-8") as f:
+            bounds_principal_json = json.load(f)
+            bounds_principal_data = bounds_principal_json.get("bounds")
     else:
         logger.info(" -> Nenhuma antena principal no payload. Exportando sem ela.")
 
@@ -118,7 +140,7 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
 
         kml = simplekml.Kml(name=t("kml.main_name"))
         doc = kml.document
-        
+
         arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
             doc=doc,
             lang=payload.language,
@@ -126,7 +148,7 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
             pivos_data=payload.pivos_data,
             ciclos_data=payload.ciclos_data,
             bombas_data=payload.bombas_data,
-            imagem_principal_nome_relativo=payload.imagem, 
+            imagem_principal_nome_relativo=payload.imagem,
             bounds_principal_data=bounds_principal_data,
             generated_images_dir=job_images_dir,
             selected_template=selected_template,
@@ -134,18 +156,24 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         )
 
         caminho_kml_temp = job_input_dir / "estudo_temp.kml"
+
+        # ✅ GARANTIR pasta do KML temporário antes de salvar
+        _ensure_dir(caminho_kml_temp.parent)
+
         kml.save(str(caminho_kml_temp))
         logger.info(f"  -> KML temporário salvo em: {caminho_kml_temp}")
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename_prefix = t("kml.filename_prefix")
         nome_kmz_final = f"{filename_prefix}-{timestamp}.kmz"
-        
+
         caminho_kmz_final_servidor = job_input_dir / nome_kmz_final
 
         logger.info(f"  -> Criando KMZ final: {caminho_kmz_final_servidor}")
         with zipfile.ZipFile(str(caminho_kmz_final_servidor), "w", zipfile.ZIP_DEFLATED) as kmz_zip:
+            # sempre embalar o doc.kml
             kmz_zip.write(str(caminho_kml_temp), "doc.kml")
+
             added_to_zip = set()
             for path_origem_img_servidor, nome_destino_img_kmz in arquivos_de_imagem_para_kmz:
                 if nome_destino_img_kmz not in added_to_zip:
@@ -155,8 +183,10 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
                         logger.info(f"      -> Arquivo '{nome_destino_img_kmz}' adicionado ao KMZ.")
                     else:
                         logger.warning(f"      -> ⚠️ Imagem '{path_origem_img_servidor}' não encontrada, não adicionada ao KMZ.")
-        
+
+        # apagar o KML temporário nos bastidores
         background_tasks.add_task(Path.unlink, caminho_kml_temp, missing_ok=True)
+
         logger.info("  -> Exportação KMZ concluída.")
         return FileResponse(
             str(caminho_kmz_final_servidor),
@@ -164,12 +194,17 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
             filename=nome_kmz_final,
             background=background_tasks
         )
+
     except FileNotFoundError as fnfe:
         logger.error(f"❌ Arquivo não encontrado durante a exportação (job: {payload.job_id}): {fnfe}", exc_info=True)
         raise HTTPException(status_code=404, detail=f"Arquivo necessário não encontrado: {str(fnfe)}")
+    except HTTPException:
+        # já logado acima; apenas propaga
+        raise
     except Exception as e:
         logger.error(f"❌ Erro Interno em /kmz/exportar (job: {payload.job_id}): {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao exportar KMZ: {type(e).__name__} - {str(e)}")
+
 
 @router.get("/icone-torre")
 async def get_icone_torre():
