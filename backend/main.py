@@ -9,9 +9,9 @@ import logging
 
 # Importa as configurações e os routers
 from backend.config import settings
-from backend.routers import kmz, simulation, report
+from backend.routers import kmz, simulation, report # Adiciona 'report' aqui
 
-# Importa a função de setup do logging
+# Importa a nova função de setup do logging que criamos
 from backend.logging_config import setup_logging
 
 logger = logging.getLogger("irricontrol")
@@ -32,16 +32,17 @@ async def startup_event():
     """
     Executa tarefas essenciais na inicialização da aplicação.
     """
-    # 1. Chama a função de configuração do logging PRIMEIRO.
+    # 1. Chama a nova função de configuração do logging PRIMEIRO.
     setup_logging()
 
-    # 2. Tarefas de inicialização
+    # 2. As outras tarefas de inicialização continuam como antes.
     settings.initialize_directories()
 
     # Logs de depuração para verificar a configuração do CORS.
     logger.info(f"Startup - ALLOWED_ORIGINS_CSV: {settings.ALLOWED_ORIGINS_CSV}")
     logger.info(f"Startup - NETLIFY_APP_URL: {settings.NETLIFY_APP_URL}")
-    logger.info(f"Startup - Effective ALLOWED_ORIGINS for CORS: {settings.ALLOWED_ORIGINS}")  
+    logger.info(f"Startup - Effective ALLOWED_ORIGINS for CORS: {settings.ALLOWED_ORIGINS}")
+    
     logger.info("Aplicação iniciada, configurações carregadas e diretórios verificados/criados.")
 
 

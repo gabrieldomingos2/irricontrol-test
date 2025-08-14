@@ -125,7 +125,7 @@ class PDFReportGenerator:
             elif is_main_antenna_table:
                 name = _get_formatted_entity_name_for_backend(entity_data=item, is_main_antenna=True, t=self.t, for_pdf=True)
             elif is_central_table:
-                name = _get_formatted_entity_name_for_backend(entity_data=item, is_main_antenna=False, t=self.t, for_pdf=True)
+                 name = _get_formatted_entity_name_for_backend(entity_data=item, is_main_antenna=False, t=self.t, for_pdf=True)
             elif title == self.t("ui.labels.repeaters"):
                 name = _get_formatted_entity_name_for_backend(entity_data=item, is_main_antenna=False, t=self.t, for_pdf=True)
             

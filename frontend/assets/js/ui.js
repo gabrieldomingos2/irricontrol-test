@@ -144,40 +144,23 @@ function mostrarLoader(ativo, textoOuDicas = '') {
     }
 }
 
-/**
- * Constante de configuração para os templates do frontend.
- * Define o ID, nome para exibição e o nome do arquivo da legenda (`col`).
- * Adicione novos templates aqui no futuro.
- */
-const TEMPLATES_CONFIG = [
-    { id: "Brazil_V6", nome: "🇧🇷 Brazil V6", col: "IRRICONTRO.dBm" },
-    { id: "Europe_V6_XR", nome: "🇪🇺 Europe V6 XR", col: "IRRIEUROPE.dBm" },
-    { id: "Brazil_V6_90", nome: "🇧🇷 Brazil V6 90", col: "CONTROL90.dBm" }
-];
+function updateLegendImage(templateName) {
+    if (!legendContainer || !legendImage) return;
 
-/**
- * Atualiza a imagem da legenda com base no ID do template selecionado.
- * Esta função agora busca a configuração do template para encontrar o nome correto do arquivo da legenda.
- * @param {string} templateId
- */
-function updateLegendImage(templateId) {
-    const legendContainer = document.getElementById('legend-container');
-    const legendImage = document.getElementById('legend-image');
+    let imagePath = null;
+    const normalizedName = templateName.toLowerCase();
 
-    if (!legendContainer || !legendImage) {
-        console.error("Elementos da legenda não encontrados no DOM.");
-        return;
+    if (normalizedName.includes("brazil_v6")) {
+        imagePath = "assets/images/IRRICONTRO.dBm.key.png";
+    } else if (normalizedName.includes("europe") && normalizedName.includes("v6")) {
+        imagePath = "assets/images/IRRIEUROPE.dBm.key.png";
     }
 
-    const template = TEMPLATES_CONFIG.find(t => t.id === templateId);
-
-    if (template && template.col) {
-        const imagePath = `assets/images/${template.col}.key.png`;
+    if (imagePath) {
         legendImage.src = imagePath;
         legendContainer.classList.remove('hidden');
     } else {
         legendContainer.classList.add('hidden');
-        console.warn(`Configuração de legenda para o template ID '${templateId}' não foi encontrada.`);
     }
 }
 
@@ -217,7 +200,9 @@ function atualizarPainelDados() {
     document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${totalPivos}`;
     document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${foraCobertura}`;
     document.getElementById("template-info").textContent = `🌐 Template: ${AppState.templateSelecionado || '--'}`;
+    
     document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${totalRepetidorasContagem}`;
+
     const centralCountElement = document.getElementById('total-centrais');
     const centralCountValueElement = document.getElementById('central-count-value');
     if (centralCountElement && centralCountValueElement) {
@@ -264,9 +249,11 @@ async function loadAndPopulateTemplates() {
 function togglePivoEditing() {
     const novoEstadoDeEdicao = !AppState.modoEdicaoPivos;
     AppState.modoEdicaoPivos = novoEstadoDeEdicao;
+
     const btn = document.getElementById("editar-pivos");
     const btnUndo = document.getElementById("desfazer-edicao");
     const btnMoverPivo = document.getElementById("btn-mover-pivo-sem-circulo");
+
     btn.innerHTML = novoEstadoDeEdicao ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
     btn.title = novoEstadoDeEdicao ? t('ui.titles.save_edit') : t('ui.titles.edit_pivots');
     btn.classList.toggle('glass-button-active', novoEstadoDeEdicao);

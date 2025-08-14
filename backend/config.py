@@ -4,7 +4,7 @@
 import os
 from pathlib import Path
 
-# Importa a biblioteca de logging
+# 👇 PASSO 1: Importar a biblioteca de logging
 import logging
 
 # Importações de tipos e Pydantic
@@ -12,7 +12,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import Field, HttpUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Obtem a instância do logger configurado na sua aplicação
+# 👇 PASSO 2: Obter a instância do logger configurado na sua aplicação
 logger = logging.getLogger("irricontrol")
 
 
@@ -47,7 +47,7 @@ class TemplateSettings(BaseModel):
 I18N_KEYWORDS: Dict[str, Dict[str, List[str]]] = {
     "ANTENA": {
         "pt": ["antena", "torre", "central", "base", "repetidora", "barracão", "galpão", "silo", "caixa", "caixa d'água", "poste"],
-        "en": ["antenna", "tower", "base", "station", "repeater", "radio", "site", "shed", "warehouse", "silo", "water tank", "pole"],
+        "en": ["antenna", "tower", "base", "station", "repeater", "radio", "site", "shed", "warehouse", "silo", "water tank", "pole", "post"],
         "es": ["antena", "torre", "base", "estación", "repetidora", "radio", "cobertizo", "galpón", "almacén", "silo", "tanque de agua", "depósito de agua", "poste"],
         "de": ["antenne", "turm", "basisstation", "repeater", "funkmast", "schuppen", "lagerhalle", "silo", "wassertank", "mast", "pfosten"],
         "ru": ["антенна", "башня", "станция", "репитер", "радиостанция", "сарай", "ангар", "склад", "силос", "водяной бак", "водонапорная башня", "столб", "мачта"]
@@ -152,11 +152,12 @@ class AppSettings(BaseSettings):
 
     # --- Templates de Simulação Pré-definidos ---
     TEMPLATES_DISPONIVEIS: List[TemplateSettings] = [
+        # ... (sem alteração aqui)
         {
             "id": "Brazil_V6", "nome": "🇧🇷 Brazil V6", "frq": 915,
-            "col": "IRRICONTRO.dBm", "site": "Brazil_V6", "rxs": -100,
+            "col": "IRRICONTRO.dBm", "site": "Brazil_V6", "rxs": -90,
             "transmitter": {"txw": 0.3, "bwi": 0.1},
-            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 3, "rxs": -100},
+            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 3, "rxs": -90},
             "antenna": {"txg": 3, "fbr": 3}
         },
         {
@@ -165,14 +166,7 @@ class AppSettings(BaseSettings):
             "transmitter": {"txw": 0.02, "bwi": 0.05},
             "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 2.1, "rxs": -105},
             "antenna": {"txg": 2.1, "fbr": 2.1}
-        },
-        {
-            "id": "Brazil_V6_90", "nome": "🇧🇷 Brazil V6 90", "frq": 915,
-            "col": "CONTROL90.dBm", "site": "Brazil_V6_90", "rxs": -90,
-            "transmitter": {"txw": 0.3, "bwi": 0.1},
-            "receiver": {"lat": 0, "lon": 0, "alt": 3, "rxg": 3, "rxs": -90},
-            "antenna": {"txg": 3, "fbr": 3}
-        }        
+        }
     ]
 
     # --- Métodos de Inicialização e Utilitários ---
@@ -181,6 +175,7 @@ class AppSettings(BaseSettings):
         Garante que os diretórios necessários para a aplicação existam.
         Esta função é chamada no evento de startup do FastAPI.
         """
+        # 👇 PASSO 3: Substituir todos os prints por chamadas ao logger
         logger.info(f"Verificando/Criando diretório de imagens em: {self.IMAGENS_DIR_PATH}")
         self.IMAGENS_DIR_PATH.mkdir(parents=True, exist_ok=True)
         
@@ -205,6 +200,7 @@ class AppSettings(BaseSettings):
             None
         )
         if not template_obj:
+            # 👇 PASSO 3: Substituir print por logger.warning
             logger.warning(f"Template '{template_id}' não encontrado. Usando padrão '{self.TEMPLATES_DISPONIVEIS[0].id}'.")
             return self.TEMPLATES_DISPONIVEIS[0]
         return template_obj

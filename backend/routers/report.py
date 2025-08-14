@@ -13,7 +13,7 @@ from backend.services.i18n_service import i18n_service
 logger = logging.getLogger("irricontrol")
 
 router = APIRouter(
-    prefix="/report",
+    prefix="/report", # Este roteador tem o prefixo /report
     tags=["Report Operations"],
 )
 
@@ -24,7 +24,7 @@ class PdfExportPayload(BaseModel):
     antena_principal_data: Optional[Dict[str, Any]] = None
     pivos_data: List[Dict[str, Any]]
     bombas_data: List[Dict[str, Any]]
-    repetidoras_data: List[Dict[str, Any]]
+    repetidoras_data: List[Dict[str, Any]] # As repetidoras também vão para o relatório
     template_id: str
     # map_image_base64: Optional[str] = None # Se for usar a imagem do mapa (mais complexo)
 
@@ -41,7 +41,7 @@ async def export_pdf_report_endpoint(payload: PdfExportPayload, background_tasks
             antena_principal_data=payload.antena_principal_data,
             pivos_data=payload.pivos_data,
             bombas_data=payload.bombas_data,
-            repetidoras_data=payload.repetidoras_data,
+            repetidoras_data=payload.repetidoras_data, # Passa as repetidoras aqui
             template_id=payload.template_id,
             # map_image_base64=payload.map_image_base64 # Se for usar esta feature
         )

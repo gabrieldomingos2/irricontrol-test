@@ -12,7 +12,7 @@ import uuid
 
 from backend.services import kmz_parser
 from backend.services import kmz_exporter 
-from backend.services import pdf_service
+from backend.services import pdf_service # Mantém este import por segurança, caso outros módulos o usem
 from backend.config import settings
 from backend.services.i18n_service import i18n_service
 
