@@ -1,6 +1,13 @@
 /* ================== */
 /* 🌌 BASE DO SISTEMA */
 /* ================== */
+:root{
+  --green:#22c55e;
+  --bg:#060B10;
+  --panel:rgba(6,11,16,0.7);
+  --border:rgba(255,255,255,0.15);
+}
+
 html, body {
   height: 100%;
   margin: 0;
@@ -11,7 +18,7 @@ html, body {
 #map {
   height: 100%;
   width: 100%;
-  z-index: 0; /* Garante que o mapa fique abaixo de outros elementos com z-index maior */
+  z-index: 0;
 }
 
 /* ============================= */
@@ -20,46 +27,41 @@ html, body {
 .glass-button {
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px; /* Aumentado um pouco para um visual mais suave */
-  padding: 6px; /* Reduzido para botões mais compactos, ajuste conforme necessário */
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.7); /* text-white/70 */
-  transition: all 0.3s ease; /* Simplificado para transicionar todas as propriedades aplicáveis */
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
   cursor: pointer;
-  box-shadow: none; /* Remove sombra padrão */
+  box-shadow: none;
 }
-
+@supports not (backdrop-filter: blur(10px)) {
+  .glass-button { background: rgba(255,255,255,0.06); }
+}
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(34, 197, 94, 0.4); /* Borda com leve tom de verde */
-  color: #22c55e; /* <- Cor do ícone e texto alterada para verde */
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); /* <- Sombra com brilho verde */
+  border-color: rgba(34, 197, 94, 0.4);
+  color: var(--green);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
 }
-
-.glass-button.hidden {
-  display: none;
-}
+.glass-button.hidden { display:none; }
 
 .glass-button-active {
-  background-color: rgba(34, 197, 94, 0.2); /* Fundo verde sutil quando ativo */
-  border-color: rgba(34, 197, 94, 0.6); /* Borda verde mais pronunciada */
-  color: #22c55e; /* Mantém a cor verde */
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5); /* Sombra verde mais forte */
+  background-color: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.6);
+  color: var(--green);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
 }
 
 /* ======================================= */
 /* 🟩 ESTILO DOS BOTÕES DA BARRA LATERAL   */
 /* ======================================= */
-
-.sidebar-button {
-  transition: all 0.3s ease;
-}
-
+.sidebar-button { transition: all 0.3s ease; }
 .sidebar-button:hover {
-  color: #22c55e;
+  color: var(--green);
   background-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
 }
@@ -68,1117 +70,446 @@ html, body {
 /* Botão Repetidora          */
 /* ========================= */
 #confirmar-repetidora {
-  /* As classes Tailwind já devem cuidar disso, mas para garantir: */
-  color: rgba(255, 255, 255, 0.7); /* Cor inicial */
-  transition: color 0.3s ease; /* Transição suave da cor */
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.3s ease;
 }
-
-#confirmar-repetidora:hover {
-  color: #22c55e; /* Cor alterada para o verde padrão */
-}
+#confirmar-repetidora:hover { color: var(--green); }
 
 /* ========================= */
 /* 🧠 ÍCONES                 */
 /* ========================= */
-.sidebar-icon {
-  display: inline-block;
-  background-color: currentColor; /* Pega a cor do texto do elemento pai (ex: .glass-button) */
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  /* A transição da cor do ícone será herdada da transição de 'color' do .glass-button */
+.sidebar-icon{
+  display:inline-block;
+  background-color:currentColor;
+  -webkit-mask-size:contain; mask-size:contain;
+  -webkit-mask-position:center; mask-position:center;
+  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
 }
-
 
 /* ==================== */
 /* 💬 MENSAGENS */
 /* ==================== */
-#mensagem {
-  transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
-  opacity: 1;
-  transform: translateY(0);
+#mensagem{
+  transition: opacity .5s ease-in-out, transform .5s ease-in-out;
+  opacity:1; transform:translateY(0);
 }
-
-#mensagem.hidden {
-  opacity: 0;
-  transform: translateY(20px); /* Efeito de deslizar para baixo ao desaparecer */
-  pointer-events: none; /* Impede interação quando escondido */
+#mensagem.hidden{
+  opacity:0; transform:translateY(20px);
+  pointer-events:none;
 }
 
 /* ================ */
-/* ⚡ GLOW (para círculos KMZ, se usado) */
+/* ⚡ GLOW (opcional) */
 /* ================ */
-/* .circulo-vermelho-pulsante pode usar esta animação se desejar um brilho pulsante */
-@keyframes pulseGlow {
-  0% { filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.7)); }
-  50% { filter: drop-shadow(0 0 14px rgba(255, 0, 0, 1)); }
-  100% { filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.7)); }
+@keyframes pulseGlow{
+  0%{ filter:drop-shadow(0 0 4px rgba(255,0,0,.7)); }
+  50%{ filter:drop-shadow(0 0 14px rgba(255,0,0,1)); }
+  100%{ filter:drop-shadow(0 0 4px rgba(255,0,0,.7)); }
 }
 
 /* ===================== */
-/* 🟢 CÍRCULOS (Exemplo de estilo, se não usar a classe pulsante) */
+/* 🟢 CÍRCULOS (Leaflet) */
 /* ===================== */
-.leaflet-interactive.circulo-verde { /* Se você tiver círculos verdes */
-  stroke: #34c759;
-  stroke-width: 1;
-  fill-opacity: 0.5;
-  fill-color: #34c759;
+.leaflet-interactive.circulo-verde{
+  stroke:#34c759;
+  stroke-width:1;
+  fill-opacity:.5;
+  fill:#34c759; /* ✅ corrigido (era fill-color) */
 }
-
-.circulo-vermelho-pulsante { /* Para os círculos vermelhos do KMZ */
-    /* stroke: #cc0000; Já definido no JS */
-    /* stroke-width: 2; Já definido no JS */
-    /* fill-opacity: 0; Já definido no JS */
-    /* animation: pulseGlow 2s infinite; Descomente para efeito de pulso */
+.circulo-vermelho-pulsante{/* animação opcional
+  animation: pulseGlow 2s infinite; */
 }
-
 
 /* ========================== */
 /* 🏷️ LABEL FIXA DOS PIVÔS */
 /* ========================== */
-
-/* NOVO: Estilos para o marcador do pivô (o ponto central) */
-.pivo-marker-dot {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  opacity: 0.8;
-  border: 1px solid rgba(0, 0, 0, 0.3);
-  box-sizing: border-box;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s;
+.pivo-marker-dot{
+  width:100%; height:100%; border-radius:50%; opacity:.8;
+  border:1px solid rgba(0,0,0,.3);
+  box-sizing:border-box;
+  transition: transform .2s ease-in-out, box-shadow .2s ease-in-out, opacity .2s;
+}
+.pivo-marker-container-selected .pivo-marker-dot{
+  transform:scale(1.1); opacity:1;
+  box-shadow:0 0 8px 3px rgba(255,255,255,.9);
 }
 
-/* Estilo do pivô selecionado com o EFEITO DE BRILHO BRANCO */
-.pivo-marker-container-selected .pivo-marker-dot {
-  transform: scale(1.1); /* Aumenta um pouco para dar destaque */
-  opacity: 1; /* Deixa o ponto totalmente opaco */
-
-  /* A mágica do brilho acontece aqui com box-shadow */
-  box-shadow: 0 0 8px 3px rgba(255, 255, 255, 0.9);
+.label-pivo{
+  background-color:transparent!important;
+  border:none!important; box-shadow:none!important; padding:0!important;
+  color:#fff; font-weight:bold; font-size:12px; text-align:center;
+  white-space:normal; pointer-events:none; line-height:1.3;
+  text-shadow:
+    0 0 5px rgba(0,0,0,1),
+    1px 1px 3px rgba(0,0,0,.8);
+}
+.distancia-pivo{
+  display:block; font-size:.85em; font-weight:normal; color:#ddd;
 }
 
-.label-pivo {
-  background-color: transparent !important; /* Garante que não haja fundo do Leaflet */
-  border: none !important; /* Garante que não haja borda do Leaflet */
-  box-shadow: none !important; /* Garante que não haja sombra de caixa do Leaflet */
-  padding: 0 !important; /* Remove padding padrão para controle total com iconSize */
-  color: white;
-  font-weight: bold;
-  font-size: 12px; /* Ajuste conforme sua preferência */
-  text-align: center;
-  white-space: normal; /* MODIFICADO: Permite quebra de linha para nome e distância */
-  pointer-events: none; /* O label não captura eventos do mouse */
-  line-height: 1.3; /* ADICIONADO: Melhora o espaçamento para múltiplas linhas */
-  text-shadow: /* Efeito de contorno para legibilidade sobre o mapa */
-    0px 0px 5px rgba(0, 0, 0, 1),  /* Sombra mais escura e um pouco mais espalhada */
-    1px 1px 3px rgba(0, 0, 0, 0.8); /* Sombra sutil para profundidade */
-  /* Largura e altura são controladas pelo iconSize no JavaScript (L.divIcon) */
-}
-
-/* Estilo para a parte da distância dentro do label do pivô */
-.distancia-pivo {
-  display: block; /* Garante que o <br> funcione e ocupe sua própria linha */
-  font-size: 0.85em; /* Tamanho um pouco menor que o nome do pivô */
-  font-weight: normal; /* Pode ser 'bold' se preferir */
-  color: #dddddd;   /* Cor um pouco mais suave que o branco puro, para diferenciar */
-  /* text-shadow: none;  Pode remover a sombra aqui se quiser contraste */
-}
-
+.source-name-pivo{ font-size:.9em; color:#c0c0c0; font-weight:normal; }
 
 /* ======================= */
-/* 📍 POPUPS (Leaflet) */
+/* 📍 POPUPS (Leaflet)     */
 /* ======================= */
-.popup-glass { /* Estilo para o conteúdo interno do seu popup customizado */
+/* ✅ use className: 'popup-glass' ao criar o popup */
+.leaflet-popup.popup-glass .leaflet-popup-content-wrapper{
+  background: transparent; box-shadow:none; border-radius:0; padding:0;
+}
+.leaflet-popup.popup-glass .leaflet-popup-tip-container{ display:none; }
+.popup-glass-inner{
   backdrop-filter: blur(8px);
-  background: rgba(0, 0, 0, 0.65); /* Um pouco mais escuro */
-  padding: 10px 14px; /* Aumentado um pouco */
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.85rem; /* Levemente maior */
-  color: #FFF;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0,0,0,.65);
+  padding:10px 14px; border-radius:8px; font-weight:600; font-size:.85rem; color:#fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  border:1px solid var(--border);
+}
+@supports not (backdrop-filter: blur(8px)){
+  .popup-glass-inner{ background: rgba(0,0,0,.8); }
 }
 
-/* Remove estilos padrão do wrapper de conteúdo do popup do Leaflet */
-.leaflet-popup-content-wrapper {
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0; /* O popup-glass interno terá o seu próprio border-radius */
-  padding: 0; /* O padding será no popup-glass */
+/* ✅ use className: 'popup-repeater' para os popups de repetidora */
+.leaflet-popup.popup-repeater .leaflet-popup-content-wrapper{
+  background-color: rgba(6,11,16,0.85)!important;
+  color:#e5e7eb; padding:5px 10px!important; border-radius:6px!important;
+  border:1px solid rgba(255,255,255,.1); box-shadow:0 2px 8px rgba(0,0,0,.5);
 }
-
-/* Esconde a ponta/seta padrão do popup do Leaflet */
-.leaflet-popup-tip-container {
-  display: none;
+.leaflet-popup.popup-repeater .leaflet-popup-content{
+  margin:0!important; font-size:.75rem; line-height:1.2; white-space:nowrap;
+}
+.leaflet-popup.popup-repeater .leaflet-popup-content span + span{ margin-left:.75rem; }
+.leaflet-popup.popup-repeater .leaflet-popup-tip{
+  background: rgba(6,11,16,0.85)!important;
 }
 
 /* ======================= */
-/* 🗂️ PAINÉIS (Dados e Repetidoras) */
+/* 🗂️ PAINÉIS */
 /* ======================= */
-#painel-dados,
-#painel-repetidoras {
-  transition: opacity 0.3s ease, transform 0.3s ease;
+#painel-dados, #painel-repetidoras{
+  transition: opacity .3s ease, transform .3s ease;
 }
-
-#painel-dados.hidden,
-#painel-repetidoras.hidden {
-  opacity: 0;
-  transform: translateX(20px); /* Efeito de deslizar para a direita ao desaparecer */
-  pointer-events: none;
+#painel-dados.hidden, #painel-repetidoras.hidden{
+  opacity:0; transform:translateX(20px); pointer-events:none;
 }
-
-/* NOVO: Ajuste padrão para a seção do botão de PDF */
-#painel-dados .text-center {
-    margin-top: 0.25rem; /* Reduz a margem superior (antes era 0.5rem) */
-    padding-top: 0.25rem; /* Reduz o espaçamento interno superior (antes era 0.5rem) */
-    border-top-width: 1px; /* Deixa a linha divisória um pouco mais fina */
+#painel-dados .text-center{
+  margin-top:.25rem; padding-top:.25rem; border-top-width:1px;
 }
 
 /* ========================= */
 /* 🛰️ LINHAS DIAGNÓSTICO */
 /* ========================= */
-.linha-pontilhada {
-  /* stroke-dasharray e animation já estão no código */
-  /* Se precisar de mais estilos específicos para todas as linhas de diagnóstico */
-}
-
-/* Animação para as linhas de diagnóstico */
-@keyframes growLine {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
+.linha-pontilhada{}
+@keyframes growLine{ to{ stroke-dashoffset:0; } }
 
 /* ========================= */
-/* ⚠️ LABEL DE BLOQUEIO (Visada) */
+/* ⚠️ LABEL DE BLOQUEIO */
 /* ========================= */
-.label-bloqueio { /* Para o L.divIcon que contém a imagem de atenção */
-  background: none !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  pointer-events: none;
-  /* display, align-items, justify-content, width, height são controlados pelo iconSize do L.divIcon se for um ícone de tamanho fixo */
+.label-bloqueio{
+  background:none!important; border:none!important; box-shadow:none!important; padding:0!important; pointer-events:none;
 }
-
-/* Se você estiver usando um ícone Lucide dentro de .label-bloqueio e quiser estilizá-lo: */
-.label-bloqueio i svg { /* Supondo que Lucide renderize <i class="lucide..."><svg>...</svg></i> */
-  width: 20px;  /* Tamanho do ícone SVG */
-  height: 20px; /* Tamanho do ícone SVG */
-  stroke: #000000 !important;  /* Cor da linha do ícone (preto) */
-  fill: none !important;       /* Sem preenchimento */
-  stroke-width: 2.5;           /* Espessura da linha */
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7)); /* Sombra para o ícone */
+.label-bloqueio i svg{
+  width:20px; height:20px; stroke:#000!important; fill:none!important; stroke-width:2.5;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.7));
 }
 
 /* ======================= */
 /* 📂 INPUT FILE ESCONDIDO */
 /* ======================= */
-input[type="file"].hidden { /* Garante que o input original fique escondido */
-  display: none;
-}
+input[type="file"].hidden{ display:none; }
 
 /* ========================= */
 /* 🎚️ SLIDER (Opacidade) */
 /* ========================= */
-.range-slider-custom {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%; /* Ocupa a largura do contêiner */
-  height: 5px; /* Altura da trilha */
-  background: #4A5568; /* Cor da trilha (cinza escuro) */
-  border-radius: 9999px; /* Trilha arredondada */
-  outline: none; /* Remove o contorno padrão do foco */
-  opacity: 0.85;
-  transition: opacity 0.2s;
+.range-slider-custom{
+  -webkit-appearance:none; appearance:none; width:100%;
+  height:5px; background:#4A5568; border-radius:9999px; outline:none; opacity:.85; transition:opacity .2s;
 }
-
-.range-slider-custom:hover {
-  opacity: 1; /* Opacidade total no hover */
+.range-slider-custom:hover{ opacity:1; }
+.range-slider-custom::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:14px; height:14px; background-color:var(--green);
+  border-radius:9999px; cursor:pointer; border:none; box-shadow:0 0 6px rgba(34,197,94,.7);
+  transition: transform .2s;
 }
-
-/* Estilo do "polegar" (thumb) do slider para Webkit (Chrome, Safari) */
-.range-slider-custom::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  background-color: #22c55e; /* <- Cor alterada para verde */
-  border-radius: 9999px;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7); /* <- Sombra alterada para verde */
-  transition: transform 0.2s;
+.range-slider-custom:active::-webkit-slider-thumb{ transform:scale(1.2); }
+.range-slider-custom::-moz-range-thumb{
+  width:14px; height:14px; background-color:var(--green); border-radius:50%; cursor:pointer; border:none;
+  box-shadow:0 0 6px rgba(34,197,94,.7); transition: transform .2s;
 }
-
-/* Efeito de escala no polegar quando ativo/arrastando */
-.range-slider-custom:active::-webkit-slider-thumb {
-  transform: scale(1.2);
-}
-
-/* Estilo do "polegar" (thumb) do slider para Firefox */
-.range-slider-custom::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  background-color: #22c55e; /* <- Cor alterada para verde */
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7); /* <- Sombra alterada para verde */
-  transition: transform 0.2s;
-}
-
-.range-slider-custom:active::-moz-range-thumb {
-  transform: scale(1.2);
-}
-
+.range-slider-custom:active::-moz-range-thumb{ transform:scale(1.2); }
 
 /* ================================== */
-/* ✒️ ESTILO BALÃO DE INFO (CORRIGIDO) */
+/* ✒️ BALÃO DE INFO (tooltip sinal) */
 /* ================================== */
-
-/* A regra principal para o balão */
-.leaflet-tooltip.tooltip-sinal {
-    background-color: rgba(6, 11, 16, 0.9) !important; /* Fundo escuro consistente */
-    color: #e5e7eb !important; /* Texto claro */
-    border-radius: 6px !important;
-    padding: 4px 8px !important; /* Padding menor para um balão mais compacto */
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    font-size: 0.7rem !important; /* Fonte menor */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
-    white-space: nowrap; /* Garante que o conteúdo fique na mesma linha */
-    transition: opacity 0.2s ease !important;
-    opacity: 0; /* Mantém a transição de fade-in */
+.leaflet-tooltip.tooltip-sinal{
+  background-color: rgba(6,11,16,.9)!important;
+  color:#e5e7eb!important; border-radius:6px!important; padding:4px 8px!important;
+  border:1px solid rgba(255,255,255,.1)!important; font-size:.7rem!important;
+  box-shadow:0 2px 8px rgba(0,0,0,.5)!important; white-space:nowrap; transition:opacity .2s ease!important; opacity:0;
 }
-
-/* Adiciona um espaço entre o "Tx" e o "Rx" quando estão lado a lado */
-.leaflet-tooltip.tooltip-sinal span + span {
-    margin-left: 0.4rem; /* Diminuído de 0.75rem para aproximar os textos */
-}
-
-/* Mantém o estado visível (não precisa mexer) */
-.leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible {
-  opacity: 1;
-}
-
-/* Mantém a seta escondida (não precisa mexer) */
-.leaflet-tooltip.tooltip-sinal::before {
-  display: none;
-}
-
+.leaflet-tooltip.tooltip-sinal span + span{ margin-left:.4rem; }
+.leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible{ opacity:1; }
+.leaflet-tooltip.tooltip-sinal::before{ display:none; }
 
 /* ===================== */
 /* Pin de Edição de Pivô */
 /* ===================== */
-.pivo-edit-handle-custom-pin { /* Para o L.divIcon do pino de edição */
-  filter: drop-shadow(0 0 4px rgba(255, 50, 50, 0.8)); /* Sombra vermelha mais visível */
-  cursor: grab; /* Indica que pode ser arrastado */
-}
-.pivo-edit-handle-custom-pin:active { /* Quando está sendo arrastado */
-  cursor: grabbing;
-  filter: drop-shadow(0 0 8px rgba(255, 0, 0, 1)); /* Sombra mais intensa ao arrastar */
-}
+.pivo-edit-handle-custom-pin{ filter:drop-shadow(0 0 4px rgba(255,50,50,.8)); cursor:grab; }
+.pivo-edit-handle-custom-pin:active{ cursor:grabbing; filter:drop-shadow(0 0 8px rgba(255,0,0,1)); }
 
 /* ===================== */
 /* 🔥 Cursores do Mouse */
 /* ===================== */
-#map, .leaflet-interactive { /* Cursor padrão para o mapa e elementos interativos do Leaflet */
-  cursor: default !important; /* Alterado de 'crosshair' para 'default', ajuste se 'crosshair' for preferido */
-}
-
-/* Garante que botões e labels de arquivo tenham cursor de ponteiro */
-button, .glass-button, label[for="arquivo"] {
-  cursor: pointer !important;
-}
+#map, .leaflet-interactive{ cursor:default!important; }
+button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 
 /* ====================================== */
-/* Estilo dos Ícones de Candidatos a Repetidora (AI) */
+/* Ícones de candidatos a repetidora (AI) */
 /* ====================================== */
-
-/* Wrapper do ícone do candidato (o L.divIcon em si) */
-.custom-div-icon-ponto-alto {
-    /* O Leaflet pode adicionar estilos. Se necessário, resete-os: */
-    /* background: transparent !important; */
-    /* border: none !important; */
-    /* padding: 0 !important; */
-    /* box-shadow: none !important; */
-    cursor: pointer; /* Indica que o ícone todo é clicável */
+.custom-div-icon-ponto-alto{ cursor:pointer; }
+.candidate-icon-wrapper{
+  position:relative; display:inline-block; text-align:center; color:#E0E0E0;
+  font-weight:normal; font-size:10px; white-space:normal; line-height:1.3;
+  padding:4px 7px; background-color: rgba(20,30,40,.85);
+  border:1px solid rgba(255,255,255,.2); border-radius:5px;
+  box-shadow:0 1px 5px rgba(0,0,0,.5);
 }
+.candidate-icon-wrapper .los-ok{ color:#4CAF50; font-weight:bold; }
+.candidate-icon-wrapper .los-no{ color:#FF9800; font-weight:bold; }
+.candidate-icon-wrapper .distancia-info{ color:#B0BEC5; }
 
-/* Conteúdo interno do ícone do candidato */
-.candidate-icon-wrapper {
-    position: relative; /* Para posicionamento absoluto do botão 'X' */
-    display: inline-block; /* Ajusta ao conteúdo */
-    text-align: center;
-    color: #E0E0E0; /* Cor do texto principal (⛰️ Elev, LoS, Dist) */
-    font-weight: normal;
-    font-size: 10px;
-    white-space: normal; /* Permite quebra de linha para o conteúdo interno */
-    line-height: 1.3;
-    padding: 4px 7px; /* Padding interno */
-    background-color: rgba(20, 30, 40, 0.85); /* Fundo escuro semi-transparente */
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 5px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+.candidate-remove-btn{
+  position:absolute; top:-9px; right:-9px; width:18px; height:18px; line-height:17px; text-align:center;
+  font-size:14px; font-weight:bold; color:#fff; background-color:#D32F2F;
+  border:1px solid rgba(255,255,255,.4); border-radius:50%; cursor:pointer; z-index:10;
+  box-shadow:0 1px 3px rgba(0,0,0,.4);
+  transition: background-color .2s ease, transform .2s ease;
 }
-
-/* Cores específicas dentro do ícone do candidato */
-.candidate-icon-wrapper .los-ok { /* Para ✅LoS */
-    color: #4CAF50; /* Verde */
-    font-weight: bold; /* Adicionado para negrito */
-}
-.candidate-icon-wrapper .los-no { /* Para ❌¬LoS */
-    color: #FF9800; /* Laranja */
-    font-weight: bold; /* Opcional: Adiciona um negrito para dar mais destaque */
-}
-.candidate-icon-wrapper .distancia-info { /* Para Dist: N/A */
-    color: #B0BEC5; /* Cinza azulado claro */
-}
-
-
-/* Botão 'X' de remover candidato */
-.candidate-remove-btn {
-    position: absolute;
-    top: -9px;   /* Ajuste fino para posicionar o 'X' */
-    right: -9px;  /* Ajuste fino para posicionar o 'X' */
-    width: 18px;
-    height: 18px;
-    line-height: 17px; /* Ajuste para centralizar o 'X' verticalmente */
-    text-align: center;
-    font-size: 14px;
-    font-weight: bold;
-    color: white;
-    background-color: #D32F2F; /* Vermelho mais escuro */
-    border: 1px solid rgba(255,255,255,0.4);
-    border-radius: 50%; /* Circular */
-    cursor: pointer;
-    z-index: 10; /* Sobre o ícone principal */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-    transition: background-color 0.2s ease, transform 0.2s ease;
-}
-
-.candidate-remove-btn:hover {
-    background-color: #E57373; /* Vermelho mais claro no hover */
-    transform: scale(1.1); /* Efeito de leve aumento no hover */
-}
-
-
-/* distance */
-
-/* Estilo para o nome da fonte de sinal no rótulo */
-.source-name-pivo {
-  font-size: 0.9em; /* Um pouco menor que o nome principal */
-  color: #c0c0c0;   /* Uma cor cinza claro para diferenciar */
-  font-weight: normal;
-}
+.candidate-remove-btn:hover{ background-color:#E57373; transform:scale(1.1); }
 
 /* ============================ */
 /* ✒️ INPUT DE EDIÇÃO INLINE   */
 /* ============================ */
-.name-container {
-    flex-grow: 1; /* Permite que o contêiner do nome ocupe o espaço disponível */
-    cursor: pointer;
+.name-container{ flex-grow:1; cursor:pointer; }
+.name-input{
+  background:transparent; border:none; border-bottom:2px solid #38bdf8;
+  padding:0; color:#e2e8f0; width:100%; font-size:inherit; font-weight:inherit; line-height:inherit;
 }
-
-.name-input {
-    background-color: transparent;
-    border: none;
-    /* Adiciona uma linha inferior para indicar o modo de edição */
-    border-bottom: 2px solid #38bdf8; /* Cor sky-400 do Tailwind */
-    padding: 0;
-    color: #e2e8f0; /* Cor slate-200 do Tailwind */
-    width: 100%; /* Ocupa toda a largura do contêiner */
-    font-size: inherit; /* Herda o tamanho da fonte */
-    font-weight: inherit; /* Herda o peso da fonte */
-    line-height: inherit; /* Herda a altura da linha */
-}
-
-.name-input:focus {
-    outline: none; /* Remove o contorno padrão do navegador */
-}
-
+.name-input:focus{ outline:none; }
 
 /* ============================ */
 /* ✒️ LEGENDA DE CORES (IMAGEM) */
 /* ============================ */
-#legend-container {
-  backdrop-filter: blur(8px);
-  background: rgba(10, 15, 20, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  padding: 4px; 
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  top: 4rem;
-  right: 0.0rem;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  z-index: 51;
+#legend-container{
+  backdrop-filter:blur(8px);
+  background: rgba(10,15,20,.75);
+  border:1px solid var(--border);
+  border-radius:10px; padding:4px; box-shadow:0 4px 12px rgba(0,0,0,.5);
+  top:4rem; right:.0rem; transition:opacity .3s ease, transform .3s ease; z-index:51;
+}
+@supports not (backdrop-filter: blur(8px)){
+  #legend-container{ background: rgba(10,15,20,.9); }
+}
+#legend-image{
+  max-width:42px; height:auto; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.4);
 }
 
-#legend-image {
-  max-width: 42px;
-  height: auto;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+/* Sanfona painéis */
+.panel-content{
+  max-height:600px; overflow:hidden;
+  transition: max-height .5s ease-in-out, opacity .3s ease-in-out, margin .5s ease-in-out;
+  opacity:1;
 }
+.panel.minimized .panel-content{ max-height:0; opacity:0; margin-top:0!important; margin-bottom:0!important; }
+.panel.minimized .panel-content>*{ display:none; }
 
-
-/* Estilos para o conteúdo sanfona dos painéis */
-.panel-content {
-  max-height: 600px;
-  overflow: hidden; 
-  transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, margin 0.5s ease-in-out;
-  opacity: 1;
+/* Transparência ao minimizar */
+.panel{ transition: background-color .4s ease, border-color .4s ease, backdrop-filter .4s ease, box-shadow .4s ease; }
+.panel.minimized{
+  background-color:transparent!important; border-color:transparent!important; backdrop-filter:none!important; box-shadow:none!important;
 }
+.panel h2{ transition: opacity .3s ease; }
+.panel.minimized h2{ opacity:0; }
 
-.panel.minimized .panel-content {
-  max-height: 0;
-  opacity: 0;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
+/* Loader custom */
+.loading-logo-container{ position:relative; width:90px; height:90px; display:flex; align-items:center; justify-content:center; }
+.loading-logo{ width:120px; height:auto; opacity:.9; }
+.loading-spinner{
+  position:absolute; inset:0; border:4px solid transparent; border-top-color:var(--green);
+  border-radius:50%; animation: spin 1.5s linear infinite;
 }
+@keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
 
-.panel.minimized .panel-content > * {
-    display: none;
-}
-
-
-/* ===================================== */
-/* ✨ EFEITO DE PAINEL TRANSPARENTE AO MINIMIZAR */
-/* ===================================== */
-
-.panel {
-    transition: background-color 0.4s ease, border-color 0.4s ease, backdrop-filter 0.4s ease, box-shadow 0.4s ease;
-}
-
-.panel.minimized {
-    background-color: transparent !important;
-    border-color: transparent !important;
-    backdrop-filter: none !important;
-    box-shadow: none !important;
-}
-
-.panel h2 {
-    transition: opacity 0.3s ease;
-}
-
-.panel.minimized h2 {
-    opacity: 0;
-}
-
-/* ======================================= */
-/* ⏳ LOADER PERSONALIZADO COM LOGO E SPINNER */
-/* ======================================= */
-
-.loading-logo-container {
-    position: relative; 
-    width: 90px;
-    height: 90px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.loading-logo {
-    width: 120px;
-    height: auto;
-    opacity: 0.9;
-}
-
-.loading-spinner {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border: 4px solid transparent; 
-    border-top-color: #22c55e;
-    border-radius: 50%;
-    animation: spin 1.5s linear infinite;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-
-/* ============================ */
-/* 🔗 LOGO DO RODAPÉ (LINK)      */
-/* ============================ */
-
-#footer-logo-link {
-  opacity: 0.7;
-  transition: opacity 0.3s ease, filter 0.3s ease;
-}
-
-#footer-logo-link:hover {
-  opacity: 1;
+/* Logo do rodapé */
+#footer-logo-link{ opacity:.7; transition: opacity .3s ease, filter .3s ease; }
+#footer-logo-link:hover{
+  opacity:1;
   filter: brightness(0) saturate(100%) invert(58%) sepia(85%) saturate(548%) hue-rotate(95deg) brightness(95%) contrast(90%);
 }
 
-
-.drawing-tooltip {
-    position: absolute;
-    background-color: rgba(10, 15, 20, 0.2);
-    color: #ffffffa6;
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: bold;
-    border: none;
-    box-shadow: none;
-    pointer-events: none;
-    z-index: 10001;
-    white-space: nowrap;
-    transition: opacity 0.1s ease;
+/* Tooltip de desenho */
+.drawing-tooltip{
+  position:absolute; background-color: rgba(10,15,20,.2); color:#ffffffa6;
+  padding:2px 5px; border-radius:4px; font-size:11px; font-weight:bold;
+  border:none; box-shadow:none; pointer-events:none; z-index:10001; white-space:nowrap; transition:opacity .1s ease;
 }
 
-/* NOVO: Estilo para o menu de renomeação */
-.rename-menu {
-    position: absolute;
-    /* ✅ CORREÇÃO: Fundo preto idêntico aos painéis laterais */
-    background-color: rgba(6, 11, 16, 0.7); /* Cor #060B10 com 70% de opacidade */
-    backdrop-filter: blur(12px); /* Efeito de vidro para combinar (md) */
-    /* Borda com o detalhe em verde */
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    padding: 0.5rem;
-    z-index: 10002;
-    min-width: 140px;
+/* Menu renomear */
+.rename-menu{
+  position:absolute; background-color: var(--panel); backdrop-filter: blur(12px);
+  border:1px solid rgba(34,197,94,.3); border-radius:.5rem; box-shadow:0 4px 12px rgba(0,0,0,.5);
+  padding:.5rem; z-index:10002; min-width:140px;
 }
-
-.rename-menu button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.5rem 0.75rem; /* Aumentar um pouco o padding vertical */
-    color: #d1d5db; /* Cor de texto cinza claro */
-    font-size: 0.875rem;
-    font-weight: 500; /* Levemente mais forte */
-    border-radius: 0.25rem;
-    transition: background-color 0.2s ease, color 0.2s ease;
+.rename-menu button{
+  display:block; width:100%; text-align:left; padding:.5rem .75rem; color:#d1d5db; font-size:.875rem; font-weight:500; border-radius:.25rem;
+  transition: background-color .2s ease, color .2s ease;
 }
+.rename-menu button:hover{ background-color: rgba(34,197,94,.15); color:#34d399; }
 
-/* Efeito de hover com o detalhe verde */
-.rename-menu button:hover {
-    background-color: rgba(34, 197, 94, 0.15); /* Fundo verde sutil */
-    color: #34d399; /* Cor do texto verde claro */
+/* Onda de energia (única definição) */
+@keyframes ondaEnergia{
+  0%{ transform:scale(1); opacity:.8; }
+  100%{ transform:scale(4); opacity:0; }
 }
-
-
-/* ======================================= */
-/* ANIMAÇÃO OPÇÃO 3: ONDA DE ENERGIA        */
-/* ======================================= */
-@keyframes ondaEnergia {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
+.pivo-marker-container-selected .pivo-marker-dot{
+  position:relative; background-color:#fff; box-shadow:0 0 12px 3px rgba(255,255,255,.6);
 }
-
-/* REGRA PARA O PIVÔ SELECIONADO (COR BRANCO PURO) */
-.pivo-marker-container-selected .pivo-marker-dot {
-  position: relative;
-  background-color: #ffffff;
-  box-shadow: 0 0 12px 3px rgba(255, 255, 255, 0.6);
-}
-
-.pivo-marker-container-selected .pivo-marker-dot::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
+.pivo-marker-container-selected .pivo-marker-dot::after{
+  content:''; position:absolute; inset:0; border:2px solid rgba(255,255,255,.8); border-radius:50%;
   animation: ondaEnergia 2s infinite ease-out;
 }
 
-
-/* ================================================== */
-/* EFEITO DE SELEÇÃO GLOBAL (ONDA DE ENERGIA BRANCA) */
-/* ================================================== */
-
-@keyframes ondaEnergia {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
+/* Seleção global */
+.selection-effect-wrapper{ position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+.marker-selected .selection-effect-wrapper::after{
+  content:''; position:absolute; inset:0; border:2px solid rgba(255,255,255,.8); border-radius:50%;
+  animation: ondaEnergia 2s infinite ease-out; pointer-events:none;
 }
 
-.selection-effect-wrapper {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.leaflet-div-icon-transparent{ background:transparent; border:none; }
 
-.marker-selected .selection-effect-wrapper::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  animation: ondaEnergia 2s infinite ease-out;
-  pointer-events: none; 
-}
+/* 💎 Modal de confirmação */
+#custom-confirm-overlay{ opacity:0; pointer-events:none; }
+#custom-confirm-overlay:not(.hidden){ opacity:1; pointer-events:auto; }
+#custom-confirm-box{ transform:scale(.95) translateY(10px); opacity:0; }
+#custom-confirm-overlay:not(.hidden) #custom-confirm-box{ transform:scale(1) translateY(0); opacity:1; }
+.confirm-btn-cancel, .confirm-btn-ok{ border:none; cursor:pointer; }
+.confirm-btn-ok:hover{ transform:translateY(-1px); box-shadow:0 0 20px rgba(34,197,94,.6); }
+.confirm-btn-cancel:hover{ color:#fff; }
 
-.leaflet-div-icon-transparent {
-    background: transparent;
-    border: none;
-}
-
-
-/* ============================ */
-/* 💎 MODAL DE CONFIRMAÇÃO      */
-/* ============================ */
-
-#custom-confirm-overlay {
-  opacity: 0;
-  pointer-events: none;
-}
-
-#custom-confirm-overlay:not(.hidden) {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-#custom-confirm-box {
-  transform: scale(0.95) translateY(10px);
-  opacity: 0;
-}
-
-#custom-confirm-overlay:not(.hidden) #custom-confirm-box {
-  transform: scale(1) translateY(0);
-  opacity: 1;
-}
-
-.confirm-btn-cancel, .confirm-btn-ok {
-    border: none;
-    cursor: pointer;
-}
-
-.confirm-btn-ok:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
-}
-
-.confirm-btn-cancel:hover {
-    color: #ffffff;
-}
-
-
-/* ================================== */
-/* 🗂️ AJUSTE PAINEL DE REPETIDORAS   */
-/* ================================== */
-#lista-repetidoras span {
-  font-size: 0.75rem; /* Tamanho do texto do nome da repetidora (padrão: 0.875rem) */
-}
-
-#lista-repetidoras button {
-  font-size: 0.8rem; /* Controla o tamanho do ícone '❌' */
-}
-
+/* Painel repetidoras: tipografia & espaçamento */
+#lista-repetidoras span{ font-size:.75rem; }
+#lista-repetidoras button{ font-size:.8rem; }
 #lista-repetidoras button .sidebar-icon,
-#lista-repetidoras button i[data-lucide] {
-  width: 0.875rem; /* Tamanho dos ícones (padrão: 1rem/16px) */
-  height: 0.875rem;
-}
+#lista-repetidoras button i[data-lucide]{ width:.875rem; height:.875rem; }
+#lista-repetidoras > div > div:last-child{ gap:.6rem!important; }
 
+/* Scrollbar lista repetidoras */
+#lista-repetidoras{ max-height: calc(100vh - 360px); scrollbar-width: thin; scrollbar-color: var(--green) #1a202c; }
+#lista-repetidoras::-webkit-scrollbar{ width:8px; }
+#lista-repetidoras::-webkit-scrollbar-track{ background:#1a202c; border-radius:10px; }
+#lista-repetidoras::-webkit-scrollbar-thumb{ background-color:var(--green); border-radius:10px; border:2px solid #1a202c; }
+#lista-repetidoras::-webkit-scrollbar-thumb:hover{ background-color:#34d399; }
 
-/* ======================================== */
-/* 🗂️ AJUSTE ESPAÇAMENTO BOTÕES REPETIDORA */
-/* ======================================== */
+/* Largura painéis (telas grandes) */
+#painel-dados, #painel-repetidoras{ width:260px; }
 
-/* Alvo: o container que agrupa os botões (visada, olho, X) em cada linha da lista */
-#lista-repetidoras > div > div:last-child {
-    gap: 0.6rem !important; /* Espaçamento um pouco maior para telas grandes. */
-}
+/* ========================= */
+/* 📏 RESPONSIVO */
+/* ========================= */
+@media (max-width:1366px){
+  #lista-repetidoras{ max-height: calc(100vh - 320px); }
 
-
-/* ================================== */
-/* ✨ ESTILIZAÇÃO DA BARRA DE ROLAGEM */
-/* ================================== */
-
-#lista-repetidoras {
-    /* Altura máxima calculada para se adaptar à tela.
-       Subtrai uma aproximação do espaço ocupado acima da lista 
-       (barra superior, painel de dados, etc.) e um espaço no final da página. */
-    max-height: calc(100vh - 360px);
-}
-
-/* A barra de rolagem completa */
-#lista-repetidoras::-webkit-scrollbar {
-  width: 8px; /* Largura da barra */
-}
-
-/* A trilha (o fundo da barra) */
-#lista-repetidoras::-webkit-scrollbar-track {
-  background: #1a202c; /* Cinza bem escuro, quase preto, para combinar com o painel */
-  border-radius: 10px;
-}
-
-/* O "polegar" (a parte que se move e que você arrasta) */
-#lista-repetidoras::-webkit-scrollbar-thumb {
-  background-color: #22c55e; /* O verde principal do projeto */
-  border-radius: 10px;       /* Deixa as bordas arredondadas */
-  border: 2px solid #1a202c; /* Cria uma pequena borda com a cor da trilha */
-}
-
-/* Efeito ao passar o mouse sobre o "polegar" */
-#lista-repetidoras::-webkit-scrollbar-thumb:hover {
-  background-color: #34d399; /* Um tom de verde um pouco mais claro */
-}
-
-/* Define o estilo para o Firefox */
-#lista-repetidoras {
-  scrollbar-width: thin;
-  scrollbar-color: #22c55e #1a202c; /* Cor do "polegar" e cor da "trilha" */
-}
-
-
-/* ======================================== */
-/* ↔️ LARGURA PAINÉIS (TELAS GRANDES)      */
-/* ======================================== */
-/* ✔️ É AQUI que você deve adicionar a nova regra para aumentar os painéis em telas grandes */
-#painel-dados, #painel-repetidoras {
-    width: 260px;
-}
-
-
-/* ========================================= */
-/* ✒️ ESTILO BALÃO DE INFO (REPETIDORAS)   */
-/* ========================================= */
-
-/* Container do balão */
-.leaflet-popup-content-wrapper {
-    background-color: rgba(6, 11, 16, 0.85) !important; /* Fundo preto/azulado escuro */
-    color: #e5e7eb;
-    padding: 5px 10px !important; /* Padding menor para um balão mais compacto */
-    border-radius: 6px !important;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-}
-
-/* Conteúdo interno */
-.leaflet-popup-content {
-    margin: 0 !important;
-    font-size: 0.75rem; /* Fonte menor */
-    line-height: 1.2;
-    white-space: nowrap; /* Garante que não haja quebra de linha */
-}
-
-/* Adiciona um espaço entre o "Tx" e o "Rx" */
-.leaflet-popup-content span + span {
-    margin-left: 0.75rem;
-}
-
-/* Seta do balão */
-.leaflet-popup-tip {
-    background: rgba(6, 11, 16, 0.85) !important;
-}
-
-/* ======================================================================= */
-/* ✅ ABORDAGEM FINAL: REDUÇÃO PROPORCIONAL DE TODA A INTERFACE ✅           */
-/* ======================================================================= */
-
-@media (max-width: 1366px) {
-
-  #lista-repetidoras {
-      /* Valor ajustado para telas menores, onde os outros elementos são mais compactos */
-      max-height: calc(100vh - 320px);
+  div.absolute.top-0.left-0.right-0.h-14{
+    height:3rem!important; padding-left:.5rem!important; padding-right:0!important;
   }
+  div.absolute.top-0 .flex.items-center > span.text-sm.font-medium{ font-size:.7rem!important; margin-right:.25rem!important; }
+  div.absolute.top-0 .glass-button{ padding:4px!important; border-radius:8px!important; }
+  div.absolute.top-0 .glass-button .sidebar-icon,
+  div.absolute.top-0 .glass-button i[data-lucide]{ width:16px!important; height:16px!important; }
 
-  /* --- 1. BARRA DE FERRAMENTAS SUPERIOR --- */
-  
-  div.absolute.top-0.left-0.right-0.h-14 {
-    height: 3rem !important; 
-    padding-left: 0.5rem !important;
-    padding-right: 0.0rem !important;
-  }
+  div.absolute.top-0 .flex.items-center.ml-24{ margin-left:6vw!important; }
+  div.absolute.top-0 .flex.items-center.ml-\[20px\]{ margin-left:3vw!important; }
+  div.absolute.top-0 .flex.items-center.gap-2{ gap:.3rem!important; }
 
-  div.absolute.top-0 .flex.items-center > span.text-sm.font-medium {
-    font-size: 0.7rem !important; 
-    margin-right: 0.25rem !important;
-  }
+  #editar-pivos.glass-button{ padding:2px!important; }
+  #editar-pivos.glass-button i[data-lucide]{ width:14px!important; height:14px!important; }
 
-  div.absolute.top-0 .glass-button {
-    padding: 4px !important;
-    border-radius: 8px !important;
-  }
-  div.absolute.top-0 .glass-button .sidebar-icon {
-    width: 16px !important;
-    height: 16px !important;
-  }
-
-  /* Regra para redimensionar os ícones Lucide em telas pequenas */
-  div.absolute.top-0 .glass-button i[data-lucide] {
-    width: 16px !important;
-    height: 16px !important;
-  }
-
-/* Código Modificado - Dentro da seção @media (max-width: 1366px) */
-  div.absolute.top-0 .flex.items-center.ml-24 {
-    margin-left: 6vw !important; /* Aumentado de 3vw para 5vw */
-  }
-  div.absolute.top-0 .flex.items-center.ml-\[20px\] {
-    margin-left: 3vw !important; /* Aumentado de 1.5vw para 2.5vw */
-  }
-  div.absolute.top-0 .flex.items-center.gap-2 {
-    gap: 0.3rem !important;
-  }
-
-      #editar-pivos.glass-button {
-        padding: 2px !important;
-    }
-    #editar-pivos.glass-button i[data-lucide] {
-        width: 14px !important;
-        height: 14px !important;
-    }
-  
-  /* --- 2. BARRA LATERAL ESQUERDA --- */
-
-  div.absolute.top-14.bottom-14.left-0.w-\[280px\] {
-    width: 220px !important;
-    padding: 0.75rem !important;
-    top: 3rem !important; 
-  }
-
-  div.absolute.top-14 .mb-4.backdrop-blur {
-    padding: 4px 8px !important;
-  }
+  div.absolute.top-14.bottom-14.left-0.w-\[280px\]{ width:220px!important; padding:.75rem!important; top:3rem!important; }
+  div.absolute.top-14 .mb-4.backdrop-blur{ padding:4px 8px!important; }
   div.absolute.top-14 .mb-4.backdrop-blur label, 
-  div.absolute.top-14 .mb-4.backdrop-blur select {
-    font-size: 0.75rem !important;
-  }
-  div.absolute.top-14 .focus-within\:ring-1 {
-    height: 2.25rem !important;
-  }
-  div.absolute.top-14 #lat-long-input-field {
-    font-size: 0.75rem !important;
-  }
-  .sidebar-button {
-    height: 2.25rem !important;
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
-  }
-  .sidebar-button .sidebar-icon {
-    width: 18px !important;
-  }
-  .sidebar-button span.text-sm {
-    font-size: 0.7rem !important; /* Fonte dos botões da barra lateral reduzida */
-  }
+  div.absolute.top-14 .mb-4.backdrop-blur select{ font-size:.75rem!important; }
+  div.absolute.top-14 .focus-within\:ring-1{ height:2.25rem!important; }
+  div.absolute.top-14 #lat-long-input-field{ font-size:.75rem!important; }
+  .sidebar-button{ height:2.25rem!important; padding-left:.5rem!important; padding-right:.5rem!important; }
+  .sidebar-button .sidebar-icon{ width:18px!important; }
+  .sidebar-button span.text-sm{ font-size:.7rem!important; }
 
-  /* --- 3. ÁREA DO MAPA --- */
-  
-  div.absolute.top-14.bottom-14.left-\[280px\].right-12 {
-    top: 3rem !important; 
-    left: 220px !important;
-    bottom: 2.5rem !important;
-  }
+  div.absolute.top-14.bottom-14.left-\[280px\].right-12{ top:3rem!important; left:220px!important; bottom:2.5rem!important; }
 
-  /* --- 4. PAINÉIS FLUTUANTES DA DIREITA (AJUSTADO) --- */
-
-  #overlay-panels-container {
-    top: 3.5rem !important; 
-    right: 3.5rem !important; /* Movido um pouco mais para a esquerda */
-  }
-
-  #painel-dados, #painel-repetidoras {
-    width: 220px !important; /* Aumentado de 190px para dar mais espaço ao texto */
-    padding: 0.4rem !important;
-  }
-
-  #painel-dados h2, #painel-repetidoras h2, #painel-dados p, #template-info {
-    font-size: 0.65rem !important; 
-    line-height: 1.4 !important;
-  }
-  
-  /* Redução específica para a lista de repetidoras */
-  #lista-repetidoras {
-    font-size: 0.6rem !important; /* Revertido para um tamanho legível */
-  }
-
-  #lista-repetidoras > div { 
-      padding-top: 0.2rem !important;
-      padding-bottom: 0.2rem !important;
-      align-items: center; /* Alinha melhor os itens na vertical */
-  }
-
-  #lista-repetidoras button {
-    font-size: 0.7rem !important; /* Tamanho do '❌' reduzido */
-    padding: 1px !important; /* Pequeno ajuste no clique */
-  }
-
+  #overlay-panels-container{ top:3.5rem!important; right:3.5rem!important; }
+  #painel-dados, #painel-repetidoras{ width:220px!important; padding:.4rem!important; }
+  #painel-dados h2, #painel-repetidoras h2, #painel-dados p, #template-info{ font-size:.65rem!important; line-height:1.4!important; }
+  #lista-repetidoras{ font-size:.6rem!important; }
+  #lista-repetidoras > div{ padding-top:.2rem!important; padding-bottom:.2rem!important; align-items:center; }
+  #lista-repetidoras button{ font-size:.7rem!important; padding:1px!important; }
   #lista-repetidoras button .sidebar-icon,
-  #lista-repetidoras button i[data-lucide] {
-    width: 0.75rem !important; /* Tamanho dos ícones de visada/olho reduzido */
-    height: 0.75rem !important;
-  }
+  #lista-repetidoras button i[data-lucide]{ width:.75rem!important; height:.75rem!important; }
+  #lista-repetidoras > div > div:last-child{ gap:.3rem!important; }
 
-  /* ADICIONE ESTA NOVA REGRA ABAIXO */
-  #lista-repetidoras > div > div:last-child {
-    gap: 0.3rem !important; /* Espaçamento um pouco menor para telas pequenas. */
+  #painel-repetidora{
+    width:100%!important; padding:.4rem!important; margin-top:.5rem!important; border-radius:.75rem!important;
   }
-  
-  /* --- 5. PAINEL DE NOVA REPETIDORA (AJUSTADO) --- */
-  
-  #painel-repetidora {
-    width: 100% !important; 
-    padding: 0.4rem !important; /* Reduzido o padding geral */
-    margin-top: 0.5rem !important; /* Reduzida a margem superior */
-    border-radius: 0.75rem !important;
+  #painel-repetidora h2{ font-size:.7rem!important; margin-bottom:.4rem!important; }
+  #painel-repetidora label{ font-size:.65rem!important; margin-bottom:2px!important; }
+  #painel-repetidora input[type="number"], #painel-repetidora #confirmar-repetidora{
+    height:26px!important; font-size:.7rem!important;
   }
+  #painel-repetidora input[type="number"]{ margin-bottom:.4rem!important; }
+  #painel-repetidora #confirmar-repetidora .sidebar-icon{ width:16px!important; height:16px!important; }
 
-  #painel-repetidora h2 {
-    font-size: 0.7rem !important;   /* Fonte do título reduzida */
-    margin-bottom: 0.4rem !important; /* Espaçamento inferior reduzido */
-  }
-  #painel-repetidora label {
-    font-size: 0.65rem !important; /* Fonte dos labels reduzida */
-    margin-bottom: 2px !important;
-  }
-  #painel-repetidora input[type="number"],
-  #painel-repetidora #confirmar-repetidora {
-    height: 26px !important;      /* Altura dos campos reduzida */
-    font-size: 0.7rem !important; /* Fonte dos campos reduzida */
-  }
-  #painel-repetidora input[type="number"] {
-    margin-bottom: 0.4rem !important; /* Espaçamento entre campos reduzido */
-  }
-  #painel-repetidora #confirmar-repetidora .sidebar-icon {
-    width: 16px !important;
-    height: 16px !important;
-  }
+  #legend-container{ top:3.5rem!important; right:.25rem!important; padding:3px!important; }
+  #legend-image{ max-width:36px!important; }
 
- /* --- 6. LEGENDA DE CORES --- */
-  #legend-container {
-    top: 3.5rem !important;
-    right: 0.25rem !important; /* Aumentado de 0.5rem para mover para a direita */
-    padding: 3px !important;
-  }
-  #legend-image {
-    max-width: 36px !important; /* Reduzido de 48px */
-  }
+  div.absolute.bottom-6.left-72{ left:228px!important; bottom:1.2rem!important; }
+  #range-opacidade{ width:70px!important; }
 
-  /* --- 7. REAJUSTE DA ÁREA INFERIOR --- */
-  
-  div.absolute.bottom-6.left-72 {
-    left: 228px !important;
-    bottom: 1.2rem !important;
-  }
+  div.absolute.bottom-4.left-1\/2{ bottom:.5rem!important; }
+  #footer-logo-link img{ height:1.5rem!important; }
 
-  #range-opacidade {
-    width: 70px !important;
-  }
-  
-  div.absolute.bottom-4.left-1\/2 {
-    bottom: 0.5rem !important; 
-  }
-  #footer-logo-link img {
-    height: 1.5rem !important;
-  }
-
-  /* --- 8. AJUSTE BANDEIRAS DE IDIOMA --- */
-  button[data-lang] img {
-    width: 20px !important;
-    height: 13px !important;
-  }
-
-  /* Alvo no container das bandeiras para diminuir o espaçamento */
-  div.absolute.top-0 > .flex.items-center.gap-3 {
-    gap: 0.5rem !important; /* 8px */
-  }
-
+  button[data-lang] img{ width:20px!important; height:13px!important; }
+  div.absolute.top-0 > .flex.items-center.gap-3{ gap:.5rem!important; }
 }
 
-
-
-/* ================================================== */
-/* 📱 AJUSTES PARA TABLETS (LARGURA MÁXIMA: 768PX)   */
-/* ================================================== */
-@media (max-width: 768px) {
-  /* Oculta a barra lateral e os painéis de dados */
-  .absolute.top-14.bottom-14.left-0.w-\[280px\] {
-    display: none;
+@media (max-width:768px){
+  .absolute.top-14.bottom-14.left-0.w-\[280px\]{ display:none; }
+  .absolute.top-14.bottom-14.left-\[280px\].right-12{ left:0!important; right:0!important; }
+  div.absolute.top-0 .flex.items-center > span{ display:none; }
+  #overlay-panels-container{
+    top:50%!important; left:50%!important; right:auto!important; transform:translate(-50%,-50%)!important; width:90%!important;
   }
-
-  /* Faz o mapa ocupar toda a tela, exceto pela barra superior */
-  .absolute.top-14.bottom-14.left-\[280px\].right-12 {
-    left: 0 !important;
-    right: 0 !important;
-  }
-  
-  /* Reduz ainda mais os botões da barra de ferramentas superior */
-  div.absolute.top-0 .flex.items-center > span {
-    display: none; /* Oculta os labels 'Ferramentas', 'Legendas', etc. */
-  }
-
-  /* Move os painéis flutuantes para o centro da tela */
-  #overlay-panels-container {
-      top: 50% !important;
-      left: 50% !important;
-      right: auto !important;
-      transform: translate(-50%, -50%) !important;
-      width: 90% !important;
+}
+@media (max-width:480px){
+  div.absolute.top-0.left-0.right-0{ display:none; }
+  #map{ height:100vh; }
+  #overlay-panels-container{ display:none; }
+  #mobile-buttons-container{
+    position:absolute; bottom:1rem; left:50%; transform:translateX(-50%);
+    z-index:50; display:flex; gap:1rem;
   }
 }
 
-/* ================================================== */
-/* 📱 AJUSTES PARA SMARTPHONES (LARGURA MÁXIMA: 480PX) */
-/* ================================================== */
-@media (max-width: 480px) {
-  /* Oculta completamente a barra de ferramentas superior para um layout limpo */
-  div.absolute.top-0.left-0.right-0 {
-    display: none;
+/* ========================= */
+/* ♿️ REDUZIR MOVIMENTO */
+/* ========================= */
+@media (prefers-reduced-motion: reduce){
+  .loading-spinner,
+  .pivo-marker-container-selected .pivo-marker-dot::after,
+  .marker-selected .selection-effect-wrapper::after,
+  .linha-pontilhada{
+    animation: none !important;
   }
-
-  /* Faz o mapa ocupar toda a tela sem barras */
-  #map {
-    height: 100vh;
-  }
-  
-  /* Oculta os painéis flutuantes para liberar espaço */
-  #overlay-panels-container {
-    display: none;
-  }
-
-  /* Exibe botões essenciais flutuantes na parte inferior da tela */
-  #mobile-buttons-container { /* Você precisaria adicionar este container no HTML */
-    position: absolute;
-    bottom: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 50;
-    display: flex;
-    gap: 1rem;
+  .range-slider-custom:active::-webkit-slider-thumb,
+  .range-slider-custom:active::-moz-range-thumb{
+    transform:none !important;
   }
 }
-
-
-/* ============================ */
-/* 🧠 FIM DO CSS DO FUTURO 🧠 */
-/* ============================ */

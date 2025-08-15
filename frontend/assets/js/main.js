@@ -25,7 +25,6 @@ const AppState = {
     ultimoCliqueFoiSobrePivo: false,
     visadaVisivel: false,
     
-
     // --- Variáveis de Apoio e Temporárias ---
     coordenadaClicada: null,
     marcadorPosicionamento: null,
@@ -64,7 +63,6 @@ const AppState = {
         this.jobId = null;
         this.currentProcessedKmzData = null;
         this.antenaGlobal = null;
-        this.repetidoras = [];
         this.lastPivosDataDrawn = [];
         this.lastBombasDataDrawn = [];
         this.ciclosGlobais = [];
@@ -138,7 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupMainActionListeners();
     await loadAndPopulateTemplates();
     
-    lucide.createIcons();
+    lucide?.createIcons?.();
     
     await handleResetClick(false); 
 
@@ -188,24 +186,24 @@ async function startNewSession() {
 // --- Listeners Principais ---
 
 function setupMainActionListeners() {
-    document.getElementById('arquivo').addEventListener('change', handleKmzFileSelect);
-    document.getElementById('resetar-btn').addEventListener('click', () => handleResetClick(true));
-    document.getElementById('exportar-btn').addEventListener('click', handleExportClick);
-    document.getElementById('exportar-pdf-btn').addEventListener('click', handleExportPdfReportClick);
-    document.getElementById('confirmar-repetidora').addEventListener('click', handleConfirmRepetidoraClick);
-    document.getElementById('btn-los-pivot-a-pivot').addEventListener('click', toggleLoSPivotAPivotMode);
-    document.getElementById('btn-buscar-locais-repetidora').addEventListener('click', handleBuscarLocaisRepetidoraActivation);
-    document.getElementById('coord-search-btn').addEventListener('click', handleCoordinateSearch);
-    document.getElementById('btn-draw-pivot-pacman').addEventListener('click', toggleModoDesenhoPivoPacman);
-    document.getElementById('btn-draw-irripump').addEventListener('click', toggleModoDesenhoIrripump);
-    document.getElementById('btn-mover-pivo-sem-circulo').addEventListener('click', toggleModoMoverPivoSemCirculo);
+    document.getElementById('arquivo')?.addEventListener('change', handleKmzFileSelect);
+    document.getElementById('resetar-btn')?.addEventListener('click', () => handleResetClick(true));
+    document.getElementById('exportar-btn')?.addEventListener('click', handleExportClick);
+    document.getElementById('exportar-pdf-btn')?.addEventListener('click', handleExportPdfReportClick);
+    document.getElementById('confirmar-repetidora')?.addEventListener('click', handleConfirmRepetidoraClick);
+    document.getElementById('btn-los-pivot-a-pivot')?.addEventListener('click', toggleLoSPivotAPivotMode);
+    document.getElementById('btn-buscar-locais-repetidora')?.addEventListener('click', handleBuscarLocaisRepetidoraActivation);
+    document.getElementById('coord-search-btn')?.addEventListener('click', handleCoordinateSearch);
+    document.getElementById('btn-draw-pivot-pacman')?.addEventListener('click', toggleModoDesenhoPivoPacman);
+    document.getElementById('btn-draw-irripump')?.addEventListener('click', toggleModoDesenhoIrripump);
+    document.getElementById('btn-mover-pivo-sem-circulo')?.addEventListener('click', toggleModoMoverPivoSemCirculo);
     
-    map.on("click", handleMapClick); 
-    map.on("contextmenu", handleCancelDraw);
+    map?.on("click", handleMapClick); 
+    map?.on("contextmenu", handleCancelDraw);
 
     document.addEventListener('keydown', handleGlobalKeys);
-    document.getElementById('btn-draw-pivot').addEventListener('click', toggleModoDesenhoPivo);
-    document.getElementById('btn-draw-pivot-setorial').addEventListener('click', toggleModoDesenhoPivoSetorial);
+    document.getElementById('btn-draw-pivot')?.addEventListener('click', toggleModoDesenhoPivo);
+    document.getElementById('btn-draw-pivot-setorial')?.addEventListener('click', toggleModoDesenhoPivoSetorial);
 
     const toggleDistanciasBtn = document.getElementById('toggle-distancias-pivos');
     if (toggleDistanciasBtn) {
@@ -295,7 +293,7 @@ async function handleKmzFileSelect(event) {
             mostrarMensagem(t('messages.info.no_towers_found'), "info");
         }
 
-        document.getElementById("simular-btn").classList.add("hidden");
+        document.getElementById("simular-btn")?.classList.add("hidden");
 
         if (pivosParaDesenhar.length > 0 || antenasCandidatas.length > 0) {
             const boundsToFit = [];
@@ -308,8 +306,8 @@ async function handleKmzFileSelect(event) {
         }
 
         atualizarPainelDados();
-        document.getElementById("painel-dados").classList.remove("hidden");
-        document.getElementById("painel-repetidoras").classList.remove("hidden");
+        document.getElementById("painel-dados")?.classList.remove("hidden");
+        document.getElementById("painel-repetidoras")?.classList.remove("hidden");
         reposicionarPaineisLaterais();
         expandAllPanels();
 
@@ -331,7 +329,7 @@ async function startMainSimulation(antenaData) {
     }
 
     mostrarLoader(true);
-    map.closePopup(); 
+    map?.closePopup(); 
 
     try {
         AppState.templateSelecionado = document.getElementById('template-modelo').value;
@@ -453,8 +451,7 @@ async function startMainSimulation(antenaData) {
  * @returns {string} A string com caracteres especiais escapados.
  */
 function escapeRegExp(string) {
-    // $& significa a string inteira que foi encontrada, o que insere o caractere de escape antes dela.
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -594,7 +591,7 @@ function handleRenameMainAntenna(newType) {
 }
 
 async function handleMapClick(e) {
-    if (e.originalEvent.target.closest('.leaflet-marker-icon')) {
+    if (e.originalEvent?.target?.closest?.('.leaflet-marker-icon')) {
         return;
     }
 
@@ -628,7 +625,7 @@ async function handleMapClick(e) {
         zIndexOffset: 1000
     }).addTo(map);
 
-    document.getElementById("painel-repetidora").classList.remove("hidden");
+    document.getElementById("painel-repetidora")?.classList.remove("hidden");
 }
 
 async function handleIrripumpDrawClick(e) {
@@ -683,7 +680,7 @@ async function handleConfirmRepetidoraClick() {
     const alturaReceiver = parseFloat(document.getElementById("altura-receiver-rep").value);
     AppState.templateSelecionado = document.getElementById('template-modelo').value;
 
-    document.getElementById('painel-repetidora').classList.add('hidden');
+    document.getElementById('painel-repetidora')?.classList.add('hidden');
     mostrarLoader(true);
 
     try {
@@ -964,7 +961,7 @@ function toggleModoDesenhoPivo() {
     }
 
     AppState.modoDesenhoPivo = isActivating;
-    document.getElementById('btn-draw-pivot').classList.toggle('glass-button-active', AppState.modoDesenhoPivo);
+    document.getElementById('btn-draw-pivot')?.classList.toggle('glass-button-active', AppState.modoDesenhoPivo);
 
     if (AppState.modoDesenhoPivo) {
         map.getContainer().style.cursor = 'crosshair';
@@ -1221,7 +1218,8 @@ async function handleResetClick(showMessage = true) {
     }
 
     document.getElementById("simular-btn")?.classList.add("hidden");
-    document.getElementById("lista-repetidoras").innerHTML = "";
+    const listaRep = document.getElementById("lista-repetidoras");
+    if (listaRep) listaRep.innerHTML = "";
 
     const paineisParaEsconder = ["painel-repetidora", "desfazer-edicao"];
     paineisParaEsconder.forEach(id => {
@@ -1237,7 +1235,8 @@ async function handleResetClick(showMessage = true) {
     const arquivoInput = document.getElementById('arquivo');
     if (arquivoInput) arquivoInput.value = '';
 
-    document.getElementById("range-opacidade").value = 1;
+    const rangeOp = document.getElementById("range-opacidade");
+    if (rangeOp) rangeOp.value = 1;
 
     atualizarPainelDados();
     reposicionarPaineisLaterais();
@@ -1247,7 +1246,7 @@ async function handleResetClick(showMessage = true) {
         mostrarMensagem(t('messages.success.app_reset'), "sucesso");
     }
 
-    lucide.createIcons();
+    lucide?.createIcons?.();
 }
 
 async function runTargetedDiagnostic(diagnosticoSource) {
@@ -1660,7 +1659,7 @@ function disablePivoEditingMode() {
     if (editButton) {
         editButton.classList.remove('glass-button-active');
         editButton.innerHTML = `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-        lucide.createIcons();
+        lucide?.createIcons?.();
     }
 }
 
@@ -1725,12 +1724,12 @@ function toggleLoSPivotAPivotMode() {
     }
     
     AppState.modoLoSPivotAPivot = isActivating;
-    document.getElementById('btn-los-pivot-a-pivot').classList.toggle('glass-button-active', AppState.modoLoSPivotAPivot);
+    document.getElementById('btn-los-pivot-a-pivot')?.classList.toggle('glass-button-active', AppState.modoLoSPivotAPivot);
     
     if (isActivating) {
         mostrarMensagem(t('messages.info.los_mode_step1_source'), "sucesso");
         if (AppState.marcadorPosicionamento) removePositioningMarker();
-        document.getElementById("painel-repetidora").classList.add("hidden");
+        document.getElementById("painel-repetidora")?.classList.add("hidden");
         AppState.losSourcePivot = null;
         AppState.losTargetPivot = null;
         map.getContainer().style.cursor = 'help';
@@ -1913,7 +1912,7 @@ function parseCoordinates(coordString) {
             return null;
         }
     }
-    const cleanedString = coordString.replace(/,/g, ' ').replace(/\s+/, ' ').trim();
+    const cleanedString = coordString.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
     const parts = cleanedString.split(' ');
     if (parts.length === 2) {
         const lat = parseFloat(parts[0]);
@@ -1942,7 +1941,7 @@ function handleCoordinateSearch() {
         map.setView(latlng, 15);
         mostrarMensagem(t('messages.success.location_found'), "sucesso");
         AppState.coordenadaClicada = latlng;
-        document.getElementById("painel-repetidora").classList.remove("hidden");
+        document.getElementById("painel-repetidora")?.classList.remove("hidden");
         inputField.value = '';
     } else {
         mostrarMensagem(t('messages.error.invalid_coordinate_format'), "erro");
@@ -1951,7 +1950,8 @@ function handleCoordinateSearch() {
 
 function getNextPivotNumber() {
     let maxNumber = 0;
-    const regex = new RegExp(`(?:${t('entity_names.pivot')}|Pivô|Pivot|Pivote)\\s+(\\d+)$`, 'i');
+    const pivotLocalized = escapeRegExp(t('entity_names.pivot') || 'Pivô');
+    const regex = new RegExp(`(?:${pivotLocalized}|Pivô|Pivot|Pivote)\\s+(\\d+)$`, 'i');
 
     AppState.lastPivosDataDrawn.forEach(pivo => {
         const match = pivo.nome.match(regex);
@@ -1973,7 +1973,7 @@ function toggleModoDesenhoPivoSetorial() {
     }
 
     AppState.modoDesenhoPivoSetorial = isActivating;
-    document.getElementById('btn-draw-pivot-setorial').classList.toggle('glass-button-active', AppState.modoDesenhoPivoSetorial);
+    document.getElementById('btn-draw-pivot-setorial')?.classList.toggle('glass-button-active', AppState.modoDesenhoPivoSetorial);
 
     if (isActivating) {
         map.getContainer().style.cursor = 'crosshair';
@@ -2083,7 +2083,7 @@ function toggleModoDesenhoPivoPacman() {
     }
     
     AppState.modoDesenhoPivoPacman = isActivating;
-    document.getElementById('btn-draw-pivot-pacman').classList.toggle('glass-button-active', AppState.modoDesenhoPivoPacman);
+    document.getElementById('btn-draw-pivot-pacman')?.classList.toggle('glass-button-active', AppState.modoDesenhoPivoPacman);
 
     if (isActivating) {
         map.getContainer().style.cursor = 'crosshair';
@@ -2147,7 +2147,7 @@ async function handlePacmanPivotDrawClick(e) {
         const raio = centro.distanceTo(AppState.pontoRaioTemporario);
 
         if (raio < 10) {
-             throw new Error(t('messages.errors.draw_pivot_radius_too_small'));
+            throw new Error(t('messages.errors.draw_pivot_radius_too_small'));
         }
 
         const anguloInicio = calculateBearing(centro, AppState.pontoRaioTemporario);
@@ -2210,7 +2210,7 @@ function toggleModoDesenhoIrripump() {
     }
 
     AppState.modoDesenhoIrripump = isActivating;
-    document.getElementById('btn-draw-irripump').classList.toggle('glass-button-active', AppState.modoDesenhoIrripump);
+    document.getElementById('btn-draw-irripump')?.classList.toggle('glass-button-active', AppState.modoDesenhoIrripump);
 
     if (isActivating) {
         map.getContainer().style.cursor = 'crosshair';

@@ -1,55 +1,184 @@
 // assets/js/i18n.js
 
-let translations = {};
+// ===== Config =====
+const DEFAULT_LANG = "pt-br";
+const SAFE_ATTRS = new Set([
+    "title",
+    "placeholder",
+    "aria-label",
+    "aria-describedby",
+    "aria-controls",
+    "alt",
+    "value", // cuidado: só use quando fizer sentido (ex.: <input value>)
+    "data-label"
+]);
+
+let currentLanguage = DEFAULT_LANG;
+const translationsCache = new Map(); // lang -> dict
+let activeDict = {};                 // dicionário em uso (merge de fallback + lang)
+
+// ===== Utils =====
+function normalizeLang(input) {
+    if (!input) return DEFAULT_LANG;
+    const s = String(input).toLowerCase();
+  // mapeamentos simples/comuns
+    if (s.startsWith("pt")) return "pt-br";
+    if (s.startsWith("en")) return "en";
+    if (s.startsWith("es")) return "es";
+    if (s.startsWith("de")) return "de";
+    if (s.startsWith("ru")) return "ru";
+    return DEFAULT_LANG;
+}
+
+function getNested(obj, path) {
+    return path.split(".").reduce((acc, k) => (acc && typeof acc === "object" ? acc[k] : undefined), obj);
+}
+
+function deepMerge(target, source) {
+    const out = Array.isArray(target) ? [...target] : { ...target };
+    if (!source || typeof source !== "object") return out;
+    for (const [k, v] of Object.entries(source)) {
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+        out[k] = deepMerge(out[k] || {}, v);
+    } else {
+        out[k] = v;
+        }
+    }
+    return out;
+}
+
+// Interpola {placeholders}
+function interpolate(str, options = {}) {
+    if (typeof str !== "string") return str;
+    return Object.keys(options).reduce((txt, key) => {
+    const re = new RegExp(`\\{${key}\\}`, "g");
+    return txt.replace(re, String(options[key]));
+    }, str);
+}
+
+// ===== Carregamento =====
+async function fetchLocaleDict(lang) {
+    if (translationsCache.has(lang)) return translationsCache.get(lang);
+
+    try {
+    const res = await fetch(`assets/locales/${lang}.json`, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`Could not load ${lang}.json`);
+    const json = await res.json();
+    translationsCache.set(lang, json);
+    console.log(`i18n: ${lang} carregado.`);
+    return json;
+    } catch (err) {
+    console.warn(`i18n: falha ao carregar ${lang}.json ->`, err);
+    translationsCache.set(lang, {}); // evita retries em loop
+    return {};
+    }
+}
 
 async function loadTranslations(lang) {
-    try {
-        const response = await fetch(`assets/locales/${lang}.json`);
-        if (!response.ok) {
-            throw new Error(`Could not load ${lang}.json`);
-        }
-        translations = await response.json();
-        console.log(`Translations for ${lang} loaded successfully.`);
-    } catch (error) {
-        console.error("Failed to load translations, falling back to pt-br:", error);
-        const response = await fetch(`assets/locales/pt-br.json`);
-        translations = await response.json();
-    }
+    const langNorm = normalizeLang(lang);
+    const isDefault = langNorm === DEFAULT_LANG;
+
+    const fallbackDict = await fetchLocaleDict(DEFAULT_LANG);
+    const langDict = isDefault ? fallbackDict : await fetchLocaleDict(langNorm);
+
+  // merge profundo para preencher chaves ausentes
+    activeDict = isDefault ? fallbackDict : deepMerge(fallbackDict, langDict);
+    currentLanguage = langNorm;
 }
 
+// ===== API pública =====
 function t(key, options = {}) {
-    let text = key.split('.').reduce((obj, i) => obj?.[i], translations);
-
-    if (!text) {
-        console.warn(`Translation key not found: ${key}`);
-        return key;
+    let text = getNested(activeDict, key);
+    if (text == null) {
+    // fallback: retorna a própria chave e avisa
+    console.warn(`i18n: chave não encontrada '${key}' em ${currentLanguage}`);
+    return interpolate(key, options);
     }
-
-    Object.keys(options).forEach(placeholder => {
-        const regex = new RegExp(`{${placeholder}}`, 'g');
-        text = text.replace(regex, options[placeholder]);
-    });
-
-    return text;
+    return interpolate(text, options);
 }
 
-function applyTranslations() {
-    document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        const attribute = element.getAttribute('data-i18n-attr') || 'textContent';
+// Aplica em 1 elemento (útil para componentes dinâmicos)
+function applyTranslationTo(el) {
+    const key = el.getAttribute("data-i18n");
+    if (!key) return;
 
-        if (attribute === 'textContent') {
-            element.textContent = t(key);
+  // argumentos opcionais em JSON no atributo
+    let args = {};
+    const argsAttr = el.getAttribute("data-i18n-args");
+    if (argsAttr) {
+         try { args = JSON.parse(argsAttr); } catch { /* ignora parse inválido */ }
+}
+
+const attrList = (el.getAttribute("data-i18n-attr") || "textContent")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // Se houver vários atributos, aplica em cada um; textContent é o padrão.
+    for (const attr of attrList) {
+    if (attr === "textContent") {
+      // evita HTML injection
+        el.textContent = t(key, args);
+    } else {
+      // só permite atributos "seguros"
+    if (SAFE_ATTRS.has(attr)) {
+        el.setAttribute(attr, t(key, args));
         } else {
-            element.setAttribute(attribute, t(key));
+            console.warn(`i18n: atributo não permitido "${attr}" para chave '${key}'`);
         }
-    });
-    console.log("UI translations applied.");
+    }
+    }
 }
 
+function applyTranslations(root = document) {
+    const nodes = root.querySelectorAll("[data-i18n]");
+    nodes.forEach(applyTranslationTo);
+
+  // Título do documento (caso exista <title data-i18n="...">)
+    const titleEl = document.querySelector("head title[data-i18n]");
+    if (titleEl) document.title = titleEl.textContent;
+
+  // Emite evento para quem quiser ouvir
+    document.dispatchEvent(new CustomEvent("i18n:applied", { detail: { lang: currentLanguage } }));
+    console.log(`i18n: traduções aplicadas (${currentLanguage}).`);
+}
+
+// Troca de idioma completa
 async function setLanguage(lang) {
     await loadTranslations(lang);
     applyTranslations();
-    localStorage.setItem('preferredLanguage', lang);
-    document.documentElement.lang = lang;
+    localStorage.setItem("preferredLanguage", currentLanguage);
+    document.documentElement.lang = currentLanguage;
+  // (Opcional) RTL/LTR — se suportar idiomas RTL no futuro
+    document.documentElement.dir = "ltr";
+}
+
+// Inicializa: descobre idioma e conecta botões [data-lang]
+async function initI18n() {
+    const saved = localStorage.getItem("preferredLanguage");
+    const browser = normalizeLang(navigator.language || navigator.userLanguage);
+    const initial = saved || browser || DEFAULT_LANG;
+
+    await setLanguage(initial);
+
+  // Botões de troca de idioma
+    document.querySelectorAll("[data-lang]").forEach(btn => {
+    btn.addEventListener("click", () => {
+        const lang = btn.getAttribute("data-lang");
+        setLanguage(lang);
+    });
+});
+}
+
+// Exponha no global para uso em outros módulos
+window.t = t;
+window.setLanguage = setLanguage;
+window.applyTranslations = applyTranslations;
+window.getCurrentLanguage = () => currentLanguage;
+
+// Auto-init após DOM pronto (scripts estão no final do body; ainda assim garantimos)
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initI18n, { once: true });
+} else {
+    initI18n();
 }

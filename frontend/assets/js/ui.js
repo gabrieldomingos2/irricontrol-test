@@ -1,420 +1,557 @@
-const mensagemDiv = document.getElementById('mensagem');
-const loaderDiv = document.getElementById('loader');
-const painelDadosDiv = document.getElementById('painel-dados');
-const painelRepetidorasDiv = document.getElementById('painel-repetidoras');
-const painelConfigRepetidoraDiv = document.getElementById('painel-repetidora');
+// assets/js/ui.js
+/* global t, getTemplates, updateLegendsVisibility, updateOverlaysOpacity, removePositioningMarker, lucide */
+
+const mensagemDiv = document.getElementById("mensagem");
+const loaderDiv = document.getElementById("loader");
+const painelDadosDiv = document.getElementById("painel-dados");
+const painelRepetidorasDiv = document.getElementById("painel-repetidoras");
+const painelConfigRepetidoraDiv = document.getElementById("painel-repetidora");
 const rangeOpacidade = document.getElementById("range-opacidade");
-const templateSelect = document.getElementById('template-modelo');
-const arquivoInput = document.getElementById('arquivo');
-const nomeArquivoLabel = document.getElementById('nome-arquivo-label');
-const legendContainer = document.getElementById('legend-container');
-const legendImage = document.getElementById('legend-image');
-const customConfirmOverlay = document.getElementById('custom-confirm-overlay');
-const customConfirmBox = document.getElementById('custom-confirm-box');
-const customConfirmTitle = document.getElementById('custom-confirm-title');
-const customConfirmMessage = document.getElementById('custom-confirm-message');
-const customConfirmOkBtn = document.getElementById('custom-confirm-ok-btn');
-const customConfirmCancelBtn = document.getElementById('custom-confirm-cancel-btn');
-const btnMoverPivoSemCirculo = document.getElementById('btn-mover-pivo-sem-circulo');
+const templateSelect = document.getElementById("template-modelo");
+const arquivoInput = document.getElementById("arquivo");
+const nomeArquivoLabel = document.getElementById("nome-arquivo-label");
+const legendContainer = document.getElementById("legend-container");
+const legendImage = document.getElementById("legend-image");
+const customConfirmOverlay = document.getElementById("custom-confirm-overlay");
+const customConfirmBox = document.getElementById("custom-confirm-box");
+const customConfirmTitle = document.getElementById("custom-confirm-title");
+const customConfirmMessage = document.getElementById("custom-confirm-message");
+const customConfirmOkBtn = document.getElementById("custom-confirm-ok-btn");
+const customConfirmCancelBtn = document.getElementById("custom-confirm-cancel-btn");
+const btnMoverPivoSemCirculo = document.getElementById("btn-mover-pivo-sem-circulo");
 
 let dicaLoaderInterval = null;
+let _hideMsgTimer = null;
 
+/* ========= Utils AppState ========= */
+function ensureAppState() {
+    if (!window.AppState) window.AppState = {};
+    const st = window.AppState;
+    st.lastPivosDataDrawn ??= [];
+    st.lastBombasDataDrawn ??= [];
+    st.repetidoras ??= [];
+    st.templateSelecionado ??= "";
+    st.legendasAtivas ??= true;
+    st.antenaLegendasAtivas ??= true;
+    st.modoEdicaoPivos ??= false;
+}
 
+/* ========= Modal de Confirmação ========= */
 /**
- * Exibe um modal de confirmação customizado e retorna uma Promise.
- * @param {string} message A mensagem a ser exibida no corpo do modal.
- * @param {string} [title='Confirmação Necessária'] O título do modal.
- * @returns {Promise<boolean>} Resolve como `true` se o usuário confirmar, `false` caso contrário.
+ * Exibe um modal de confirmação e resolve com true/false.
+ * @param {string} message
+ * @param {string} [title=t('ui.titles.confirm_needed')]
+ * @returns {Promise<boolean>}
  */
-function showCustomConfirm(message, title = t('ui.titles.confirm_needed')) {
-    customConfirmTitle.innerHTML = `<i data-lucide="shield-question" class="w-6 h-6"></i> ${title}`;
-    lucide.createIcons();
+function showCustomConfirm(message, title = t("ui.titles.confirm_needed")) {
+if (!customConfirmOverlay) return Promise.resolve(false);
 
-    customConfirmMessage.textContent = message;
-    customConfirmOverlay.classList.remove('hidden');
+customConfirmTitle.innerHTML = `<i data-lucide="shield-question" class="w-6 h-6"></i> ${title}`;
+lucide?.createIcons?.();
 
-    return new Promise(resolve => {
-        let resolved = false;
+customConfirmMessage.textContent = message;
+customConfirmOverlay.classList.remove("hidden");
 
-        const keyboardListener = (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                handleResolution(true);
-            } else if (event.key === 'Escape') {
-                event.preventDefault();
-                handleResolution(false);
-            }
-        };
+return new Promise((resolve) => {
+    let resolved = false;
 
-        const handleResolution = (value) => {
-            if (resolved) return;
-            resolved = true;
-            
-            customConfirmOverlay.classList.add('hidden');
-            customConfirmOkBtn.removeEventListener('click', okListener);
-            customConfirmCancelBtn.removeEventListener('click', cancelListener);
-            customConfirmOverlay.removeEventListener('click', overlayListener);
-            document.removeEventListener('keydown', keyboardListener);
-            
-            resolve(value);
-        };
+    const handleResolution = (val) => {
+        if (resolved) return;
+        resolved = true;
+        customConfirmOverlay.classList.add("hidden");
+        customConfirmOkBtn?.removeEventListener("click", okListener);
+        customConfirmCancelBtn?.removeEventListener("click", cancelListener);
+        customConfirmOverlay?.removeEventListener("click", overlayListener);
+        document.removeEventListener("keydown", keyListener);
+        resolve(val);
+    };
 
-        const okListener = () => handleResolution(true);
-        const cancelListener = () => handleResolution(false);
-        const overlayListener = (e) => {
-            if (e.target === customConfirmOverlay) {
-                handleResolution(false);
-            }
-        };
-        
-        customConfirmOkBtn.addEventListener('click', okListener);
-        customConfirmCancelBtn.addEventListener('click', cancelListener);
-        customConfirmOverlay.addEventListener('click', overlayListener);
-        document.addEventListener('keydown', keyboardListener);
-    });
+    const okListener = () => handleResolution(true);
+    const cancelListener = () => handleResolution(false);
+    const overlayListener = (e) => {
+    if (e.target === customConfirmOverlay) handleResolution(false);
+};
+    const keyListener = (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        handleResolution(true);
+    } else if (e.key === "Escape") {
+        e.preventDefault();
+        handleResolution(false);
+    }
+};
+
+    customConfirmOkBtn?.addEventListener("click", okListener);
+    customConfirmCancelBtn?.addEventListener("click", cancelListener);
+    customConfirmOverlay?.addEventListener("click", overlayListener);
+    document.addEventListener("keydown", keyListener);
+});
 }
 
+/* ========= Toast / Mensagens ========= */
+function mostrarMensagem(texto, tipo = "sucesso") {
+if (!mensagemDiv) return;
 
-function mostrarMensagem(texto, tipo = 'sucesso') {
-    const mensagemDiv = document.getElementById('mensagem');
-    mensagemDiv.className = 'fixed bottom-16 left-[calc(50%-180px)] transform -translate-x-1/2 flex items-center gap-x-3 text-white px-4 py-3 rounded-lg shadow-lg border-l-4 bg-gray-800/90 z-[10000]';
-
-    let iconeHtml = '';
-    let borderClass = '';
-
-    if (tipo === 'sucesso') {
-        iconeHtml = `<i data-lucide="check-circle-2" class="w-5 h-5 text-green-400"></i>`;
-        borderClass = 'border-green-400';
-    } else if (tipo === 'erro') {
-        iconeHtml = `<i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>`;
-        borderClass = 'border-red-500';
-    } else {
-        iconeHtml = `<i data-lucide="info" class="w-5 h-5 text-yellow-400"></i>`;
-        borderClass = 'border-yellow-400';
-    }
-
-    mensagemDiv.classList.add(borderClass);
-    mensagemDiv.innerHTML = `${iconeHtml}<span>${texto}</span>`;
-    lucide.createIcons();
-    
-    setTimeout(() => mensagemDiv.classList.add('hidden'), 4000);
+  // limpa timer anterior para não esconder a nova msg cedo demais
+if (_hideMsgTimer) {
+    clearTimeout(_hideMsgTimer);
+    _hideMsgTimer = null;
 }
 
-function mostrarLoader(ativo, textoOuDicas = '') {
-    if (dicaLoaderInterval) {
-        clearInterval(dicaLoaderInterval);
-        dicaLoaderInterval = null;
-    }
+  // base limpa
+mensagemDiv.className =
+    "fixed bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-x-3 text-white px-4 py-3 rounded-lg shadow-lg border-l-4 bg-gray-800/90 z-[10000]";
+mensagemDiv.removeAttribute("hidden");
+mensagemDiv.classList.remove("hidden");
 
-    loaderDiv.classList.toggle('hidden', !ativo);
-    const processingTextSpan = loaderDiv.querySelector('span[data-i18n="ui.labels.processing"]');
-    
-    if (!processingTextSpan) return;
+// ARIA para leitura por screen readers
+mensagemDiv.setAttribute("role", "status");
+mensagemDiv.setAttribute("aria-live", "polite");
 
-    processingTextSpan.style.transition = 'opacity 0.4s ease-in-out';
+let icon = "";
+let border = "";
 
-    if (ativo) {
-        if (Array.isArray(textoOuDicas) && textoOuDicas.length > 0) {
-            let currentIndex = 0;
-            processingTextSpan.textContent = textoOuDicas[currentIndex];
+if (tipo === "sucesso") {
+    icon = `<i data-lucide="check-circle-2" class="w-5 h-5 text-green-400"></i>`;
+    border = "border-green-400";
+} else if (tipo === "erro") {
+    icon = `<i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>`;
+    border = "border-red-500";
+} else {
+    icon = `<i data-lucide="info" class="w-5 h-5 text-yellow-400"></i>`;
+    border = "border-yellow-400";
+}
+
+mensagemDiv.classList.add(border);
+mensagemDiv.innerHTML = `${icon}<span>${texto}</span>`;
+lucide?.createIcons?.();
+
+_hideMsgTimer = setTimeout(() => {
+    mensagemDiv.classList.add("hidden");
+}, 4000);
+}
+
+/* ========= Loader ========= */
+function mostrarLoader(ativo, textoOuDicas = "") {
+if (!loaderDiv) return;
+
+  // limpa dicas anteriores
+if (dicaLoaderInterval) {
+    clearInterval(dicaLoaderInterval);
+    dicaLoaderInterval = null;
+}
+
+loaderDiv.classList.toggle("hidden", !ativo);
+
+// feedback de cursor
+document.body.style.cursor = ativo ? "progress" : "";
+
+const processingTextSpan = loaderDiv.querySelector(
+    'span[data-i18n="ui.labels.processing"]'
+);
+if (!processingTextSpan) return;
+
+processingTextSpan.style.transition = "opacity 0.4s ease-in-out";
+
+if (ativo) {
+    if (Array.isArray(textoOuDicas) && textoOuDicas.length) {
+    let i = 0;
+    processingTextSpan.textContent = textoOuDicas[i];
+    processingTextSpan.style.opacity = 1;
+
+    dicaLoaderInterval = setInterval(() => {
+        i = (i + 1) % textoOuDicas.length;
+        processingTextSpan.style.opacity = 0;
+        setTimeout(() => {
+            processingTextSpan.textContent = textoOuDicas[i];
             processingTextSpan.style.opacity = 1;
-
-            dicaLoaderInterval = setInterval(() => {
-                currentIndex = (currentIndex + 1) % textoOuDicas.length;
-                
-                processingTextSpan.style.opacity = 0;
-
-                setTimeout(() => {
-                    processingTextSpan.textContent = textoOuDicas[currentIndex];
-                    processingTextSpan.style.opacity = 1;
-                }, 400);
-
-            }, 6500);
-
-        } else if (typeof textoOuDicas === 'string' && textoOuDicas) {
-            processingTextSpan.textContent = textoOuDicas;
-            processingTextSpan.style.opacity = 1;
-        } else {
-            processingTextSpan.textContent = t('ui.labels.processing');
-            processingTextSpan.style.opacity = 1;
-        }
+        }, 400);
+    }, 6500);
+    } else if (typeof textoOuDicas === "string" && textoOuDicas) {
+        processingTextSpan.textContent = textoOuDicas;
+        processingTextSpan.style.opacity = 1;
     } else {
-        processingTextSpan.textContent = t('ui.labels.processing');
+        processingTextSpan.textContent = t("ui.labels.processing");
         processingTextSpan.style.opacity = 1;
     }
+} else {
+        processingTextSpan.textContent = t("ui.labels.processing");
+        processingTextSpan.style.opacity = 1;
+}
 }
 
+/* ========= Legenda (imagem) ========= */
 function updateLegendImage(templateName) {
-    if (!legendContainer || !legendImage) return;
+    if (!legendContainer || !legendImage || !templateName) return;
 
-    let imagePath = null;
-    const normalizedName = templateName.toLowerCase();
+const normalized = String(templateName).toLowerCase();
 
-    if (normalizedName.includes("brazil_v6")) {
-        imagePath = "assets/images/IRRICONTRO.dBm.key.png";
-    } else if (normalizedName.includes("europe") && normalizedName.includes("v6")) {
-        imagePath = "assets/images/IRRIEUROPE.dBm.key.png";
-    }
+// ajuste aqui conforme seus assets reais
+const MAP = [
+    { test: /brazil[_-\s]?v6/, path: "assets/images/IRRICONTRO.dBm.key.png" },
+    { test: /europe[_-\s]?v6/, path: "assets/images/IRRIEUROPE.dBm.key.png" },
+];
 
-    if (imagePath) {
-        legendImage.src = imagePath;
-        legendContainer.classList.remove('hidden');
-    } else {
-        legendContainer.classList.add('hidden');
-    }
+const match = MAP.find((m) => m.test.test(normalized));
+if (!match) {
+    legendContainer.classList.add("hidden");
+    legendImage.removeAttribute("src");
+    return;
 }
 
+legendImage.onerror = () => {
+// se a imagem não existir, apenas esconda para não quebrar UI
+    legendContainer.classList.add("hidden");
+};
+legendImage.onload = () => {
+    legendContainer.classList.remove("hidden");
+};
+legendImage.src = match.path;
+}
+
+/* ========= Painel de dados ========= */
 function atualizarPainelDados() {
-    const totalPivos = AppState.lastPivosDataDrawn.length;
-    const foraCobertura = AppState.lastPivosDataDrawn.filter(p => p.fora).length;
-    const totalBombas = AppState.lastBombasDataDrawn.length;
+ensureAppState();
 
-    let totalRepetidorasContagem = 0;
-    let totalCentraisContagem = 0;
+const pivos = Array.isArray(AppState.lastPivosDataDrawn)
+    ? AppState.lastPivosDataDrawn
+    : [];
+const bombas = Array.isArray(AppState.lastBombasDataDrawn)
+    ? AppState.lastBombasDataDrawn
+    : [];
+const reps = Array.isArray(AppState.repetidoras) ? AppState.repetidoras : [];
 
-    if (AppState.antenaGlobal) {
-        const antennaType = AppState.antenaGlobal.type;
-        if (antennaType === 'central') {
-            totalCentraisContagem++;
-        } else if (antennaType === 'central_repeater_combined') {
-            totalCentraisContagem++;
-            totalRepetidorasContagem++;
-        } else {
-            totalRepetidorasContagem++;
-        }
-    }
+const totalPivos = pivos.length;
+const foraCobertura = pivos.filter((p) => p?.fora).length;
 
-    AppState.repetidoras.forEach(rep => {
-        const repType = rep.type;
-        if (repType === 'central') {
-            totalCentraisContagem++;
-        } else if (repType === 'central_repeater_combined') {
-            totalCentraisContagem++;
-            totalRepetidorasContagem++;
-        } else {
-            totalRepetidorasContagem++;
-        }
-    });
+let totalRepetidoras = 0;
+let totalCentrais = 0;
 
-
-    document.getElementById("total-pivos").textContent = `${t('ui.labels.total_pivots')} ${totalPivos}`;
-    document.getElementById("fora-cobertura").textContent = `${t('ui.labels.out_of_coverage')} ${foraCobertura}`;
-    document.getElementById("template-info").textContent = `🌐 Template: ${AppState.templateSelecionado || '--'}`;
-    
-    document.getElementById("total-repetidoras").textContent = `${t('ui.labels.total_repeaters')} ${totalRepetidorasContagem}`;
-
-    const centralCountElement = document.getElementById('total-centrais');
-    const centralCountValueElement = document.getElementById('central-count-value');
-    if (centralCountElement && centralCountValueElement) {
-        centralCountValueElement.textContent = totalCentraisContagem;
-        centralCountElement.classList.toggle("hidden", totalCentraisContagem === 0);
-    }
-    
-    const bombasElemento = document.getElementById("total-bombas");
-    bombasElemento.textContent = `${t('ui.labels.pump_houses')} ${totalBombas}`;
-    bombasElemento.classList.toggle("hidden", totalBombas === 0);
+if (AppState.antenaGlobal) {
+    const t = AppState.antenaGlobal.type;
+    if (t === "central") totalCentrais++;
+    else if (t === "central_repeater_combined") {
+    totalCentrais++;
+    totalRepetidoras++;
+    } else totalRepetidoras++;
 }
 
+reps.forEach((r) => {
+    const t = r?.type;
+    if (t === "central") totalCentrais++;
+    else if (t === "central_repeater_combined") {
+        totalCentrais++;
+        totalRepetidoras++;
+    } else totalRepetidoras++;
+});
 
+const elTotalPivos = document.getElementById("total-pivos");
+const elFora = document.getElementById("fora-cobertura");
+const elTpl = document.getElementById("template-info");
+const elTotalRep = document.getElementById("total-repetidoras");
+const elCentrais = document.getElementById("total-centrais");
+const elCentraisVal = document.getElementById("central-count-value");
+const elBombas = document.getElementById("total-bombas");
+
+if (elTotalPivos)
+    elTotalPivos.textContent = `${t("ui.labels.total_pivots")} ${totalPivos}`;
+if (elFora)
+    elFora.textContent = `${t("ui.labels.out_of_coverage")} ${foraCobertura}`;
+if (elTpl)
+    elTpl.textContent = `🌐 Template: ${AppState.templateSelecionado || "--"}`;
+if (elTotalRep)
+    elTotalRep.textContent = `${t("ui.labels.total_repeaters")} ${totalRepetidoras}`;
+
+if (elCentrais && elCentraisVal) {
+    elCentraisVal.textContent = totalCentrais;
+    elCentrais.classList.toggle("hidden", totalCentrais === 0);
+}
+if (elBombas) {
+    elBombas.textContent = `${t("ui.labels.pump_houses")} ${bombas.length}`;
+    elBombas.classList.toggle("hidden", bombas.length === 0);
+}
+}
+
+/* ========= Stack de painéis ========= */
 function reposicionarPaineisLaterais() {
-    const paineis = [painelDadosDiv, painelRepetidorasDiv];
-    let topoAtual = 16;
-    const espacamento = 16;
+const paineis = [painelDadosDiv, painelRepetidorasDiv].filter(Boolean);
+  let topo = 16; // px
+const gap = 16;
 
-    paineis.forEach(painel => {
-        if (painel) {
-            painel.style.top = `${topoAtual}px`;
-            topoAtual += painel.offsetHeight + espacamento;
-        }
-    });
+paineis.forEach((p) => {
+    p.style.top = `${topo}px`;
+    topo += p.offsetHeight + gap;
+});
 }
 
+/* ========= Templates ========= */
 async function loadAndPopulateTemplates() {
-    try {
-        const templates = await getTemplates();
-        templateSelect.innerHTML = templates.map(t => {
-            const prefix = t.includes("Brazil") ? "🇧🇷 " : t.includes("Europe") ? "🇪🇺 " : "🌐 ";
-            return `<option value="${t}">${prefix}${t}</option>`;
-        }).join('');
+try {
+    const templates = await getTemplates();
+    const arr = Array.isArray(templates) ? templates.slice() : [];
+    if (!arr.length) throw new Error("Lista de templates vazia");
 
-        const savedTemplate = localStorage.getItem('templateSelecionado');
-        templateSelect.value = savedTemplate && templates.includes(savedTemplate) ? savedTemplate : templates[0];
-        templateSelect.dispatchEvent(new Event('change'));
-    } catch (error) {
-        console.error("⚠️ Erro ao carregar templates:", error);
-        mostrarMensagem(t('messages.errors.template_load_fail'), "erro");
-    }
+// remove duplicados
+    const uniq = [...new Set(arr)];
+    templateSelect.innerHTML = uniq
+    .map((tname) => {
+        const prefix = /brazil/i.test(tname)
+            ? "🇧🇷 "
+            : /europe/i.test(tname)
+            ? "🇪🇺 "
+            : "🌐 ";
+        return `<option value="${tname}">${prefix}${tname}</option>`;
+        })
+        .join("");
+
+    const saved = localStorage.getItem("templateSelecionado");
+    const hasSaved = saved && uniq.includes(saved);
+    templateSelect.value = hasSaved ? saved : uniq[0];
+    templateSelect.dispatchEvent(new Event("change"));
+} catch (err) {
+    console.error("⚠️ Erro ao carregar templates:", err);
+    mostrarMensagem(t("messages.errors.template_load_fail"), "erro");
+}
 }
 
+/* ========= Edição de Pivôs ========= */
 function togglePivoEditing() {
-    const novoEstadoDeEdicao = !AppState.modoEdicaoPivos;
-    AppState.modoEdicaoPivos = novoEstadoDeEdicao;
+ensureAppState();
 
-    const btn = document.getElementById("editar-pivos");
-    const btnUndo = document.getElementById("desfazer-edicao");
-    const btnMoverPivo = document.getElementById("btn-mover-pivo-sem-circulo");
+const novo = !AppState.modoEdicaoPivos;
+AppState.modoEdicaoPivos = novo;
 
-    btn.innerHTML = novoEstadoDeEdicao ? `<i data-lucide="save" class="w-5 h-5"></i>` : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
-    btn.title = novoEstadoDeEdicao ? t('ui.titles.save_edit') : t('ui.titles.edit_pivots');
-    btn.classList.toggle('glass-button-active', novoEstadoDeEdicao);
-    btnUndo.classList.toggle("hidden", !novoEstadoDeEdicao);
-    btnMoverPivo.classList.toggle("hidden", !novoEstadoDeEdicao);
+const btn = document.getElementById("editar-pivos");
+const btnUndo = document.getElementById("desfazer-edicao");
 
-    if (novoEstadoDeEdicao) {
-        if (AppState.modoDesenhoPivo) toggleModoDesenhoPivo();
-        if (AppState.modoDesenhoPivoSetorial) toggleModoDesenhoPivoSetorial();
-        if (AppState.modoDesenhoPivoPacman) toggleModoDesenhoPivoPacman();
-        if (AppState.modoDesenhoIrripump) toggleModoDesenhoIrripump();
-        if (AppState.modoLoSPivotAPivot) toggleLoSPivotAPivotMode();
-        if (AppState.modoBuscaLocalRepetidora) handleBuscarLocaisRepetidoraActivation();
-        
-        enablePivoEditingMode();
-    } else {
-        if (AppState.modoMoverPivoSemCirculo) {
-            toggleModoMoverPivoSemCirculo();
-        }
-        disablePivoEditingMode();
+if (btn) {
+    btn.innerHTML = novo
+        ? `<i data-lucide="save" class="w-5 h-5"></i>`
+        : `<i data-lucide="pencil" class="w-5 h-5"></i>`;
+    btn.title = novo ? t("ui.titles.save_edit") : t("ui.titles.edit_pivots");
+    btn.classList.toggle("glass-button-active", novo);
+}
+btnUndo?.classList.toggle("hidden", !novo);
+btnMoverPivoSemCirculo?.classList.toggle("hidden", !novo);
+
+// Desliga outros modos se existirem
+if (novo) {
+    typeof AppState.modoDesenhoPivo !== "undefined" &&
+        AppState.modoDesenhoPivo &&
+        typeof toggleModoDesenhoPivo === "function" &&
+        toggleModoDesenhoPivo();
+
+    typeof AppState.modoDesenhoPivoSetorial !== "undefined" &&
+        AppState.modoDesenhoPivoSetorial &&
+        typeof toggleModoDesenhoPivoSetorial === "function" &&
+        toggleModoDesenhoPivoSetorial();
+
+    typeof AppState.modoDesenhoPivoPacman !== "undefined" &&
+        AppState.modoDesenhoPivoPacman &&
+        typeof toggleModoDesenhoPivoPacman === "function" &&
+        toggleModoDesenhoPivoPacman();
+
+    typeof AppState.modoDesenhoIrripump !== "undefined" &&
+        AppState.modoDesenhoIrripump &&
+        typeof toggleModoDesenhoIrripump === "function" &&
+        toggleModoDesenhoIrripump();
+
+    typeof AppState.modoLoSPivotAPivot !== "undefined" &&
+        AppState.modoLoSPivotAPivot &&
+        typeof toggleLoSPivotAPivotMode === "function" &&
+        toggleLoSPivotAPivotMode();
+
+    typeof AppState.modoBuscaLocalRepetidora !== "undefined" &&
+        AppState.modoBuscaLocalRepetidora &&
+        typeof handleBuscarLocaisRepetidoraActivation === "function" &&
+        handleBuscarLocaisRepetidoraActivation();
+
+// Liga edição
+    if (typeof enablePivoEditingMode === "function") enablePivoEditingMode();
+} else {
+    if (AppState.modoMoverPivoSemCirculo && typeof toggleModoMoverPivoSemCirculo === "function") {
+    toggleModoMoverPivoSemCirculo();
     }
-
-    lucide.createIcons();
+    if (typeof disablePivoEditingMode === "function") disablePivoEditingMode();
 }
 
+lucide?.createIcons?.();
+}
+
+/* ========= Listeners UI ========= */
 function setupUIEventListeners() {
-    document.querySelectorAll('.panel-toggle-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const panel = e.currentTarget.closest('.panel');
-            if (!panel) return;
+  // evita duplo bind se função for chamada mais de uma vez
+if (document.body.dataset.uiBound === "1") return;
+document.body.dataset.uiBound = "1";
 
-            panel.classList.toggle('minimized');
-            const icon = btn.querySelector('i');
-
-            if (panel.classList.contains('minimized')) {
-                icon.setAttribute('data-lucide', 'chevron-down');
-            } else {
-                icon.setAttribute('data-lucide', 'chevron-up');
-            }
-            lucide.createIcons();
-            
-            setTimeout(reposicionarPaineisLaterais, 500); 
-        });
+// botões de minimizar dos painéis
+document.querySelectorAll(".panel-toggle-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+    const panel = e.currentTarget.closest(".panel");
+    if (!panel) return;
+    panel.classList.toggle("minimized");
+    const icon = btn.querySelector("i");
+    if (icon) {
+        icon.setAttribute(
+            "data-lucide",
+            panel.classList.contains("minimized") ? "chevron-down" : "chevron-up"
+        );
+    }
+    lucide?.createIcons?.();
+    setTimeout(reposicionarPaineisLaterais, 500);
     });
+});
 
-    document.getElementById("toggle-legenda").addEventListener("click", () => {
-        AppState.legendasAtivas = !AppState.legendasAtivas;
-        const btn = document.getElementById("toggle-legenda");
-        btn.classList.toggle("glass-button-active", !AppState.legendasAtivas);
+// legenda
+const btnLegenda = document.getElementById("toggle-legenda");
+if (btnLegenda && !btnLegenda.dataset.bound) {
+    btnLegenda.dataset.bound = "1";
+    btnLegenda.addEventListener("click", () => {
+    ensureAppState();
+    AppState.legendasAtivas = !AppState.legendasAtivas;
 
-        const icon = btn.querySelector('.sidebar-icon');
-        const iconPath = AppState.legendasAtivas ? 'assets/images/captions.svg' : 'assets/images/captions-off.svg';
-        if(icon) {
-            icon.style.webkitMaskImage = `url(${iconPath})`;
-            icon.style.maskImage = `url(${iconPath})`;
-        }
-        
-        updateLegendsVisibility();
+    btnLegenda.classList.toggle("glass-button-active", AppState.legendasAtivas);
+    const icon = btnLegenda.querySelector(".sidebar-icon");
+    const iconPath = AppState.legendasAtivas
+        ? "assets/images/captions.svg"
+        : "assets/images/captions-off.svg";
+    if (icon) {
+        icon.style.webkitMaskImage = `url(${iconPath})`;
+        icon.style.maskImage = `url(${iconPath})`;
+    }
+    if (typeof updateLegendsVisibility === "function") updateLegendsVisibility();
     });
-
-    document.getElementById("toggle-antenas-legendas").addEventListener("click", () => {
-        AppState.antenaLegendasAtivas = !AppState.antenaLegendasAtivas;
-        const btn = document.getElementById("toggle-antenas-legendas");
-        btn.classList.toggle("glass-button-active", !AppState.antenaLegendasAtivas);
-
-        const icon = btn.querySelector('.sidebar-icon');
-        
-        if(icon) {
-            icon.style.webkitMaskImage = `url('assets/images/radio.svg')`;
-            icon.style.maskImage = `url('assets/images/radio.svg')`;
-        }
-
-        updateLegendsVisibility();
-    });
-
-    rangeOpacidade.addEventListener("input", () => {
-        updateOverlaysOpacity(parseFloat(rangeOpacidade.value));
-    });
-
-    templateSelect.addEventListener("change", (e) => {
-        AppState.templateSelecionado = e.target.value;
-        localStorage.setItem('templateSelecionado', AppState.templateSelecionado);
-        atualizarPainelDados();
-        updateLegendImage(e.target.value);
-        console.log("Template selecionado:", AppState.templateSelecionado);
-    });
-
-    document.getElementById("fechar-painel-rep").addEventListener("click", () => {
-        painelConfigRepetidoraDiv.classList.add('hidden');
-        removePositioningMarker();
-    });
-
-    document.getElementById("editar-pivos").addEventListener("click", togglePivoEditing);
-    document.getElementById("desfazer-edicao").addEventListener("click", desfazerUltimaAcao);
-
-    document.querySelectorAll('[data-lang]').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const lang = e.currentTarget.getAttribute('data-lang');
-            if (lang) setLanguage(lang);
-        });
-    });
-
-    lucide.createIcons();
 }
 
-function expandAllPanels() {
-    document.querySelectorAll('.panel.minimized').forEach(panel => {
-        panel.classList.remove('minimized');
-
-        const toggleBtn = panel.querySelector('.panel-toggle-btn');
-        if (toggleBtn) {
-            const icon = toggleBtn.querySelector('i');
-            if (icon) {
-                icon.setAttribute('data-lucide', 'chevron-up');
-            }
-        }
+// legendas de antena
+const btnAntLeg = document.getElementById("toggle-antenas-legendas");
+if (btnAntLeg && !btnAntLeg.dataset.bound) {
+    btnAntLeg.dataset.bound = "1";
+    btnAntLeg.addEventListener("click", () => {
+    ensureAppState();
+    AppState.antenaLegendasAtivas = !AppState.antenaLegendasAtivas;
+    btnAntLeg.classList.toggle("glass-button-active", AppState.antenaLegendasAtivas);
+    const icon = btnAntLeg.querySelector(".sidebar-icon");
+    if (icon) {
+        icon.style.webkitMaskImage = `url('assets/images/radio.svg')`;
+        icon.style.maskImage = `url('assets/images/radio.svg')`;
+    }
+    if (typeof updateLegendsVisibility === "function") updateLegendsVisibility();
     });
+}
 
-    lucide.createIcons();
+// range de opacidade
+if (rangeOpacidade && !rangeOpacidade.dataset.bound) {
+    rangeOpacidade.dataset.bound = "1";
+    rangeOpacidade.addEventListener("input", () => {
+        const val = parseFloat(rangeOpacidade.value);
+        if (typeof updateOverlaysOpacity === "function") updateOverlaysOpacity(val);
+    });
+}
+
+// select de template
+if (templateSelect && !templateSelect.dataset.bound) {
+    templateSelect.dataset.bound = "1";
+    templateSelect.addEventListener("change", (e) => {
+    ensureAppState();
+    AppState.templateSelecionado = e.target.value;
+    localStorage.setItem("templateSelecionado", AppState.templateSelecionado);
+    atualizarPainelDados();
+    updateLegendImage(e.target.value);
+    console.log("Template selecionado:", AppState.templateSelecionado);
+    });
+}
+
+// fechar painel repetidora
+const fecharPainelRep = document.getElementById("fechar-painel-rep");
+if (fecharPainelRep && !fecharPainelRep.dataset.bound) {
+    fecharPainelRep.dataset.bound = "1";
+    fecharPainelRep.addEventListener("click", () => {
+        painelConfigRepetidoraDiv?.classList.add("hidden");
+        if (typeof removePositioningMarker === "function") removePositioningMarker();
+    });
+}
+
+// editar / desfazer
+const btnEditar = document.getElementById("editar-pivos");
+if (btnEditar && !btnEditar.dataset.bound) {
+    btnEditar.dataset.bound = "1";
+    btnEditar.addEventListener("click", togglePivoEditing);
+}
+const btnUndo = document.getElementById("desfazer-edicao");
+if (btnUndo && !btnUndo.dataset.bound) {
+    btnUndo.dataset.bound = "1";
+    btnUndo.addEventListener("click", () => {
+        if (typeof desfazerUltimaAcao === "function") desfazerUltimaAcao();
+    });
+}
+
+// troca de idioma
+document.querySelectorAll("[data-lang]").forEach((button) => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = "1";
+    button.addEventListener("click", (e) => {
+        const lang = e.currentTarget.getAttribute("data-lang");
+        if (lang && typeof setLanguage === "function") setLanguage(lang);
+    });
+});
+
+    lucide?.createIcons?.();
+}
+
+/* ========= Painéis: expandir tudo ========= */
+function expandAllPanels() {
+document.querySelectorAll(".panel.minimized").forEach((panel) => {
+    panel.classList.remove("minimized");
+    const toggleBtn = panel.querySelector(".panel-toggle-btn");
+    const icon = toggleBtn?.querySelector("i");
+    if (icon) icon.setAttribute("data-lucide", "chevron-up");
+});
+    lucide?.createIcons?.();
     setTimeout(reposicionarPaineisLaterais, 500);
 }
 
-/**
- * Cria ou atualiza um tooltip que segue o mouse.
- * @param {L.Map} mapInstance - A instância do mapa Leaflet.
- * @param {MouseEvent} mouseEvent - O evento do mouse para obter a posição.
- * @param {string} textContent - O texto a ser exibido no tooltip.
- */
+/* ========= Tooltips de desenho ========= */
 function updateDrawingTooltip(mapInstance, mouseEvent, textContent) {
-    const container = mapInstance.getContainer();
-    let tooltip = container.querySelector('.drawing-tooltip');
+    if (!mapInstance || !mouseEvent) return;
+const container = mapInstance.getContainer?.();
+    if (!container) return;
 
-    // Cria o tooltip se ele não existir
+    let tooltip = container.querySelector(".drawing-tooltip");
     if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.className = 'drawing-tooltip';
-        container.appendChild(tooltip);
-    }
-
-    // Atualiza o texto
+    tooltip = document.createElement("div");
+    tooltip.className = "drawing-tooltip";
+    container.appendChild(tooltip);
+}
     tooltip.innerHTML = textContent;
 
-    // Posiciona o tooltip um pouco abaixo e à direita do cursor
-    const x = mouseEvent.containerPoint.x + 15;
-    const y = mouseEvent.containerPoint.y + 15;
-
+const x = mouseEvent.containerPoint.x + 15;
+const y = mouseEvent.containerPoint.y + 15;
     tooltip.style.left = `${x}px`;
     tooltip.style.top = `${y}px`;
     tooltip.style.opacity = 1;
 }
 
-/**
- * Remove o tooltip de desenho do mapa.
- * @param {L.Map} mapInstance - A instância do mapa Leaflet.
- */
 function removeDrawingTooltip(mapInstance) {
-    const container = mapInstance.getContainer();
-    const tooltip = container.querySelector('.drawing-tooltip');
+const container = mapInstance?.getContainer?.();
+const tooltip = container?.querySelector(".drawing-tooltip");
     if (tooltip) {
-        tooltip.style.opacity = 0;
-        // Remove o elemento após a transição para suavizar o desaparecimento
-        setTimeout(() => tooltip.remove(), 100);
+    tooltip.style.opacity = 0;
+    setTimeout(() => tooltip.remove(), 100);
     }
 }
+
+/* ========= Exports globais, se outros módulos precisarem ========= */
+window.showCustomConfirm = showCustomConfirm;
+window.mostrarMensagem = mostrarMensagem;
+window.mostrarLoader = mostrarLoader;
+window.updateLegendImage = updateLegendImage;
+window.atualizarPainelDados = atualizarPainelDados;
+window.reposicionarPaineisLaterais = reposicionarPaineisLaterais;
+window.loadAndPopulateTemplates = loadAndPopulateTemplates;
+window.togglePivoEditing = togglePivoEditing;
+window.setupUIEventListeners = setupUIEventListeners;
+window.expandAllPanels = expandAllPanels;
+window.updateDrawingTooltip = updateDrawingTooltip;
+window.removeDrawingTooltip = removeDrawingTooltip;
+window.ensureAppState = ensureAppState;
