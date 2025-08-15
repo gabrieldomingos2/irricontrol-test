@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Tuple, Literal
 from pathlib import Path
 import logging
-import json
 import shutil
 
 from backend.config import settings
@@ -13,6 +12,8 @@ from backend.services import cloudrf_service, analysis_service
 
 logger = logging.getLogger("irricontrol")
 router = APIRouter(prefix="/simulation", tags=["Simulation & Analysis"])
+
+DEBUG = getattr(settings, "DEBUG", False)
 
 # --- Modelos Pydantic ---
 class PivoData(BaseModel):
@@ -28,12 +29,17 @@ class PivoData(BaseModel):
     angulo_fim: Optional[float] = None
 
 class BombaData(BaseModel):
-    nome: str; lat: float; lon: float
-    type: Literal['bomba'] = 'bomba'; fora: Optional[bool] = None
+    nome: str
+    lat: float
+    lon: float
+    type: Literal['bomba'] = 'bomba'
+    fora: Optional[bool] = None
 
 class AntenaSimPayload(BaseModel):
     job_id: str
-    lat: float; lon: float; altura: int
+    lat: float
+    lon: float
+    altura: int
     altura_receiver: Optional[int] = 3
     nome: Optional[str] = "Antena Principal"
     template: str
@@ -41,11 +47,18 @@ class AntenaSimPayload(BaseModel):
     bombas_atuais: List[BombaData]
 
 class ManualSimPayload(BaseModel):
-    job_id: str; lat: float; lon: float; altura: float; altura_receiver: float
-    template: str; pivos_atuais: List[PivoData]
+    job_id: str
+    lat: float
+    lon: float
+    altura: float
+    altura_receiver: float
+    template: str
+    pivos_atuais: List[PivoData]
 
 class OverlayData(BaseModel):
-    id: Optional[str] = None; imagem: str; bounds: Tuple[float, float, float, float]
+    id: Optional[str] = None
+    imagem: str
+    bounds: Tuple[float, float, float, float]
 
 class ReavaliarPayload(BaseModel):
     job_id: str
@@ -55,11 +68,17 @@ class ReavaliarPayload(BaseModel):
     signal_sources: Optional[List[Dict[str, float]]] = None
 
 class PerfilPayload(BaseModel):
-    pontos: List[Tuple[float, float]]; altura_antena: float; altura_receiver: float
+    pontos: List[Tuple[float, float]]
+    altura_antena: float
+    altura_receiver: float
 
 class FindRepeaterSitesPayload(BaseModel):
-    job_id: str; target_pivot_lat: float; target_pivot_lon: float; target_pivot_nome: str
-    altura_antena_repetidora_proposta: Optional[float] = 5.0; altura_receiver_pivo: Optional[float] = 3.0
+    job_id: str
+    target_pivot_lat: float
+    target_pivot_lon: float
+    target_pivot_nome: str
+    altura_antena_repetidora_proposta: Optional[float] = 5.0
+    altura_receiver_pivo: Optional[float] = 3.0
     active_overlays: List[OverlayData]
     pivot_polygons_coords: Optional[List[List[Tuple[float, float]]]] = None
 
@@ -69,9 +88,45 @@ class GeneratePivotPayload(BaseModel):
     pivos_atuais: List[PivoData]
     language: str = 'pt-br'
 
+
+# --- Helpers ---
 def _get_image_filepath_for_analysis(image_filename: str, job_id: str) -> Path:
-    filename_only = Path(image_filename.split('?')[0]).name
+    """
+    Normaliza o nome (descarta querystring) e resolve dentro da pasta do job.
+    Evita path traversal vindo do cliente.
+    """
+    filename_only = Path(image_filename.split('?', 1)[0]).name
     return settings.IMAGENS_DIR_PATH / job_id / filename_only
+
+def _build_served_url(job_id: str, filename: str) -> str:
+    """
+    Monta a URL pública da imagem, com ou sem BACKEND_PUBLIC_URL.
+    Se vazio, volta caminho relativo absoluto (/static/...)
+    """
+    backend_url = (str(settings.BACKEND_PUBLIC_URL).rstrip('/')
+                    if getattr(settings, "BACKEND_PUBLIC_URL", None)
+                    else "")
+    path_part = f"/{settings.STATIC_DIR_NAME}/{settings.IMAGENS_DIR_NAME}/{job_id}/{filename}"
+    return f"{backend_url}{path_part}"
+
+def _validate_template_id(template_id: str) -> None:
+    available = set(settings.listar_templates_ids())
+    if template_id not in available:
+        raise HTTPException(status_code=400, detail=f"Template inválido: '{template_id}'")
+
+def _copy_cached_with_json(cached_image_path: Path, dest_image_path: Path) -> None:
+    """
+    Copia a imagem e o json irmão, se existir. Se o .json não existir, loga warning.
+    """
+    dest_image_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(cached_image_path, dest_image_path)
+    json_src = cached_image_path.with_suffix(".json")
+    json_dst = dest_image_path.with_suffix(".json")
+    if json_src.exists():
+        shutil.copy2(json_src, json_dst)
+    else:
+        logger.warning("Arquivo JSON associado não encontrado: %s", json_src)
+
 
 # --- Endpoints ---
 @router.get("/templates")
@@ -89,112 +144,124 @@ async def generate_pivot_in_circle_endpoint(payload: GeneratePivotPayload):
         )
         return {"novo_pivo": novo_pivo}
     except Exception as e:
-        logger.error(f"❌ Erro em /generate_pivot_in_circle: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao gerar novo pivô: {str(e)}")
+        logger.error("❌ Erro em /generate_pivot_in_circle: %s", e, exc_info=True)
+        msg = f"Erro ao gerar novo pivô: {type(e).__name__} - {e}" if DEBUG else f"Erro ao gerar novo pivô: {type(e).__name__}"
+        raise HTTPException(status_code=500, detail=msg)
 
 @router.post("/run_main")
 async def run_main_simulation_endpoint(payload: AntenaSimPayload):
     try:
-        logger.info(f"🛰️  Iniciando simulação principal para job: {payload.job_id}")
+        _validate_template_id(payload.template)
+        logger.info("🛰️  Iniciando simulação principal para job: %s", payload.job_id)
+
         sim_result = await cloudrf_service.run_cloudrf_simulation(
-            lat=payload.lat, lon=payload.lon, altura=payload.altura,
-            altura_receiver=payload.altura_receiver, template_id=payload.template,
+            lat=payload.lat,
+            lon=payload.lon,
+            altura=payload.altura,
+            altura_receiver=payload.altura_receiver,
+            template_id=payload.template,
         )
-        
-        job_image_dir = settings.IMAGENS_DIR_PATH / payload.job_id
-        job_image_dir.mkdir(parents=True, exist_ok=True)
+
         cached_image_path = Path(sim_result["imagem_local_path"])
         imagem_filename = sim_result["imagem_filename"]
-        imagem_path_servidor = job_image_dir / imagem_filename
-        
-        shutil.copy2(cached_image_path, imagem_path_servidor)
-        shutil.copy2(cached_image_path.with_suffix(".json"), imagem_path_servidor.with_suffix(".json"))
+        bounds = sim_result.get("bounds")
+        if bounds is None:
+            raise HTTPException(status_code=502, detail="Resposta da simulação sem 'bounds'.")
 
-        backend_url = str(settings.BACKEND_PUBLIC_URL).rstrip('/') if settings.BACKEND_PUBLIC_URL else ""
-        imagem_servida_url = f"{backend_url}/{settings.STATIC_DIR_NAME}/{settings.IMAGENS_DIR_NAME}/{payload.job_id}/{imagem_filename}"
+        job_image_dir = settings.IMAGENS_DIR_PATH / payload.job_id
+        dest_image_path = job_image_dir / Path(imagem_filename).name
+        _copy_cached_with_json(cached_image_path, dest_image_path)
 
-        overlay_info = {"imagem_path": imagem_path_servidor, "bounds": sim_result["bounds"]}
-        
+        imagem_servida_url = _build_served_url(payload.job_id, dest_image_path.name)
+        overlay_info = {"imagem_path": dest_image_path, "bounds": bounds}
         signal_sources = [{'lat': payload.lat, 'lon': payload.lon}]
-        
-        pivos_com_status = await analysis_service.verificar_cobertura_pivos(
-            [p.model_dump() for p in payload.pivos_atuais], [overlay_info], signal_sources
+
+        pivos_com_status, bombas_com_status = await asyncio.gather(
+            analysis_service.verificar_cobertura_pivos(
+                [p.model_dump() for p in payload.pivos_atuais], [overlay_info], signal_sources
+            ),
+            analysis_service.verificar_cobertura_bombas(
+                [b.model_dump() for b in payload.bombas_atuais], [overlay_info], signal_sources
+            ),
         )
-        bombas_com_status = await analysis_service.verificar_cobertura_bombas(
-            [b.model_dump() for b in payload.bombas_atuais], [overlay_info], signal_sources
-        )
-        
-        logger.info(f"✅ Simulação principal para job {payload.job_id} concluída e analisada.")
+
+        logger.info("✅ Simulação principal para job %s concluída e analisada.", payload.job_id)
         return {
-            "imagem_salva": imagem_servida_url, "imagem_filename": imagem_filename,
-            "bounds": sim_result["bounds"], "pivos": pivos_com_status, "bombas": bombas_com_status
+            "imagem_salva": imagem_servida_url,
+            "imagem_filename": dest_image_path.name,
+            "bounds": bounds,
+            "pivos": pivos_com_status,
+            "bombas": bombas_com_status,
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"❌ Erro Interno em /run_main: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro na simulação principal: {str(e)}")
+        logger.error("❌ Erro Interno em /run_main: %s", e, exc_info=True)
+        msg = f"Erro na simulação principal: {type(e).__name__} - {e}" if DEBUG else f"Erro na simulação principal: {type(e).__name__}"
+        raise HTTPException(status_code=500, detail=msg)
 
 @router.post("/run_manual")
 async def run_manual_simulation_endpoint(payload: ManualSimPayload):
     try:
-        logger.info(f"📡 Iniciando simulação manual para job: {payload.job_id}")
+        _validate_template_id(payload.template)
+        logger.info("📡 Iniciando simulação manual para job: %s", payload.job_id)
 
-        sim_result_from_service = await cloudrf_service.run_cloudrf_simulation(
+        sim_result = await cloudrf_service.run_cloudrf_simulation(
             lat=payload.lat,
             lon=payload.lon,
             altura=int(payload.altura),
             altura_receiver=int(payload.altura_receiver),
             template_id=payload.template,
-            is_repeater=True
+            is_repeater=True,
         )
 
+        cached_image_path = Path(sim_result["imagem_local_path"])
+        imagem_filename = Path(sim_result["imagem_filename"]).name
+        bounds = sim_result.get("bounds")
+        if bounds is None:
+            raise HTTPException(status_code=502, detail="Resposta da simulação sem 'bounds'.")
+
         job_image_dir = settings.IMAGENS_DIR_PATH / payload.job_id
-        job_image_dir.mkdir(parents=True, exist_ok=True)
+        dest_image_path = job_image_dir / imagem_filename
+        _copy_cached_with_json(cached_image_path, dest_image_path)
 
-        cached_image_path = Path(sim_result_from_service["imagem_local_path"])
-        imagem_filename = sim_result_from_service["imagem_filename"]
-        imagem_path_servidor = job_image_dir / imagem_filename
-
-        shutil.copy2(cached_image_path, imagem_path_servidor)
-        shutil.copy2(cached_image_path.with_suffix(".json"), imagem_path_servidor.with_suffix(".json"))
-        logger.info(f" -> Arquivos '{imagem_filename}' copiados do cache para o job '{payload.job_id}'.")
-
-        backend_url_prefix = str(settings.BACKEND_PUBLIC_URL).rstrip('/') if settings.BACKEND_PUBLIC_URL else ""
-        imagem_servida_url = f"{backend_url_prefix}/{settings.STATIC_DIR_NAME}/{settings.IMAGENS_DIR_NAME}/{payload.job_id}/{imagem_filename}"
-
-        logger.info(f"✅ Simulação CloudRF (manual) para job {payload.job_id} concluída.")
+        imagem_servida_url = _build_served_url(payload.job_id, imagem_filename)
+        logger.info("✅ Simulação CloudRF (manual) para job %s concluída.", payload.job_id)
 
         return {
             "imagem_salva": imagem_servida_url,
             "imagem_filename": imagem_filename,
-            "bounds": sim_result_from_service["bounds"],
+            "bounds": bounds,
             "status": "Simulação manual concluída",
         }
+    except HTTPException:
+        raise
     except ValueError as e:
-        logger.warning(f"❌ Erro de Validação em /run_manual (job: {payload.job_id}): {e}")
+        logger.warning("❌ Erro de Validação em /run_manual (job: %s): %s", payload.job_id, e)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"❌ Erro Interno em /simulation/run_manual (job: {payload.job_id}): {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno na simulação manual: {str(e)}")
-
+        logger.error("❌ Erro Interno em /simulation/run_manual (job: %s): %s", payload.job_id, e, exc_info=True)
+        msg = f"Erro interno na simulação manual: {type(e).__name__} - {e}" if DEBUG else f"Erro interno na simulação manual: {type(e).__name__}"
+        raise HTTPException(status_code=500, detail=msg)
 
 @router.post("/reevaluate")
 async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
     """
     Reavalia a cobertura de pivôs e bombas com base em uma lista de overlays (imagens de sinal).
-    Esta versão é robusta e executa as análises em paralelo para melhor desempenho.
+    Versão robusta e paralela.
     """
     try:
-        logger.info(f"🔄 Reavaliando cobertura para job {payload.job_id} com {len(payload.overlays)} overlays.")
+        logger.info("🔄 Reavaliando cobertura para job %s com %d overlays.", payload.job_id, len(payload.overlays))
 
         overlays_para_analise = []
         if payload.overlays:
             for o_data in payload.overlays:
                 imagem_path_servidor = _get_image_filepath_for_analysis(o_data.imagem, payload.job_id)
                 if not imagem_path_servidor.is_file():
-                    logger.warning(f"Arquivo de imagem '{o_data.imagem}' não encontrado para job '{payload.job_id}'. Pulando overlay.")
+                    logger.warning("Arquivo de imagem '%s' não encontrado para job '%s'. Pulando overlay.", o_data.imagem, payload.job_id)
                     continue
                 overlays_para_analise.append({
-                    "id": o_data.id or f"overlay_{Path(o_data.imagem).stem}",
+                    "id": o_data.id or f"overlay_{Path(o_data.imagem.split('?',1)[0]).stem}",
                     "imagem_path": imagem_path_servidor,
                     "bounds": o_data.bounds
                 })
@@ -203,16 +270,18 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
         bombas_atualizadas = [b.model_dump() for b in payload.bombas]
 
         if not overlays_para_analise and not payload.signal_sources:
-            for pivo in pivos_atualizados: pivo['fora'] = True
-            for bomba in bombas_atualizadas: bomba['fora'] = True
+            for pivo in pivos_atualizados:
+                pivo['fora'] = True
+            for bomba in bombas_atualizadas:
+                bomba['fora'] = True
             return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}
 
         tasks = []
         signal_sources = payload.signal_sources or []
-        
+
         if pivos_atualizados:
             tasks.append(analysis_service.verificar_cobertura_pivos(pivos_atualizados, overlays_para_analise, signal_sources))
-        
+
         if bombas_atualizadas:
             tasks.append(analysis_service.verificar_cobertura_bombas(bombas_atualizadas, overlays_para_analise, signal_sources))
 
@@ -225,35 +294,39 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
             if bombas_atualizadas:
                 bombas_atualizadas = results[result_index]
 
-        logger.info(f"✅ Pivôs e Bombas atualizados pela reavaliação para o job {payload.job_id}.")
+        logger.info("✅ Pivôs e Bombas atualizados pela reavaliação para o job %s.", payload.job_id)
         return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}
 
     except Exception as e:
-        logger.error(f"❌ Erro em /simulation/reevaluate (job: {payload.job_id}): {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao reavaliar cobertura: {str(e)}")
-
+        logger.error("❌ Erro em /simulation/reevaluate (job: %s): %s", payload.job_id, e, exc_info=True)
+        msg = f"Erro ao reavaliar cobertura: {type(e).__name__} - {e}" if DEBUG else f"Erro ao reavaliar cobertura: {type(e).__name__}"
+        raise HTTPException(status_code=500, detail=msg)
 
 @router.post("/elevation_profile")
 async def get_elevation_profile_endpoint(payload: PerfilPayload):
     try:
-        logger.info(f"⛰️  Calculando perfil de elevação para {len(payload.pontos)} pontos.")
+        logger.info("⛰️  Calculando perfil de elevação para %d pontos.", len(payload.pontos))
         resultado = await analysis_service.obter_perfil_elevacao(
             pontos=payload.pontos, alt1=payload.altura_antena, alt2=payload.altura_receiver
         )
         logger.info("✅ Perfil de elevação calculado.")
         return resultado
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar perfil de elevação: {str(e)}")
-
+        logger.error("❌ Erro em /simulation/elevation_profile: %s", e, exc_info=True)
+        msg = f"Erro ao buscar perfil de elevação: {type(e).__name__} - {e}" if DEBUG else f"Erro ao buscar perfil de elevação: {type(e).__name__}"
+        raise HTTPException(status_code=500, detail=msg)
 
 @router.post("/find_repeater_sites")
 async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
     try:
-        logger.info(f"📡 Buscando locais de repetidora para pivô '{payload.target_pivot_nome}' no job {payload.job_id}.")
+        logger.info("📡 Buscando locais de repetidora para pivô '%s' no job %s.", payload.target_pivot_nome, payload.job_id)
 
         active_overlays_for_analysis = [
-            {"id": ov.id, "imagem_path": _get_image_filepath_for_analysis(ov.imagem, payload.job_id), "bounds": ov.bounds}
-            for ov in payload.active_overlays if _get_image_filepath_for_analysis(ov.imagem, payload.job_id).is_file()
+            {"id": ov.id,
+            "imagem_path": _get_image_filepath_for_analysis(ov.imagem, payload.job_id),
+            "bounds": ov.bounds}
+            for ov in payload.active_overlays
+            if _get_image_filepath_for_analysis(ov.imagem, payload.job_id).is_file()
         ]
 
         if not active_overlays_for_analysis:
@@ -265,9 +338,10 @@ async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
             altura_receptor_pivo=payload.altura_receiver_pivo, active_overlays_data=active_overlays_for_analysis,
             pivot_polygons_coords_data=payload.pivot_polygons_coords
         )
-        logger.info(f"✅ Busca por locais de repetidora concluída para o job {payload.job_id}. {len(candidate_sites)} candidatos.")
+        logger.info("✅ Busca por locais de repetidora concluída para o job %s. %d candidatos.", payload.job_id, len(candidate_sites))
         return {"candidate_sites": candidate_sites}
 
     except Exception as e:
-        logger.error(f"❌ Erro Interno em /find_repeater_sites (job: {payload.job_id}): {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno ao buscar locais para repetidora: {str(e)}")
+        logger.error("❌ Erro Interno em /find_repeater_sites (job: %s): %s", payload.job_id, e, exc_info=True)
+        msg = f"Erro interno ao buscar locais para repetidora: {type(e).__name__} - {e}" if DEBUG else f"Erro interno ao buscar locais para repetidora: {type(e).__name__}"
+        raise HTTPException(status_code=500, detail=msg)
