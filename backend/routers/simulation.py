@@ -152,7 +152,7 @@ async def generate_pivot_in_circle_endpoint(payload: GeneratePivotPayload):
 async def run_main_simulation_endpoint(payload: AntenaSimPayload):
     try:
         _validate_template_id(payload.template)
-        logger.info("🛰️  Iniciando simulação principal para job: %s", payload.job_id)
+        logger.info("🛰️  Iniciando simulação principal para a sessão: %s", payload.job_id)
 
         sim_result = await cloudrf_service.run_cloudrf_simulation(
             lat=payload.lat,
@@ -185,7 +185,7 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
             ),
         )
 
-        logger.info("✅ Simulação principal para job %s concluída e analisada.", payload.job_id)
+        logger.info("✅ Simulação principal concluída e analisada para a sessão: %s", payload.job_id)
         return {
             "imagem_salva": imagem_servida_url,
             "imagem_filename": dest_image_path.name,
@@ -204,7 +204,7 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
 async def run_manual_simulation_endpoint(payload: ManualSimPayload):
     try:
         _validate_template_id(payload.template)
-        logger.info("📡 Iniciando simulação manual para job: %s", payload.job_id)
+        logger.info("📡 Iniciando simulação manual para a sessão: %s", payload.job_id)
 
         sim_result = await cloudrf_service.run_cloudrf_simulation(
             lat=payload.lat,
@@ -226,7 +226,7 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
         _copy_cached_with_json(cached_image_path, dest_image_path)
 
         imagem_servida_url = _build_served_url(payload.job_id, imagem_filename)
-        logger.info("✅ Simulação CloudRF (manual) para job %s concluída.", payload.job_id)
+        logger.info("✅ Simulação CloudRF (manual) concluída para a sessão: %s", payload.job_id)
 
         return {
             "imagem_salva": imagem_servida_url,
@@ -237,10 +237,10 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
     except HTTPException:
         raise
     except ValueError as e:
-        logger.warning("❌ Erro de Validação em /run_manual (job: %s): %s", payload.job_id, e)
+        logger.warning("❌ Erro de Validação em /run_manual para a sessão %s: %s", payload.job_id, e)
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("❌ Erro Interno em /simulation/run_manual (job: %s): %s", payload.job_id, e, exc_info=True)
+        logger.error("❌ Erro Interno em /simulation/run_manual para a sessão %s: %s", payload.job_id, e, exc_info=True)
         msg = f"Erro interno na simulação manual: {type(e).__name__} - {e}" if DEBUG else f"Erro interno na simulação manual: {type(e).__name__}"
         raise HTTPException(status_code=500, detail=msg)
 
@@ -251,14 +251,14 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
     Versão robusta e paralela.
     """
     try:
-        logger.info("🔄 Reavaliando cobertura para job %s com %d overlays.", payload.job_id, len(payload.overlays))
+        logger.info("🔄 Reavaliando cobertura para a sessão %s com %d overlays.", payload.job_id, len(payload.overlays))
 
         overlays_para_analise = []
         if payload.overlays:
             for o_data in payload.overlays:
                 imagem_path_servidor = _get_image_filepath_for_analysis(o_data.imagem, payload.job_id)
                 if not imagem_path_servidor.is_file():
-                    logger.warning("Arquivo de imagem '%s' não encontrado para job '%s'. Pulando overlay.", o_data.imagem, payload.job_id)
+                    logger.warning("Arquivo de imagem '%s' não encontrado para a sessão '%s'. Pulando overlay.", o_data.imagem, payload.job_id)
                     continue
                 overlays_para_analise.append({
                     "id": o_data.id or f"overlay_{Path(o_data.imagem.split('?',1)[0]).stem}",
@@ -294,11 +294,11 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
             if bombas_atualizadas:
                 bombas_atualizadas = results[result_index]
 
-        logger.info("✅ Pivôs e Bombas atualizados pela reavaliação para o job %s.", payload.job_id)
+        logger.info("✅ Pivôs e Bombas atualizados pela reavaliação para a sessão %s.", payload.job_id)
         return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}
 
     except Exception as e:
-        logger.error("❌ Erro em /simulation/reevaluate (job: %s): %s", payload.job_id, e, exc_info=True)
+        logger.error("❌ Erro em /simulation/reevaluate para a sessão %s: %s", payload.job_id, e, exc_info=True)
         msg = f"Erro ao reavaliar cobertura: {type(e).__name__} - {e}" if DEBUG else f"Erro ao reavaliar cobertura: {type(e).__name__}"
         raise HTTPException(status_code=500, detail=msg)
 
@@ -319,7 +319,7 @@ async def get_elevation_profile_endpoint(payload: PerfilPayload):
 @router.post("/find_repeater_sites")
 async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
     try:
-        logger.info("📡 Buscando locais de repetidora para pivô '%s' no job %s.", payload.target_pivot_nome, payload.job_id)
+        logger.info("📡 Buscando locais de repetidora para pivô '%s' na sessão %s.", payload.target_pivot_nome, payload.job_id)
 
         active_overlays_for_analysis = [
             {"id": ov.id,
@@ -338,10 +338,10 @@ async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
             altura_receptor_pivo=payload.altura_receiver_pivo, active_overlays_data=active_overlays_for_analysis,
             pivot_polygons_coords_data=payload.pivot_polygons_coords
         )
-        logger.info("✅ Busca por locais de repetidora concluída para o job %s. %d candidatos.", payload.job_id, len(candidate_sites))
+        logger.info("✅ Busca por locais de repetidora concluída para a sessão %s. %d candidatos.", payload.job_id, len(candidate_sites))
         return {"candidate_sites": candidate_sites}
 
     except Exception as e:
-        logger.error("❌ Erro Interno em /find_repeater_sites (job: %s): %s", payload.job_id, e, exc_info=True)
+        logger.error("❌ Erro Interno em /find_repeater_sites para a sessão %s: %s", payload.job_id, e, exc_info=True)
         msg = f"Erro interno ao buscar locais para repetidora: {type(e).__name__} - {e}" if DEBUG else f"Erro interno ao buscar locais para repetidora: {type(e).__name__}"
         raise HTTPException(status_code=500, detail=msg)
