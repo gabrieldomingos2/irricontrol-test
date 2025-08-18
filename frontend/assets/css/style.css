@@ -116,9 +116,7 @@ html, body {
   fill-opacity:.5;
   fill:#34c759; /* ✅ corrigido (era fill-color) */
 }
-.circulo-vermelho-pulsante{/* animação opcional
-  animation: pulseGlow 2s infinite; */
-}
+
 
 /* ========================== */
 /* 🏷️ LABEL FIXA DOS PIVÔS */
@@ -495,21 +493,5 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
   #mobile-buttons-container{
     position:absolute; bottom:1rem; left:50%; transform:translateX(-50%);
     z-index:50; display:flex; gap:1rem;
-  }
-}
-
-/* ========================= */
-/* ♿️ REDUZIR MOVIMENTO */
-/* ========================= */
-@media (prefers-reduced-motion: reduce){
-  .loading-spinner,
-  .pivo-marker-container-selected .pivo-marker-dot::after,
-  .marker-selected .selection-effect-wrapper::after,
-  .linha-pontilhada{
-    animation: none !important;
-  }
-  .range-slider-custom:active::-webkit-slider-thumb,
-  .range-slider-custom:active::-moz-range-thumb{
-    transform:none !important;
   }
 }

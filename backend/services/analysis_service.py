@@ -1,6 +1,7 @@
 import re
 from PIL import Image
 import httpx
+import requests # Adicionado para downloads
 from math import sqrt, radians, sin, cos, atan2
 from typing import List, Dict, Optional, Union, TypedDict, Tuple, Any
 from pathlib import Path
@@ -11,9 +12,11 @@ import json
 
 # DEM / geoprocessamento
 import rasterio
+import rasterio.mask
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 from scipy.ndimage import maximum_filter
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, box
 
 from backend.config import settings
 from backend.services import cloudrf_service
@@ -301,16 +304,74 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
     return final_result
 
 
-def _download_and_clip_dem(bounds_dem_wgs84: Tuple[float, float, float, float], output_dem_path: Path) -> None:
+def _download_file(url: str, output_path: Path) -> None:
+    """Faz o download de um arquivo de forma robusta."""
     try:
-        import elevation
-    except ImportError:
-        logger.error("A biblioteca 'elevation' não está instalada. Necessária para download de DEM.")
-        raise NotImplementedError("Biblioteca 'elevation' não encontrada para download de DEM.")
+        with requests.get(url, stream=True, timeout=90) as r:
+            r.raise_for_status()
+            with open(output_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+        logger.info("    -> (DEM) Download concluído: %s", output_path)
+    except requests.RequestException as e:
+        logger.error("    -> (DEM) ❌ Falha no download de %s: %s", url, e)
+        raise IOError(f"Falha ao baixar o arquivo de elevação: {e}")
 
-    logger.info("    -> (DEM) Baixando/clipando DEM para bounds %s -> %s", bounds_dem_wgs84, output_dem_path)
-    elevation.clip(bounds=bounds_dem_wgs84, output=str(output_dem_path), product='SRTM3')
-    logger.info("    -> (DEM) Concluído: %s", output_dem_path)
+
+def _download_and_clip_dem(bounds_dem_wgs84: Tuple[float, float, float, float], output_dem_path: Path) -> None:
+    """
+    Baixa o DEM de uma fonte pública (AWS) e recorta usando Rasterio.
+    Muito mais robusto que a biblioteca 'elevation'.
+    """
+    min_lon, min_lat, max_lon, max_lat = bounds_dem_wgs84
+    
+    # URL do tile de 1 grau de arco SRTM (fonte: https://registry.opendata.aws/terrain-tiles/)
+    dem_source_url = "https://s3.amazonaws.com/elevation-tiles-prod/skadi/{N}{W}/{N}{W}.hgt.gz"
+
+    # Simplificado: assume que a área está contida num único tile de 1x1 grau.
+    # Para áreas maiores, seria necessário um mosaico.
+    lat_tile = int(np.floor(min_lat))
+    lon_tile = int(np.floor(min_lon))
+    
+    N_S = 'N' if lat_tile >= 0 else 'S'
+    W_E = 'W' if lon_tile < 0 else 'E'
+    lat_str = f"{abs(lat_tile):02d}"
+    lon_str = f"{abs(lon_tile):03d}"
+
+    tile_url = f"https://elevation-tiles-prod.s3.amazonaws.com/skadi/{N_S}{lat_str}/{N_S}{lat_str}{W_E}{lon_str}.hgt.gz"
+    
+    dem_temp_dir = output_dem_path.parent / "temp"
+    dem_temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_gz_path = dem_temp_dir / f"{N_S}{lat_str}{W_E}{lon_str}.hgt.gz"
+
+    logger.info("    -> (DEM) Baixando tile de elevação de: %s", tile_url)
+    _download_file(tile_url, temp_gz_path)
+
+    try:
+        logger.info("    -> (DEM) Recortando tile para os limites da área...")
+        geom = box(min_lon, min_lat, max_lon, max_lat)
+        
+        with rasterio.open(f"gzip://{temp_gz_path}") as src:
+            out_image, out_transform = rasterio.mask.mask(src, [geom], crop=True)
+            out_meta = src.meta.copy()
+
+        out_meta.update({
+            "driver": "GTiff", "height": out_image.shape[1],
+            "width": out_image.shape[2], "transform": out_transform,
+            "compress": "deflate"
+        })
+
+        with rasterio.open(output_dem_path, "w", **out_meta) as dest:
+            dest.write(out_image)
+
+        logger.info("    -> (DEM) Arquivo DEM recortado e salvo em: %s", output_dem_path)
+    
+    except Exception as e:
+        logger.error("    -> (DEM) ❌ Falha ao recortar o DEM com Rasterio: %s", e, exc_info=True)
+        raise IOError(f"Falha ao processar o arquivo DEM: {e}")
+    finally:
+        # Limpa o arquivo temporário
+        temp_gz_path.unlink(missing_ok=True)
 
 
 async def obter_dem_para_area_geografica(
@@ -352,7 +413,7 @@ async def obter_dem_para_area_geografica(
                 return dem_array, dem_transform, dem_crs, dem_nodata
 
         return await run_in_threadpool(_read_rasterio_dem, path_arquivo_dem_local)
-    except (FileNotFoundError, NotImplementedError) as e_dem_specific:
+    except (FileNotFoundError, NotImplementedError, IOError) as e_dem_specific:
         logger.error("  -> ❌ Erro específico ao obter DEM: %s", e_dem_specific, exc_info=True)
         raise
     except Exception as e:
@@ -407,7 +468,7 @@ async def encontrar_locais_altos_para_repetidora(
         dem_array, dem_transform, dem_crs, dem_nodata_val = await obter_dem_para_area_geografica(
             dem_center_lat, dem_center_lon, dem_search_radius_km, resolucao_desejada_m=90
         )
-    except (FileNotFoundError, NotImplementedError):
+    except (FileNotFoundError, NotImplementedError, IOError):
         # Propaga — quem chamou decide a mensagem/HTTP
         raise
 
