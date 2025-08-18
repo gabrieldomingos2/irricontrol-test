@@ -495,3 +495,39 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
     z-index:50; display:flex; gap:1rem;
   }
 }
+
+/* ================================== */
+/* PAINEL DE SUGESTÕES (FLUTUANTE) */
+/* ================================== */
+#suggestions-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--green) #1a202c;
+}
+#suggestions-list::-webkit-scrollbar { width: 6px; }
+#suggestions-list::-webkit-scrollbar-track { background: #1a202c; border-radius: 10px; }
+#suggestions-list::-webkit-scrollbar-thumb { background-color: var(--green); border-radius: 10px; border: 2px solid #1a202c; }
+
+.suggestion-item {
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+}
+
+.suggestion-item:hover, .suggestion-item.highlighted {
+  background-color: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+/* Garante que o painel esquerdo se ajuste em telas menores */
+@media (max-width:1366px){
+  #left-overlay-panels-container {
+    left: 236px !important; /* Ajustado de 1rem para 220px (barra) + 16px (margem) */
+    top: 3.5rem !important;
+  }
+  #repeater-suggestions-panel {
+    width: 220px !important;
+  }
+}

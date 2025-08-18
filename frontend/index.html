@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="color-scheme" content="dark light" />
 
-<!-- Perf: ajuda a resolver DNS/SSL do CDN mais rápido -->
 <link rel="preconnect" href="https://unpkg.com" />
 <link rel="preconnect" href="https://cdn.tailwindcss.com" />
 <link rel="preconnect" href="https://unpkg.com/leaflet@1.9.4" />
@@ -16,14 +15,14 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="assets/css/style.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.Default.css" />
 </head>
 
 <body class="bg-[#060B10] text-white h-screen w-screen overflow-hidden">
 
-<!-- TOP BAR -->
 <div class="absolute top-0 left-0 right-0 h-14 bg-[#060B10] border-b-[2px] border-white/15 z-50 flex items-center justify-start px-4">
 
-    <!-- Language -->
     <div class="flex items-center gap-3" aria-label="Idioma">
     <button data-lang="pt-br" class="hover:scale-110 transition" title="Português (BR)" type="button" aria-label="Português (BR)">
         <img src="assets/images/br.svg" class="w-6 h-4" alt="Português">
@@ -42,7 +41,6 @@
     </button>
     </div>
 
-    <!-- Tools -->
     <div class="flex items-center gap-2 ml-24">
     <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.tools"></span>
     <button id="btn-los-pivot-a-pivot" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.los_pivots" type="button" aria-label="Linha de visada entre pivôs">
@@ -53,7 +51,6 @@
     </button>
     </div>
 
-    <!-- Legends -->
     <div class="flex items-center gap-2 ml-[20px]">
     <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.legends_group"></span>
     <button id="btn-visada" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.line_of_sight" type="button" aria-label="Linha de visada">
@@ -70,7 +67,6 @@
     </button>
     </div>
 
-    <!-- Draw -->
     <div class="flex items-center gap-2 ml-[20px]">
     <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.draw_group"></span>
     <button id="btn-draw-pivot" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.draw_pivot" type="button" aria-label="Desenhar pivô circular">
@@ -87,7 +83,6 @@
     </button>
     </div>
 
-    <!-- Edit -->
     <div class="flex items-center gap-2 ml-[20px]">
         <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.editor_group"></span>
     <button id="btn-mover-pivo-sem-circulo" class="glass-button p-2 hidden" data-i18n-attr="title" data-i18n="ui.titles.move_pivot_center" type="button" aria-label="Mover pivô sem círculo">
@@ -102,7 +97,6 @@
     </div>
 </div>
 
-<!-- SIDEBAR -->
 <div class="absolute top-14 bottom-14 left-0 w-[280px] bg-[#060B10] z-40 p-4 overflow-y-auto">
     <div class="mb-4 backdrop-blur bg-white/5 border border-white/15 px-3 py-[6px] rounded-lg shadow-sm flex items-center gap-2">
         <label for="template-modelo" class="text-sm text-white/70 whitespace-nowrap" data-i18n="ui.labels.template"></label>
@@ -142,7 +136,6 @@
     </button>
     </div>
 
-    <!-- Painel de parâmetros para simulação manual (repetidora) -->
     <div id="painel-repetidora" class="mt-4 bg-white/5 border border-white/15 backdrop-blur-md rounded-xl shadow-lg w-60 p-2 hidden">
     <div class="flex justify-between items-center mb-3">
         <h2 class="font-semibold text-sm text-white/80" data-i18n="ui.titles.repeater_panel_setup"></h2>
@@ -161,99 +154,104 @@
     </div>
 </div>
 
-<!-- Controls (opacity) -->
 <div class="absolute bottom-6 left-72 flex items-center gap-2 z-50">
     <span class="text-xs text-white/60" data-i18n=""></span>
     <input id="range-opacidade" type="range" min="0" max="1" step="0.1" value="1" class="range-slider-custom w-24" aria-label="Opacidade do overlay" />
 </div>
 
-<!-- Footer logo -->
 <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50">
     <a href="https://irricontrol.com.br/" target="_blank" id="footer-logo-link" rel="noopener">
         <img src="assets/images/logo-irricontrol.png" alt="Powered by Irricontrol" class="h-7" loading="lazy">
     </a>
 </div>
 
-<!-- MAP -->
 <div class="absolute top-14 bottom-14 left-[280px] right-12 z-10">
     <div id="map" class="w-full h-full bg-neutral-900" role="application" aria-label="Mapa"></div>
 </div>
 
-<!-- Right panels -->
-<div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
-
-    <!-- Data panel -->
-    <div id="painel-dados" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
-    <div class="flex justify-between items-center mb-3">
-        <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.data_panel"></h2>
-        <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
-            <i data-lucide="chevron-up" class="w-5 h-5"></i>
-        </button>
-    </div>
-<div class="panel-content">
-        <div class="flex justify-between items-center mb-3">
-            <span id="template-info" class="font-medium text-sm text-green-500"></span>
-        </div>
-        <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots"></p>
-        <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage"></p>
-        <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters"></p>
-        <p id="total-centrais" class="text-sm text-white/70 mb-1">
-            <span data-i18n="ui.labels.central_count">Centrais:</span> <span id="central-count-value">0</span>
-        </p>
-        <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses"></p>
-
-    <div class="mt-2 pt-2 border-t border-white/10 flex justify-center">
-        <button id="exportar-pdf-btn"
-                class="inline-flex items-center justify-center gap-2 text-green-400 hover:text-green-300 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline disabled:text-gray-500 hover:underline"
-                disabled
-                data-i18n-attr="title"
-                data-i18n="tooltips.export_pdf_disabled"
-                type="button"
-                aria-label="Exportar relatório PDF">
-            <i data-lucide="file-down" class="w-4 h-4"></i>
-            <span data-i18n="ui.buttons.export_pdf_report">Clique aqui para baixar o relatório</span>
+<div id="left-overlay-panels-container" class="absolute top-16 left-[296px] z-20">
+    <div id="repeater-suggestions-panel" class="hidden panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-3 flex flex-col min-h-0">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-sm font-semibold text-green-400" data-i18n="ui.titles.repeater_suggestions">Sugestões de Repetidora</h3>
+            <button id="close-suggestions-panel" class="text-white/60 hover:text-red-500 transition" data-i18n-attr="title" data-i18n="ui.buttons.cancel">
+                <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
+        <div class="flex gap-2 mb-2 text-xs">
+            <button id="filter-los-clear" class="flex-1 bg-green-500/20 text-green-300 rounded px-2 py-1 hover:bg-green-500/40 transition" data-i18n="ui.buttons.filter_los_clear">Visada Livre</button>
+            <button id="filter-los-all" class="flex-1 bg-white/10 text-white/70 rounded px-2 py-1 hover:bg-white/20 transition" data-i18n="ui.buttons.filter_all">Todos</button>
+        </div>
+        <div id="suggestions-list" class="space-y-1.5 overflow-y-auto pr-1 max-h-[calc(100vh-300px)]">
+            </div>
     </div>
 </div>
 
-<!-- Repeaters panel -->
-<div id="painel-repetidoras" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
-    <div class="flex justify-between items-center mb-2 px-2">
-        <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.repeater_panel"></h2>
-        <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
-            <i data-lucide="chevron-up" class="w-5 h-5"></i>
-        </button>
+<div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
+    <div id="painel-dados" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.data_panel"></h2>
+            <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
+                <i data-lucide="chevron-up" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="panel-content">
+            <div class="flex justify-between items-center mb-3">
+                <span id="template-info" class="font-medium text-sm text-green-500"></span>
+            </div>
+            <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots"></p>
+            <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage"></p>
+            <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters"></p>
+            <p id="total-centrais" class="text-sm text-white/70 mb-1">
+                <span data-i18n="ui.labels.central_count">Centrais:</span> <span id="central-count-value">0</span>
+            </p>
+            <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses"></p>
+
+            <div class="mt-2 pt-2 border-t border-white/10 flex justify-center">
+                <button id="exportar-pdf-btn"
+                        class="inline-flex items-center justify-center gap-2 text-green-400 hover:text-green-300 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline disabled:text-gray-500 hover:underline"
+                        disabled
+                        data-i18n-attr="title"
+                        data-i18n="tooltips.export_pdf_disabled"
+                        type="button"
+                        aria-label="Exportar relatório PDF">
+                    <i data-lucide="file-down" class="w-4 h-4"></i>
+                    <span data-i18n="ui.buttons.export_pdf_report">Clique aqui para baixar o relatório</span>
+                </button>
+            </div>
+        </div>
     </div>
-    <div class="panel-content">
-    <div id="lista-repetidoras" class="space-y-1 text-sm overflow-y-auto px-2 pb-2"></div>
-</div>
+
+    <div id="painel-repetidoras" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
+        <div class="flex justify-between items-center mb-2 px-2">
+            <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.repeater_panel"></h2>
+            <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
+                <i data-lucide="chevron-up" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="panel-content">
+            <div id="lista-repetidoras" class="space-y-1 text-sm overflow-y-auto px-2 pb-2"></div>
+        </div>
+    </div>
 </div>
 
-</div>
-
-<!-- Toast / mensagens -->
 <div id="mensagem"
     class="hidden fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"
     role="status" aria-live="polite"></div>
 
-<!-- Loader -->
 <div id="loader"
     class="hidden absolute inset-0 bg-[#060B10] bg-opacity-80 flex flex-col items-center justify-center z-[10001]"
     role="alert" aria-live="assertive" aria-busy="true" aria-hidden="true">
     <div class="loading-logo-container">
-    <img src="assets/images/irricontrol-loading.png" alt="Carregando..." class="loading-logo" loading="lazy">
-    <div class="loading-spinner"></div>
-</div>
+        <img src="assets/images/irricontrol-loading.png" alt="Carregando..." class="loading-logo" loading="lazy">
+        <div class="loading-spinner"></div>
+    </div>
     <span class="mt-4 text-lg font-bold text-green-500" data-i18n="ui.labels.processing"></span>
 </div>
 
-<!-- Legend -->
 <div id="legend-container" class="absolute top-6 right-6 hidden">
     <img id="legend-image" src="" alt="Legenda de Cores" class="block h-auto rounded-md shadow-lg" />
 </div>
 
-<!-- Custom confirm modal -->
 <div id="custom-confirm-overlay"
         class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[20000] transition-opacity duration-300"
         role="dialog" aria-modal="true" aria-labelledby="custom-confirm-title" aria-describedby="custom-confirm-message">
@@ -279,10 +277,8 @@
     </div>
 </div>
 
-<!-- Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-
-<!-- Importante: i18n primeiro -->
+<script src="https://unpkg.com/leaflet.markercluster@1.5.1/dist/leaflet.markercluster.js" defer></script>
 <script src="assets/js/i18n.js" defer></script>
 <script src="assets/js/api.js" defer></script>
 <script src="assets/js/map.js" defer></script>

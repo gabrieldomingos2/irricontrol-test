@@ -1,16 +1,20 @@
 // assets/js/drawing.js
 /* global L, map, AppState, t, updateLegendsVisibility, drawCirculos, reavaliarPivosViaAPI, runTargetedDiagnostic,
-          handleLoSTargetClick, handlePivotSelectionForRepeaterSite, removePositioningMarker, handleSpecialMarkerSelection, lucide */
+          handleLoSTargetClick, handlePivotSelectionForRepeaterSite, removePositioningMarker, handleSpecialMarkerSelection, lucide,
+          showCustomConfirm, getFormattedAntennaOrRepeaterName, mostrarMensagem, atualizarPainelDados */
 
 // -- Ícones (use paths relativos para funcionar em qualquer host/subpath) --
 const TORRE_ICON_PATH = "assets/images/cloudrf.png";
 const BOMBA_ICON_AZUL_PATH = "assets/images/homegardenbusiness.png";
 const BOMBA_ICON_VERMELHO_PATH = "assets/images/homegardenbusiness-red.png";
 const ATTENTION_ICON_PATH = "assets/images/attention-icon-original.svg";
-const CHECK_ICON_PATH = "assets/images/circle-check-big.svg";
-const MOUNTAIN_ICON_PATH = "assets/images/attention-icon-original.svg"; // ajuste se tiver uma montanha separada
-const CAPTIONS_ON_ICON_PATH = "assets/images/captions.svg";
-const CAPTIONS_OFF_ICON_PATH = "assets/images/captions-off.svg";
+const MOUNTAIN_ICON_PATH = "assets/images/mountain.svg";
+
+// -- Globals --
+window.candidateMarkers = {};
+let tempSectorShape = null;
+let tempPacmanShape = null;
+let tempCircle = null;
 
 // -- Defaults seguros do AppState --
 (function ensureAppStateLocals() {
@@ -58,14 +62,76 @@ const posicionamentoIcon = L.icon({
     popupAnchor: [0, -30]
 });
 
-// temporários de desenho
-let tempSectorShape = null;
-let tempPacmanShape = null;
-let tempCircle = null;
 
-// ------------------------------------
-// Tamanho dinâmico dos ícones de pivô
-// ------------------------------------
+// =================================================================================
+// Funções de Interatividade (Painel de Sugestões <=> Mapa)
+// =================================================================================
+
+function highlightListItemByLatLng(lat, lon, shouldHighlight) {
+    const item = document.querySelector(`.suggestion-item[data-lat="${lat}"][data-lon="${lon}"]`);
+    if (item) {
+        item.classList.toggle('highlighted', shouldHighlight);
+        if (shouldHighlight) {
+            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+}
+window.highlightListItemByLatLng = highlightListItemByLatLng;
+
+function highlightMarkerByLatLng(lat, lon, shouldHighlight) {
+    const key = `${parseFloat(lat).toFixed(6)},${parseFloat(lon).toFixed(6)}`;
+    const marker = window.candidateMarkers[key];
+    const iconElement = marker?.getElement();
+    if (iconElement) {
+        iconElement.style.transition = 'transform 0.2s ease-in-out';
+        iconElement.style.transform = shouldHighlight ? 'scale(1.5)' : 'scale(1)';
+        iconElement.style.zIndex = shouldHighlight ? 1000 : 'auto';
+    }
+}
+window.highlightMarkerByLatLng = highlightMarkerByLatLng;
+
+
+// =================================================================================
+// Funções de Desenho Principais
+// =================================================================================
+
+/**
+ * VERSÃO CORRIGIDA: Desenha os locais de sugestão de repetidora como pontos coloridos e interativos.
+ */
+function drawCandidateRepeaterSites(sites) {
+    if (!map || !window.candidateRepeaterSitesLayerGroup) return;
+
+    window.candidateRepeaterSitesLayerGroup.clearLayers();
+    window.candidateMarkers = {}; // Limpa referências antigas
+
+    if (!Array.isArray(sites) || sites.length === 0) return;
+
+    sites.forEach((site) => {
+        if (typeof site.lat === "undefined") return;
+
+        const isLosClear = site.has_los;
+        const iconColor = isLosClear ? '#22c55e' : '#f97316'; // Verde para livre, Laranja para bloqueado
+
+        const candidateIcon = L.divIcon({
+            className: 'leaflet-div-icon-transparent',
+            html: `<div style="background-color: ${iconColor};" class="w-4 h-4 rounded-full border-2 border-white shadow-lg transition-transform duration-200"></div>`,
+            iconSize: [16, 16],
+        });
+
+        const marker = L.marker([site.lat, site.lon], { icon: candidateIcon })
+            .addTo(window.candidateRepeaterSitesLayerGroup);
+        
+        const key = `${site.lat.toFixed(6)},${site.lon.toFixed(6)}`;
+        window.candidateMarkers[key] = marker;
+
+        marker.on('mouseover', () => highlightListItemByLatLng(site.lat, site.lon, true));
+        marker.on('mouseout', () => highlightListItemByLatLng(site.lat, site.lon, false));
+
+        const tooltipContent = `<b>${site.elevation.toFixed(1)}m</b> | ${isLosClear ? t("tooltips.los_ok") : t("tooltips.los_no")}`;
+        marker.bindTooltip(tooltipContent);
+    });
+}
+
 function getDynamicIconSize(zoom) {
     const minZoom = 10;
     const maxZoom = 17;
@@ -88,28 +154,25 @@ function updatePivotIcons() {
     const newSize = getDynamicIconSize(map.getZoom());
 
     AppState.lastPivosDataDrawn.forEach((pivo) => {
-    const marker = AppState.pivotsMap[pivo.nome];
-    if (!marker) return;
+        const marker = AppState.pivotsMap[pivo.nome];
+        if (!marker) return;
 
-    const cor = pivo.fora ? "red" : "green";
-    let iconClasses = "pivo-marker-container";
-    if (AppState.selectedPivoNome === pivo.nome) {
-        iconClasses += " pivo-marker-container-selected";
-    }
+        const cor = pivo.fora ? "red" : "green";
+        let iconClasses = "pivo-marker-container";
+        if (AppState.selectedPivoNome === pivo.nome) {
+            iconClasses += " pivo-marker-container-selected";
+        }
 
-    const newIcon = L.divIcon({
-        className: iconClasses,
-        iconSize: [newSize, newSize],
-        html: `<div class="pivo-marker-dot" style="background-color:${cor};"></div>`
-    });
+        const newIcon = L.divIcon({
+            className: iconClasses,
+            iconSize: [newSize, newSize],
+            html: `<div class="pivo-marker-dot" style="background-color:${cor};"></div>`
+        });
 
-    marker.setIcon(newIcon);
+        marker.setIcon(newIcon);
     });
 }
 
-// ----------------------------------------------------
-// Melhor fonte de sinal (central vs repetidora mais perto)
-// ----------------------------------------------------
 function findClosestSignalSource(targetLatLng) {
     let closestSource = null;
     let minDistance = Infinity;
@@ -118,45 +181,42 @@ function findClosestSignalSource(targetLatLng) {
     const isAntenaVisible = !antenaVisBtn || antenaVisBtn.getAttribute("data-visible") === "true";
 
     if (AppState.antenaGlobal && isAntenaVisible) {
-    const antenaLatLng = L.latLng(AppState.antenaGlobal.lat, AppState.antenaGlobal.lon);
-    const distance = targetLatLng.distanceTo(antenaLatLng);
-    if (distance < minDistance) {
-        minDistance = distance;
-        closestSource = {
-        id: "main_antenna",
-        name: AppState.antenaGlobal.nome || t("ui.labels.main_antenna_default"),
-        distance,
-        isMainAntenna: true,
-        type: AppState.antenaGlobal.type
-        };
+        const antenaLatLng = L.latLng(AppState.antenaGlobal.lat, AppState.antenaGlobal.lon);
+        const distance = targetLatLng.distanceTo(antenaLatLng);
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestSource = {
+                id: "main_antenna",
+                name: AppState.antenaGlobal.nome || t("ui.labels.main_antenna_default"),
+                distance,
+                isMainAntenna: true,
+                type: AppState.antenaGlobal.type
+            };
+        }
     }
-}
 
     AppState.repetidoras.forEach((rep) => {
-    const repVisBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
-    const isRepVisible = !repVisBtn || repVisBtn.getAttribute("data-visible") === "true";
-    if (!rep.marker || !isRepVisible) return;
+        const repVisBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
+        const isRepVisible = !repVisBtn || repVisBtn.getAttribute("data-visible") === "true";
+        if (!rep.marker || !isRepVisible) return;
 
-    const repLatLng = rep.marker.getLatLng();
-    const distance = targetLatLng.distanceTo(repLatLng);
-    if (distance < minDistance) {
-        minDistance = distance;
-        closestSource = {
-        id: rep.id,
-        name: rep.nome,
-        distance,
-        isMainAntenna: false,
-        type: rep.type
-        };
-    }
+        const repLatLng = rep.marker.getLatLng();
+        const distance = targetLatLng.distanceTo(repLatLng);
+        if (distance < minDistance) {
+            minDistance = distance;
+            closestSource = {
+                id: rep.id,
+                name: rep.nome,
+                distance,
+                isMainAntenna: false,
+                type: rep.type
+            };
+        }
     });
 
     return closestSource;
 }
 
-// ---------------------------------------
-// Nome formatado (central/repetidora/KMZ)
-// ---------------------------------------
 function getFormattedAntennaOrRepeaterName(entity) {
     if (!entity) return "";
     const baseName = entity.nome || "";
@@ -164,72 +224,69 @@ function getFormattedAntennaOrRepeaterName(entity) {
     const cleanBaseName = baseName.replace(regexLimpezaAltura, "").trim();
 
     if (entity.is_from_kmz && entity.had_height_in_kmz) {
-    const alturaValida = entity.altura !== null && entity.altura !== undefined;
-    const alturaStr = alturaValida ? ` - ${entity.altura}m` : "";
-    return `${cleanBaseName}${alturaStr}`;
+        const alturaValida = entity.altura !== null && entity.altura !== undefined;
+        const alturaStr = alturaValida ? ` - ${entity.altura}m` : "";
+        return `${cleanBaseName}${alturaStr}`;
     }
     return cleanBaseName;
 }
 
-// -----------------------------
-// Menu de renomear repetidora
-// -----------------------------
 function showRenameRepeaterMenu(marker, currentName, isMainAntenna, entityId) {
     removeRenameMenu();
 
-const menu = document.createElement("div");
-menu.className = "rename-menu";
+    const menu = document.createElement("div");
+    menu.className = "rename-menu";
 
-let options = [];
-if (isMainAntenna) {
-    options = [
-        { text: t("entity_names.central"), value: "central" },
-        { text: t("entity_names.central_repeater_combined"), value: "central_repeater_combined" }
-    ];
-} else {
-    options = [
-        { text: t("entity_names.tower"), value: "tower" },
-        { text: t("entity_names.pole"), value: "pole" },
-        { text: t("entity_names.water_tank"), value: "water_tank" },
-        { text: t("entity_names.central"), value: "central" },
-        { text: t("entity_names.central_repeater_combined"), value: "central_repeater_combined" }
-    ];
-}
-
-options.forEach((option) => {
-    const button = document.createElement("button");
-    button.textContent = option.text;
-    button.className = "block w-full text-left px-3 py-1 text-white hover:bg-gray-700 rounded-sm text-sm";
-    button.onclick = (e) => {
-        e.stopPropagation();
-        if (isMainAntenna) {
-        if (typeof handleRenameMainAntenna === "function") handleRenameMainAntenna(option.value);
-    } else if (typeof handleRenameRepeater === "function") {
-        handleRenameRepeater(entityId, option.value);
+    let options = [];
+    if (isMainAntenna) {
+        options = [
+            { text: t("entity_names.central"), value: "central" },
+            { text: t("entity_names.central_repeater_combined"), value: "central_repeater_combined" }
+        ];
+    } else {
+        options = [
+            { text: t("entity_names.tower"), value: "tower" },
+            { text: t("entity_names.pole"), value: "pole" },
+            { text: t("entity_names.water_tank"), value: "water_tank" },
+            { text: t("entity_names.central"), value: "central" },
+            { text: t("entity_names.central_repeater_combined"), value: "central_repeater_combined" }
+        ];
     }
-        removeRenameMenu();
-    };
-    menu.appendChild(button);
-});
+
+    options.forEach((option) => {
+        const button = document.createElement("button");
+        button.textContent = option.text;
+        button.className = "block w-full text-left px-3 py-1 text-white hover:bg-gray-700 rounded-sm text-sm";
+        button.onclick = (e) => {
+            e.stopPropagation();
+            if (isMainAntenna) {
+                if (typeof handleRenameMainAntenna === "function") handleRenameMainAntenna(option.value);
+            } else if (typeof handleRenameRepeater === "function") {
+                handleRenameRepeater(entityId, option.value);
+            }
+            removeRenameMenu();
+        };
+        menu.appendChild(button);
+    });
 
     const restoreOriginalButton = document.createElement("button");
     restoreOriginalButton.textContent = t("ui.titles.restore_original_name");
     restoreOriginalButton.className =
-    "block w-full text-left px-3 py-1 text-white hover:bg-gray-700 rounded-sm text-sm mt-2 border-t border-gray-600 pt-2";
+        "block w-full text-left px-3 py-1 text-white hover:bg-gray-700 rounded-sm text-sm mt-2 border-t border-gray-600 pt-2";
     restoreOriginalButton.onclick = (e) => {
-    e.stopPropagation();
-    if (isMainAntenna) {
-        if (AppState.antenaGlobal?.original_name && typeof handleRenameMainAntenna === "function") {
-        handleRenameMainAntenna("default");
-    }
-    } else {
-        const repetidora = AppState.repetidoras.find((r) => r.id === entityId);
-        if (repetidora?.original_name && typeof handleRenameRepeater === "function") {
-        handleRenameRepeater(entityId, "default");
+        e.stopPropagation();
+        if (isMainAntenna) {
+            if (AppState.antenaGlobal?.original_name && typeof handleRenameMainAntenna === "function") {
+                handleRenameMainAntenna("default");
+            }
+        } else {
+            const repetidora = AppState.repetidoras.find((r) => r.id === entityId);
+            if (repetidora?.original_name && typeof handleRenameRepeater === "function") {
+                handleRenameRepeater(entityId, "default");
+            }
         }
-    }
-    removeRenameMenu();
-};
+        removeRenameMenu();
+    };
     menu.appendChild(restoreOriginalButton);
 
     const mapContainer = map.getContainer();
@@ -253,7 +310,7 @@ options.forEach((option) => {
     menu.style.visibility = "visible";
 
     setTimeout(() => {
-    document.addEventListener("click", removeRenameMenu, { once: true });
+        document.addEventListener("click", removeRenameMenu, { once: true });
     }, 100);
 }
 
@@ -261,266 +318,218 @@ function removeRenameMenu() {
     document.querySelector(".rename-menu")?.remove();
 }
 
-// -----------------------
-// Desenho: Antenas (KMZ)
-// -----------------------
 function drawAntenaCandidates(antenasList) {
     if (!map || !AppState.antenaCandidatesLayerGroup) return;
     AppState.antenaCandidatesLayerGroup.clearLayers();
 
     (antenasList || []).forEach((antenaData) => {
-    const uniqueId = `candidate-${antenaData.nome}-${antenaData.lat}`;
+        const uniqueId = `candidate-${antenaData.nome}-${antenaData.lat}`;
 
-    const marker = L.marker([antenaData.lat, antenaData.lon], {
-        icon: antenaIcon,
-        customData: antenaData,
-        customId: uniqueId
-    }).addTo(AppState.antenaCandidatesLayerGroup);
+        const marker = L.marker([antenaData.lat, antenaData.lon], {
+            icon: antenaIcon,
+            customData: antenaData,
+            customId: uniqueId
+        }).addTo(AppState.antenaCandidatesLayerGroup);
 
-    const formattedName = getFormattedAntennaOrRepeaterName({ ...antenaData, is_from_kmz: true });
-    const labelWidth = formattedName.length * 7 + 10;
+        const formattedName = getFormattedAntennaOrRepeaterName({ ...antenaData, is_from_kmz: true });
+        const labelWidth = formattedName.length * 7 + 10;
 
-    const label = L.marker([antenaData.lat, antenaData.lon], {
-        icon: L.divIcon({
-        className: "label-pivo",
-        html: formattedName,
-        iconSize: [labelWidth, 20],
-        iconAnchor: [labelWidth / 2, 45]
-    }),
-        interactive: false,
-        customId: uniqueId,
-        labelType: "antena_candidate"
-    }).addTo(AppState.antenaCandidatesLayerGroup);
+        const label = L.marker([antenaData.lat, antenaData.lon], {
+            icon: L.divIcon({
+                className: "label-pivo",
+                html: formattedName,
+                iconSize: [labelWidth, 20],
+                iconAnchor: [labelWidth / 2, 45]
+            }),
+            interactive: false,
+            customId: uniqueId,
+            labelType: "antena_candidate"
+        }).addTo(AppState.antenaCandidatesLayerGroup);
 
-    AppState.marcadoresLegenda.push(label);
+        AppState.marcadoresLegenda.push(label);
 
-    marker.on("click", (e) => {
-    L.DomEvent.stopPropagation(e);
-    if (typeof handleSpecialMarkerSelection === "function") handleSpecialMarkerSelection(marker);
+        marker.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (typeof handleSpecialMarkerSelection === "function") handleSpecialMarkerSelection(marker);
 
-    const data = e.target.options.customData;
-    AppState.coordenadaClicada = e.latlng;
+            const data = e.target.options.customData;
+            AppState.coordenadaClicada = e.latlng;
 
-    const painelRepetidora = document.getElementById("painel-repetidora");
-    const inputAltura = document.getElementById("altura-antena-rep");
+            const painelRepetidora = document.getElementById("painel-repetidora");
+            const inputAltura = document.getElementById("altura-antena-rep");
 
-    inputAltura.value = data.altura == null ? 5 : data.altura;
-    AppState.clickedCandidateData = data;
+            inputAltura.value = data.altura == null ? 5 : data.altura;
+            AppState.clickedCandidateData = data;
 
-    if (painelRepetidora) {
-        const inputAlturaRx = document.getElementById("altura-receiver-rep");
-        if (inputAlturaRx && data.altura_receiver) inputAlturaRx.value = data.altura_receiver;
-        painelRepetidora.classList.remove("hidden");
-        if (typeof mostrarMensagem === "function") {
-            mostrarMensagem(t("messages.success.tower_selected_for_simulation", { name: data.nome }), "sucesso");
-        }
-    }
+            if (painelRepetidora) {
+                const inputAlturaRx = document.getElementById("altura-receiver-rep");
+                if (inputAlturaRx && data.altura_receiver) inputAlturaRx.value = data.altura_receiver;
+                painelRepetidora.classList.remove("hidden");
+                if (typeof mostrarMensagem === "function") {
+                    mostrarMensagem(t("messages.success.tower_selected_for_simulation", { name: data.nome }), "sucesso");
+                }
+            }
+        });
     });
-});
 
     updateLegendsVisibility();
 }
 
-// -----------------------
-// Desenho: Pivôs
-// -----------------------
 function drawPivos(pivosData, useEdited = false) {
     if (!map || !Array.isArray(pivosData)) return;
 
     AppState.marcadoresPivos.forEach((m) => map.removeLayer(m));
     AppState.marcadoresPivos = [];
 
-// limpa labels de pivô
     const restantes = AppState.marcadoresLegenda.filter((l) => l.options.labelType !== "pivot");
     AppState.marcadoresLegenda
-    .filter((l) => l.options.labelType === "pivot")
-    .forEach((l) => map.removeLayer(l));
+        .filter((l) => l.options.labelType === "pivot")
+        .forEach((l) => map.removeLayer(l));
     AppState.marcadoresLegenda = restantes;
 
     AppState.pivotsMap = {};
 
     pivosData.forEach((pivo) => {
-    const cor = pivo.fora ? "red" : "green";
-    const pos =
-        useEdited && AppState.posicoesEditadas?.[pivo.nome]
-        ? L.latLng(AppState.posicoesEditadas[pivo.nome].lat, AppState.posicoesEditadas[pivo.nome].lng)
-        : L.latLng(pivo.lat, pivo.lon);
+        const cor = pivo.fora ? "red" : "green";
+        const pos =
+            useEdited && AppState.posicoesEditadas?.[pivo.nome]
+                ? L.latLng(AppState.posicoesEditadas[pivo.nome].lat, AppState.posicoesEditadas[pivo.nome].lng)
+                : L.latLng(pivo.lat, pivo.lon);
 
-    const initialSize = getDynamicIconSize(map.getZoom());
-    let iconClasses = "pivo-marker-container";
-    if (AppState.selectedPivoNome === pivo.nome) iconClasses += " pivo-marker-container-selected";
+        const initialSize = getDynamicIconSize(map.getZoom());
+        let iconClasses = "pivo-marker-container";
+        if (AppState.selectedPivoNome === pivo.nome) iconClasses += " pivo-marker-container-selected";
 
-    const pivoIcon = L.divIcon({
-        className: iconClasses,
-        iconSize: [initialSize, initialSize],
-        html: `<div class="pivo-marker-dot" style="background-color:${cor};"></div>`
-    });
-
-    const marker = L.marker(pos, { icon: pivoIcon }).addTo(map);
-
-    // label com distância e fonte de sinal (opcional)
-    let finalHtml = pivo.nome;
-    let hasDistancia = false;
-    let labelWidth = pivo.nome.length * 6.5 + 15;
-
-    if (AppState.distanciasPivosVisiveis) {
-    const closest = findClosestSignalSource(pos);
-    if (closest) {
-        const distanciaFormatada =
-        closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + " km" : Math.round(closest.distance) + " m";
-
-        let sourceFormattedName = "";
-        if (closest.isMainAntenna) {
-            sourceFormattedName = getFormattedAntennaOrRepeaterName({
-            isMainAntenna: true,
-            type: AppState.antenaGlobal?.type,
-            nome: AppState.antenaGlobal?.nome,
-            altura: AppState.antenaGlobal?.altura
+        const pivoIcon = L.divIcon({
+            className: iconClasses,
+            iconSize: [initialSize, initialSize],
+            html: `<div class="pivo-marker-dot" style="background-color:${cor};"></div>`
         });
-    } else {
-        const rep = AppState.repetidoras.find((r) => r.id === closest.id);
-        if (rep) {
-            sourceFormattedName = getFormattedAntennaOrRepeaterName({
-                isMainAntenna: false,
-                type: rep.type,
-                nome: rep.nome,
-                altura: rep.altura
-            });
-        }
-    }
 
-        finalHtml = `${pivo.nome}<br><span class="source-name-pivo">${sourceFormattedName}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
-        hasDistancia = true;
-        labelWidth = Math.max(
-        labelWidth,
-        sourceFormattedName.length * 6.5 + 15,
-        distanciaFormatada.length * 6.5 + 15
+        const marker = L.marker(pos, { icon: pivoIcon }).addTo(map);
+
+        let finalHtml = pivo.nome;
+        let hasDistancia = false;
+        let labelWidth = pivo.nome.length * 6.5 + 15;
+
+        if (AppState.distanciasPivosVisiveis) {
+            const closest = findClosestSignalSource(pos);
+            if (closest) {
+                const distanciaFormatada =
+                    closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + " km" : Math.round(closest.distance) + " m";
+
+                let sourceFormattedName = getFormattedAntennaOrRepeaterName(closest);
+                finalHtml = `${pivo.nome}<br><span class="source-name-pivo">${sourceFormattedName}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
+                hasDistancia = true;
+                labelWidth = Math.max(
+                    labelWidth,
+                    sourceFormattedName.length * 6.5 + 15,
+                    distanciaFormatada.length * 6.5 + 15
+                );
+            }
+        }
+
+        const labelHeight = hasDistancia ? 55 : 20;
+        const label = L.marker(pos, {
+            icon: L.divIcon({
+                className: "label-pivo",
+                html: finalHtml,
+                iconSize: [labelWidth, labelHeight],
+                iconAnchor: [labelWidth / 2, -15]
+            }),
+            labelType: "pivot",
+            interactive: false
+        }).addTo(map);
+        AppState.marcadoresLegenda.push(label);
+
+        const statusTexto = pivo.fora
+            ? `<span style="color:#ff4d4d;font-weight:bold;">${t("tooltips.out_of_signal")}</span>`
+            : `<span style="color:#22c55e;font-weight:bold;">${t("tooltips.in_signal")}</span>`;
+        marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, {
+            permanent: false,
+            direction: "top",
+            offset: [0, -10],
+            className: "tooltip-sinal"
+        });
+
+        marker.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (AppState.selectedSpecialMarker) {
+                AppState.selectedSpecialMarker.getElement()?.classList.remove("marker-selected");
+                AppState.selectedSpecialMarker = null;
+            }
+
+            const el = marker.getElement();
+            if (!el) return;
+
+            if (AppState.selectedPivoNome === pivo.nome) {
+                el.classList.remove("pivo-marker-container-selected");
+                AppState.selectedPivoNome = null;
+            } else {
+                if (AppState.selectedPivoNome) {
+                    const oldMarker = AppState.pivotsMap[AppState.selectedPivoNome];
+                    oldMarker?.getElement()?.classList.remove("pivo-marker-container-selected");
+                }
+                el.classList.add("pivo-marker-container-selected");
+                AppState.selectedPivoNome = pivo.nome;
+            }
+
+            if (AppState.modoEdicaoPivos) {
+                marker.bindPopup(
+                    `<div class="popup-glass">✏️ ${pivo.fora ? t("tooltips.out_of_signal") : t("tooltips.in_signal")}</div>`
+                ).openPopup();
+            } else if (AppState.modoLoSPivotAPivot) {
+                handleLoSTargetClick(pivo, marker);
+            } else if (AppState.modoBuscaLocalRepetidora) {
+                handlePivotSelectionForRepeaterSite(pivo, marker);
+            } else {
+                window.ultimoCliqueFoiSobrePivo = true;
+                AppState.coordenadaClicada = e.latlng;
+                removePositioningMarker();
+                document.getElementById("painel-repetidora")?.classList.remove("hidden");
+            }
+        });
+
+        marker.on("contextmenu", async (e) => {
+            L.DomEvent.stop(e);
+            if (AppState.modoEdicaoPivos) return;
+
+            const confirmed = await showCustomConfirm(t("messages.confirm.remove_pivot", { name: pivo.nome }));
+            if (!confirmed) return;
+
+            const nomeCicloParaRemover = `Ciclo ${pivo.nome}`;
+            AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.filter((p) => p.nome !== pivo.nome);
+            AppState.ciclosGlobais = (AppState.ciclosGlobais || []).filter(
+                (c) => c.nome_original_circulo !== nomeCicloParaRemover
             );
-        }
-    }
+            
+            drawPivos(AppState.lastPivosDataDrawn, false);
+            drawCirculos(AppState.ciclosGlobais);
+            atualizarPainelDados();
+            mostrarMensagem(t("messages.success.pivot_removed", { name: pivo.nome }), "sucesso");
+        });
 
-    const labelHeight = hasDistancia ? 55 : 20;
-    const label = L.marker(pos, {
-        icon: L.divIcon({
-        className: "label-pivo",
-        html: finalHtml,
-        iconSize: [labelWidth, labelHeight],
-        iconAnchor: [labelWidth / 2, -15]
-        }),
-        labelType: "pivot",
-        interactive: false
-    }).addTo(map);
-    AppState.marcadoresLegenda.push(label);
-
-    const statusTexto = pivo.fora
-        ? `<span style="color:#ff4d4d;font-weight:bold;">${t("tooltips.out_of_signal")}</span>`
-        : `<span style="color:#22c55e;font-weight:bold;">${t("tooltips.in_signal")}</span>`;
-    marker.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, {
-        permanent: false,
-        direction: "top",
-        offset: [0, -10],
-        className: "tooltip-sinal"
+        AppState.marcadoresPivos.push(marker);
+        AppState.pivotsMap[pivo.nome] = marker;
     });
 
-    marker.on("click", (e) => {
-        L.DomEvent.stopPropagation(e);
-
-      // desmarca marcador especial
-    if (AppState.selectedSpecialMarker) {
-        AppState.selectedSpecialMarker.getElement()?.classList.remove("marker-selected");
-        AppState.selectedSpecialMarker = null;
-    }
-
-        const el = marker.getElement();
-        if (!el) return;
-
-        if (AppState.selectedPivoNome === pivo.nome) {
-        el.classList.remove("pivo-marker-container-selected");
-        AppState.selectedPivoNome = null;
-        } else {
-        if (AppState.selectedPivoNome) {
-            const oldMarker = AppState.pivotsMap[AppState.selectedPivoNome];
-            oldMarker?.getElement()?.classList.remove("pivo-marker-container-selected");
-        }
-        el.classList.add("pivo-marker-container-selected");
-        AppState.selectedPivoNome = pivo.nome;
-        }
-
-        if (AppState.modoEdicaoPivos) {
-        marker.bindPopup(
-            `<div class="popup-glass">✏️ ${pivo.fora ? t("tooltips.out_of_signal") : t("tooltips.in_signal")}</div>`
-        ).openPopup();
-        } else if (AppState.modoLoSPivotAPivot && typeof handleLoSTargetClick === "function") {
-        handleLoSTargetClick(pivo, marker);
-        } else if (AppState.modoBuscaLocalRepetidora && typeof handlePivotSelectionForRepeaterSite === "function") {
-        handlePivotSelectionForRepeaterSite(pivo, marker);
-        } else {
-        window.ultimoCliqueFoiSobrePivo = true;
-        AppState.coordenadaClicada = e.latlng;
-        if (typeof removePositioningMarker === "function") removePositioningMarker();
-        document.getElementById("painel-repetidora")?.classList.remove("hidden");
-        }
-    });
-
-    marker.on("contextmenu", async (e) => {
-        L.DomEvent.stop(e);
-        if (AppState.modoEdicaoPivos) return;
-
-        const confirmed = await showCustomConfirm(t("messages.confirm.remove_pivot", { name: pivo.nome }));
-        if (!confirmed) return;
-
-        const nomeCicloParaRemover = `Ciclo ${pivo.nome}`;
-        AppState.lastPivosDataDrawn = AppState.lastPivosDataDrawn.filter((p) => p.nome !== pivo.nome);
-        AppState.ciclosGlobais = (AppState.ciclosGlobais || []).filter(
-        (c) => c.nome_original_circulo !== nomeCicloParaRemover
-        );
-        if (AppState.currentProcessedKmzData?.pivos) {
-        AppState.currentProcessedKmzData.pivos = AppState.currentProcessedKmzData.pivos.filter(
-            (p) => p.nome !== pivo.nome
-        );
-        }
-        if (AppState.currentProcessedKmzData?.ciclos) {
-        AppState.currentProcessedKmzData.ciclos = AppState.currentProcessedKmzData.ciclos.filter(
-            (c) => c.nome_original_circulo !== nomeCicloParaRemover
-        );
-        }
-
-        if (AppState.selectedPivoNome === pivo.nome) AppState.selectedPivoNome = null;
-
-        drawPivos(AppState.lastPivosDataDrawn, false);
-        if (typeof drawCirculos === "function") drawCirculos(AppState.ciclosGlobais);
-        if (typeof atualizarPainelDados === "function") atualizarPainelDados();
-        if (typeof mostrarMensagem === "function")
-        mostrarMensagem(t("messages.success.pivot_removed", { name: pivo.nome }), "sucesso");
-    });
-
-    AppState.marcadoresPivos.push(marker);
-    AppState.pivotsMap[pivo.nome] = marker;
-    });
-
-updateLegendsVisibility();
+    updateLegendsVisibility();
 }
 
-// -----------------------
-// Atualiza label (central/rep)
-// -----------------------
 function updateAntenaOrRepeaterLabel(entity) {
     if (!entity.label || !map.hasLayer(entity.label)) return;
     const newHtml = getFormattedAntennaOrRepeaterName(entity);
     const labelWidth = newHtml.length * 7 + 10;
     entity.label.setIcon(
-    L.divIcon({
-        className: "label-pivo",
-        html: newHtml,
-        iconSize: [labelWidth, 20],
-        iconAnchor: [labelWidth / 2, 45]
+        L.divIcon({
+            className: "label-pivo",
+            html: newHtml,
+            iconSize: [labelWidth, 20],
+            iconAnchor: [labelWidth / 2, 45]
         })
     );
 }
 
-// -----------------------
-// Bombas (Irripump)
-// -----------------------
 function drawBombas(bombasData) {
     if (!map || !Array.isArray(bombasData)) return;
 
@@ -529,182 +538,156 @@ function drawBombas(bombasData) {
 
     const restantes = AppState.marcadoresLegenda.filter((m) => m.options.labelType !== "bomba");
     AppState.marcadoresLegenda
-    .filter((l) => l.options.labelType === "bomba")
-    .forEach((l) => map.removeLayer(l));
+        .filter((l) => l.options.labelType === "bomba")
+        .forEach((l) => map.removeLayer(l));
     AppState.marcadoresLegenda = restantes;
 
     bombasData.forEach((bomba, i) => {
-    const icone = bomba.fora === false ? bombaIconAzul : bombaIconVermelho;
-    const marcadorBomba = L.marker([bomba.lat, bomba.lon], { icon: icone }).addTo(map);
-    AppState.marcadoresBombas.push(marcadorBomba);
+        const icone = bomba.fora === false ? bombaIconAzul : bombaIconVermelho;
+        const marcadorBomba = L.marker([bomba.lat, bomba.lon], { icon: icone }).addTo(map);
+        AppState.marcadoresBombas.push(marcadorBomba);
 
-    const statusTexto =
-        bomba.fora === false
-        ? `<span style="color:#22c55e;">${t("tooltips.in_signal")}</span>`
-        : `<span style="color:#ff4d4d;">${t("tooltips.out_of_signal")}</span>`;
-    marcadorBomba.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, {
-        permanent: false,
-        direction: "top",
-        offset: [0, -28],
-        className: "tooltip-sinal"
-    });
-
-    const nomeBomba = `Irripump ${String(i + 1).padStart(2, "0")}`;
-
-    marcadorBomba.on("click", (e) => {
-        L.DomEvent.stopPropagation(e);
-        if (AppState.modoLoSPivotAPivot && typeof handleLoSTargetClick === "function") {
-            handleLoSTargetClick({ nome: nomeBomba, fora: bomba.fora }, marcadorBomba);
-        }
-    });
-
-    marcadorBomba.on("contextmenu", async (e) => {
-        L.DomEvent.stop(e);
-        const confirmed = await showCustomConfirm(t("messages.confirm.remove_irripump", { name: nomeBomba }));
-        if (!confirmed) return;
-
-        map.removeLayer(marcadorBomba);
-
-        const labelParaRemover = AppState.marcadoresLegenda.find(
-        (l) =>
-            l.getLatLng().equals(marcadorBomba.getLatLng()) &&
-            l.options.labelType === "bomba" &&
-            l.options.icon.options.html.includes(nomeBomba)
-    );
-    if (labelParaRemover) {
-        map.removeLayer(labelParaRemover);
-        AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter((l) => l !== labelParaRemover);
-    }
-
-    AppState.lastBombasDataDrawn = AppState.lastBombasDataDrawn.filter(
-        (b) => !(b.lat === bomba.lat && b.lon === bomba.lon)
-    );
-        drawBombas(AppState.lastBombasDataDrawn);
-        if (typeof atualizarPainelDados === "function") atualizarPainelDados();
-        if (typeof reavaliarPivosViaAPI === "function") reavaliarPivosViaAPI();
-        if (typeof mostrarMensagem === "function")
-        mostrarMensagem(t("messages.success.irripump_removed", { name: nomeBomba }), "sucesso");
-    });
-
-    // label da bomba com distância/fonte (opcional)
-    let finalHtml = nomeBomba;
-    let hasDistancia = false;
-    let labelWidth = nomeBomba.length * 6.5 + 15;
-
-    if (AppState.distanciasPivosVisiveis) {
-        const closest = findClosestSignalSource(L.latLng(bomba.lat, bomba.lon));
-        if (closest) {
-        const distanciaFormatada =
-            closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + " km" : Math.round(closest.distance) + " m";
-
-        let sourceFormattedName = "";
-        if (closest.isMainAntenna) {
-            sourceFormattedName = getFormattedAntennaOrRepeaterName({
-            isMainAntenna: true,
-            type: AppState.antenaGlobal?.type,
-            nome: AppState.antenaGlobal?.nome,
-            altura: AppState.antenaGlobal?.altura
+        const statusTexto =
+            bomba.fora === false
+                ? `<span style="color:#22c55e;">${t("tooltips.in_signal")}</span>`
+                : `<span style="color:#ff4d4d;">${t("tooltips.out_of_signal")}</span>`;
+        marcadorBomba.bindTooltip(`<div style="text-align:center;">${statusTexto}</div>`, {
+            permanent: false,
+            direction: "top",
+            offset: [0, -28],
+            className: "tooltip-sinal"
         });
-        } else {
-            const rep = AppState.repetidoras.find((r) => r.id === closest.id);
-            if (rep) {
-            sourceFormattedName = getFormattedAntennaOrRepeaterName({
-                isMainAntenna: false,
-                type: rep.type,
-                nome: rep.nome,
-                altura: rep.altura
-                });
+
+        const nomeBomba = `Irripump ${String(i + 1).padStart(2, "0")}`;
+
+        marcadorBomba.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (AppState.modoLoSPivotAPivot && typeof handleLoSTargetClick === "function") {
+                handleLoSTargetClick({ nome: nomeBomba, fora: bomba.fora }, marcadorBomba);
+            }
+        });
+
+        marcadorBomba.on("contextmenu", async (e) => {
+            L.DomEvent.stop(e);
+            const confirmed = await showCustomConfirm(t("messages.confirm.remove_irripump", { name: nomeBomba }));
+            if (!confirmed) return;
+
+            map.removeLayer(marcadorBomba);
+
+            const labelParaRemover = AppState.marcadoresLegenda.find(
+                (l) =>
+                    l.getLatLng().equals(marcadorBomba.getLatLng()) &&
+                    l.options.labelType === "bomba" &&
+                    l.options.icon.options.html.includes(nomeBomba)
+            );
+            if (labelParaRemover) {
+                map.removeLayer(labelParaRemover);
+                AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter((l) => l !== labelParaRemover);
+            }
+
+            AppState.lastBombasDataDrawn = AppState.lastBombasDataDrawn.filter(
+                (b) => !(b.lat === bomba.lat && b.lon === bomba.lon)
+            );
+            drawBombas(AppState.lastBombasDataDrawn);
+            if (typeof atualizarPainelDados === "function") atualizarPainelDados();
+            if (typeof reavaliarPivosViaAPI === "function") reavaliarPivosViaAPI();
+            if (typeof mostrarMensagem === "function")
+                mostrarMensagem(t("messages.success.irripump_removed", { name: nomeBomba }), "sucesso");
+        });
+
+        let finalHtml = nomeBomba;
+        let hasDistancia = false;
+        let labelWidth = nomeBomba.length * 6.5 + 15;
+
+        if (AppState.distanciasPivosVisiveis) {
+            const closest = findClosestSignalSource(L.latLng(bomba.lat, bomba.lon));
+            if (closest) {
+                const distanciaFormatada =
+                    closest.distance > 999 ? (closest.distance / 1000).toFixed(1) + " km" : Math.round(closest.distance) + " m";
+
+                let sourceFormattedName = getFormattedAntennaOrRepeaterName(closest);
+                finalHtml = `${nomeBomba}<br><span class="source-name-pivo">${sourceFormattedName}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
+                hasDistancia = true;
+                labelWidth = Math.max(
+                    labelWidth,
+                    sourceFormattedName.length * 6.5 + 15,
+                    distanciaFormatada.length * 6.5 + 15
+                );
             }
         }
 
-        finalHtml = `${nomeBomba}<br><span class="source-name-pivo">${sourceFormattedName}</span><br><span class="distancia-pivo">${distanciaFormatada}</span>`;
-        hasDistancia = true;
-        labelWidth = Math.max(
-            labelWidth,
-            sourceFormattedName.length * 6.5 + 15,
-            distanciaFormatada.length * 6.5 + 15
-            );
-        }
-    }
-
-    const labelHeight = hasDistancia ? 55 : 20;
-    const labelBomba = L.marker([bomba.lat, bomba.lon], {
-        icon: L.divIcon({
-        className: "label-pivo",
-        html: finalHtml,
-        iconSize: [labelWidth, labelHeight],
-        iconAnchor: [labelWidth / 2, -5]
-        }),
-        labelType: "bomba",
-        interactive: false
-    }).addTo(map);
-    AppState.marcadoresLegenda.push(labelBomba);
+        const labelHeight = hasDistancia ? 55 : 20;
+        const labelBomba = L.marker([bomba.lat, bomba.lon], {
+            icon: L.divIcon({
+                className: "label-pivo",
+                html: finalHtml,
+                iconSize: [labelWidth, labelHeight],
+                iconAnchor: [labelWidth / 2, -5]
+            }),
+            labelType: "bomba",
+            interactive: false
+        }).addTo(map);
+        AppState.marcadoresLegenda.push(labelBomba);
     });
 
     updateLegendsVisibility();
 }
 
-// -----------------------
-// Círculos/Setores/Pac-Man
-// -----------------------
-function drawCirculos(/* ciclosData */) {
+function drawCirculos() {
     if (!map) return;
 
-AppState.circulosPivos.forEach((c) => map.removeLayer(c));
-AppState.circulosPivos = [];
+    AppState.circulosPivos.forEach((c) => map.removeLayer(c));
+    AppState.circulosPivos = [];
 
-AppState.lastPivosDataDrawn.forEach((pivo) => {
-    const pivoCenterLatLng =
-        pivo.circle_center_lat && pivo.circle_center_lon
-            ? L.latLng(pivo.circle_center_lat, pivo.circle_center_lon)
-            : L.latLng(pivo.lat, pivo.lon);
+    AppState.lastPivosDataDrawn.forEach((pivo) => {
+        const pivoCenterLatLng =
+            pivo.circle_center_lat && pivo.circle_center_lon
+                ? L.latLng(pivo.circle_center_lat, pivo.circle_center_lon)
+                : L.latLng(pivo.lat, pivo.lon);
 
-    if (pivo.tipo === "custom" && Array.isArray(pivo.coordenadas) && pivo.coordenadas.length > 0) {
-        const polygon = L.polygon(pivo.coordenadas, {
-        color: "#cc0000",
-        weight: 3,
-        opacity: 0.9,
-        fillOpacity: 0,
-        className: "circulo-custom-kmz"
-        }).addTo(map);
-        AppState.circulosPivos.push(polygon);
-    } else if (pivo.tipo === "setorial") {
-        const sectorCoords = generateSectorCoords(pivoCenterLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
-        const sectorPolygon = L.polygon(sectorCoords, {
-        color: "#cc0000",
-        weight: 3,
-        opacity: 0.9,
-        fillOpacity: 0,
-        className: "circulo-pivo-setorial"
-        }).addTo(map);
-        AppState.circulosPivos.push(sectorPolygon);
-    } else if (pivo.tipo === "pacman") {
-        const pacmanCoords = generatePacmanCoords(pivoCenterLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
-        const pacmanPolygon = L.polygon(pacmanCoords, {
-        color: "#cc0000",
-        weight: 3,
-        opacity: 0.9,
-        fillOpacity: 0,
-        className: "circulo-pivo-pacman"
-        }).addTo(map);
-        AppState.circulosPivos.push(pacmanPolygon);
-    } else {
-        const circle = L.circle(pivoCenterLatLng, {
-        radius: pivo.raio || 100,
-        color: "#cc0000",
-        weight: 3,
-        opacity: 0.9,
-        fillOpacity: 0,
-        className: "circulo-vermelho-pulsante"
-        }).addTo(map);
-        AppState.circulosPivos.push(circle);
-    }
+        if (pivo.tipo === "custom" && Array.isArray(pivo.coordenadas) && pivo.coordenadas.length > 0) {
+            const polygon = L.polygon(pivo.coordenadas, {
+                color: "#cc0000",
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: "circulo-custom-kmz"
+            }).addTo(map);
+            AppState.circulosPivos.push(polygon);
+        } else if (pivo.tipo === "setorial") {
+            const sectorCoords = generateSectorCoords(pivoCenterLatLng, pivo.raio, pivo.angulo_central, pivo.abertura_arco);
+            const sectorPolygon = L.polygon(sectorCoords, {
+                color: "#cc0000",
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: "circulo-pivo-setorial"
+            }).addTo(map);
+            AppState.circulosPivos.push(sectorPolygon);
+        } else if (pivo.tipo === "pacman") {
+            const pacmanCoords = generatePacmanCoords(pivoCenterLatLng, pivo.raio, pivo.angulo_inicio, pivo.angulo_fim);
+            const pacmanPolygon = L.polygon(pacmanCoords, {
+                color: "#cc0000",
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: "circulo-pivo-pacman"
+            }).addTo(map);
+            AppState.circulosPivos.push(pacmanPolygon);
+        } else {
+            const circle = L.circle(pivoCenterLatLng, {
+                radius: pivo.raio || 100,
+                color: "#cc0000",
+                weight: 3,
+                opacity: 0.9,
+                fillOpacity: 0,
+                className: "circulo-vermelho-pulsante"
+            }).addTo(map);
+            AppState.circulosPivos.push(circle);
+        }
     });
 }
 
-// -----------------------
-// Overlays de imagem
-// -----------------------
 function drawImageOverlay(url, bounds, opacity = 1.0) {
     if (!map || !url || !bounds) return null;
 
@@ -714,16 +697,13 @@ function drawImageOverlay(url, bounds, opacity = 1.0) {
     const imageBounds = [
         [bounds[0], bounds[1]],
         [bounds[2], bounds[3]]
-];
+    ];
 
     const overlay = L.imageOverlay(fullUrl, imageBounds, { opacity, interactive: false }).addTo(map);
     AppState.overlaysVisiveis.push(overlay);
     return overlay;
 }
 
-// -----------------------
-// Painel de repetidoras
-// -----------------------
 function addRepetidoraNoPainel(repetidora) {
     const container = document.getElementById("lista-repetidoras");
     if (!container) return;
@@ -733,8 +713,8 @@ function addRepetidoraNoPainel(repetidora) {
     item.id = `rep-item-${repetidora.id}`;
 
     const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t(
-    "tooltips.run_diagnostic_from_source"
-)}" data-id="${repetidora.id}" data-action="diagnostico">
+        "tooltips.run_diagnostic_from_source"
+    )}" data-id="${repetidora.id}" data-action="diagnostico">
     <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image:url(assets/images/mountain.svg);mask-image:url(assets/images/mountain.svg);"></span>
     </button>`;
 
@@ -743,7 +723,7 @@ function addRepetidoraNoPainel(repetidora) {
     <div class="flex gap-3 items-center">
         ${diagBtnHtml}
         <button class="text-white/60 hover:text-sky-300 transition" title="${t(
-        "tooltips.show_hide_coverage"
+            "tooltips.show_hide_coverage"
         )}" data-id="${repetidora.id}" data-action="toggle-visibility" data-visible="true">
         <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
         </button>
@@ -754,43 +734,43 @@ function addRepetidoraNoPainel(repetidora) {
     lucide?.createIcons?.();
 
     repetidora.marker?.on("contextmenu", (e) => {
-    L.DomEvent.stop(e);
-    showRenameRepeaterMenu(repetidora.marker, repetidora.nome, false, repetidora.id, repetidora.type);
-});
+        L.DomEvent.stop(e);
+        showRenameRepeaterMenu(repetidora.marker, repetidora.nome, false, repetidora.id, repetidora.type);
+    });
 
     item.querySelector('[data-action="diagnostico"]')?.addEventListener("click", () => runTargetedDiagnostic?.(repetidora));
 
     item.querySelector('[data-action="remover"]')?.addEventListener("click", () => {
-    if (repetidora.marker) map.removeLayer(repetidora.marker);
-    if (repetidora.overlay) map.removeLayer(repetidora.overlay);
-    if (repetidora.label) map.removeLayer(repetidora.label);
-    container.removeChild(item);
+        if (repetidora.marker) map.removeLayer(repetidora.marker);
+        if (repetidora.overlay) map.removeLayer(repetidora.overlay);
+        if (repetidora.label) map.removeLayer(repetidora.label);
+        container.removeChild(item);
 
-    AppState.idsDisponiveis.push(repetidora.id);
-    AppState.idsDisponiveis.sort((a, b) => a - b);
-    AppState.repetidoras = AppState.repetidoras.filter((r) => r.id !== repetidora.id);
-    AppState.overlaysVisiveis = AppState.overlaysVisiveis.filter((o) => o !== repetidora.overlay);
-    AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter((l) => l !== repetidora.label);
+        AppState.idsDisponiveis.push(repetidora.id);
+        AppState.idsDisponiveis.sort((a, b) => a - b);
+        AppState.repetidoras = AppState.repetidoras.filter((r) => r.id !== repetidora.id);
+        AppState.overlaysVisiveis = AppState.overlaysVisiveis.filter((o) => o !== repetidora.overlay);
+        AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter((l) => l !== repetidora.label);
 
-    if (typeof atualizarPainelDados === "function") atualizarPainelDados();
-    setTimeout(() => reavaliarPivosViaAPI?.(), 100);
-});
+        if (typeof atualizarPainelDados === "function") atualizarPainelDados();
+        setTimeout(() => reavaliarPivosViaAPI?.(), 100);
+    });
 
     const visibilityBtn = item.querySelector('[data-action="toggle-visibility"]');
     visibilityBtn?.addEventListener("click", () => {
-    const isVisible = visibilityBtn.getAttribute("data-visible") === "true";
-    const newState = !isVisible;
-    visibilityBtn.setAttribute("data-visible", String(newState));
+        const isVisible = visibilityBtn.getAttribute("data-visible") === "true";
+        const newState = !isVisible;
+        visibilityBtn.setAttribute("data-visible", String(newState));
 
-    const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
-    if (repetidora.overlay) repetidora.overlay.setOpacity(newState ? opacityValue : 0);
+        const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
+        if (repetidora.overlay) repetidora.overlay.setOpacity(newState ? opacityValue : 0);
 
-    visibilityBtn.innerHTML = newState
-        ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>`
-        : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
-    lucide?.createIcons?.();
+        visibilityBtn.innerHTML = newState
+            ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>`
+            : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
+        lucide?.createIcons?.();
 
-    setTimeout(() => reavaliarPivosViaAPI?.(), 100);
+        setTimeout(() => reavaliarPivosViaAPI?.(), 100);
     });
 }
 
@@ -805,17 +785,17 @@ function addAntenaAoPainel(antena) {
     item.id = "antena-item";
 
     const diagBtnHtml = `<button class="text-white/60 hover:text-sky-300 transition relative top-px" title="${t(
-    "tooltips.run_diagnostic_from_source"
-)}" data-action="diagnostico">
+        "tooltips.run_diagnostic_from_source"
+    )}" data-action="diagnostico">
     <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image:url(assets/images/mountain.svg);mask-image:url(assets/images/mountain.svg);"></span>
 </button>`;
 
-item.innerHTML = `
+    item.innerHTML = `
     <span class="text-white/80 text-sm">${getFormattedAntennaOrRepeaterName(antena)}</span>
     <div class="flex gap-3 items-center">
         ${diagBtnHtml}
         <button class="text-white/60 hover:text-sky-300 transition" title="${t(
-        "tooltips.show_hide_coverage"
+            "tooltips.show_hide_coverage"
         )}" data-action="toggle-visibility" data-visible="true">
             <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
         </button>
@@ -825,64 +805,61 @@ item.innerHTML = `
     lucide?.createIcons?.();
 
     item.addEventListener("contextmenu", (e) => {
-    L.DomEvent.stop(e);
-    if (AppState.marcadorAntena) showRenameRepeaterMenu(AppState.marcadorAntena, antena.nome, true, null);
-});
+        L.DomEvent.stop(e);
+        if (AppState.marcadorAntena) showRenameRepeaterMenu(AppState.marcadorAntena, antena.nome, true, null);
+    });
 
     item.querySelector('[data-action="diagnostico"]')?.addEventListener("click", () => runTargetedDiagnostic?.(antena));
 
     const visibilityBtn = item.querySelector('[data-action="toggle-visibility"]');
     visibilityBtn?.addEventListener("click", () => {
-    const isVisible = visibilityBtn.getAttribute("data-visible") === "true";
-    const newState = !isVisible;
-    visibilityBtn.setAttribute("data-visible", String(newState));
+        const isVisible = visibilityBtn.getAttribute("data-visible") === "true";
+        const newState = !isVisible;
+        visibilityBtn.setAttribute("data-visible", String(newState));
 
-    const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
-    if (antena?.overlay) antena.overlay.setOpacity(newState ? opacityValue : 0);
+        const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
+        if (antena?.overlay) antena.overlay.setOpacity(newState ? opacityValue : 0);
 
-    visibilityBtn.innerHTML = newState
-        ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>`
-        : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
-    lucide?.createIcons?.();
+        visibilityBtn.innerHTML = newState
+            ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>`
+            : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
+        lucide?.createIcons?.();
 
-    setTimeout(() => reavaliarPivosViaAPI?.(), 100);
+        setTimeout(() => reavaliarPivosViaAPI?.(), 100);
     });
 }
 
-// -----------------------
-// Diagnóstico de visada
-// -----------------------
 function criarGradienteVisada(id = "gradient-visada") {
     const svgPane = map.getPane("overlayPane");
     let svg = svgPane.querySelector("svg");
     if (!svg) {
-    const temp = L.polyline([[0, 0], [0, 0]]).addTo(map);
-    svg = svgPane.querySelector("svg");
-    map.removeLayer(temp);
-    if (!svg) return;
-}
+        const temp = L.polyline([[0, 0], [0, 0]]).addTo(map);
+        svg = svgPane.querySelector("svg");
+        map.removeLayer(temp);
+        if (!svg) return;
+    }
     if (svg.querySelector(`#${id}`)) return;
 
-let defs = svg.querySelector("defs");
+    let defs = svg.querySelector("defs");
     if (!defs) {
-    defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-    svg.insertBefore(defs, svg.firstChild);
-}
+        defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+        svg.insertBefore(defs, svg.firstChild);
+    }
     const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
     gradient.setAttribute("id", id);
     gradient.innerHTML =
-    `<stop offset="0%" stop-color="green"/><stop offset="50%" stop-color="yellow"/><stop offset="100%" stop-color="red"/>`;
+        `<stop offset="0%" stop-color="green"/><stop offset="50%" stop-color="yellow"/><stop offset="100%" stop-color="red"/>`;
     defs.appendChild(gradient);
 }
 
 function drawVisadaComGradiente(pontoA, pontoB) {
     criarGradienteVisada();
     return L.polyline([pontoA, pontoB], {
-    renderer: L.svg(),
-    color: "url(#gradient-visada)",
-    weight: 2,
-    opacity: AppState.visadaVisivel ? 1 : 0.5,
-    dashArray: "8 8"
+        renderer: L.svg(),
+        color: "url(#gradient-visada)",
+        weight: 2,
+        opacity: AppState.visadaVisivel ? 1 : 0.5,
+        dashArray: "8 8"
     }).addTo(AppState.visadaLayerGroup);
 }
 
@@ -892,177 +869,122 @@ function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPon
     const linha = drawVisadaComGradiente(latlonOrigem, latlonDestino);
     const estaBloqueado = dadosBloqueioAPI?.diff > 0.1;
 
-let iconUrl;
-let iconSize;
-let mensagemTooltip;
-let markerLatLng;
-let tooltipColor;
+    let iconUrl;
+    let iconSize;
+    let mensagemTooltip;
+    let markerLatLng;
+    let tooltipColor;
 
-if (estaBloqueado) {
-    iconUrl = ATTENTION_ICON_PATH;
-    iconSize = [24, 24];
-    markerLatLng = [dadosBloqueioAPI.lat, dadosBloqueioAPI.lon];
-    mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
-    if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
-    mensagemTooltip += `<br>${t("tooltips.blockage_point", { elevation: dadosBloqueioAPI.elev.toFixed(1) })}`;
-    tooltipColor = "#FF9800";
-    mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.blockage_present", { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
-} else {
-    iconUrl = MOUNTAIN_ICON_PATH;
-    iconSize = [22, 22];
-    markerLatLng = [dadosPontoMaisAlto.lat, dadosPontoMaisAlto.lon];
-    mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
-    if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
-    tooltipColor = "#FF9800";
-    mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.highest_point_short", { elevation: dadosPontoMaisAlto.elev.toFixed(1) })}</span>`;
-}
+    if (estaBloqueado) {
+        iconUrl = ATTENTION_ICON_PATH;
+        iconSize = [24, 24];
+        markerLatLng = [dadosBloqueioAPI.lat, dadosBloqueioAPI.lon];
+        mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
+        if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
+        mensagemTooltip += `<br>${t("tooltips.blockage_point", { elevation: dadosBloqueioAPI.elev.toFixed(1) })}`;
+        tooltipColor = "#FF9800";
+        mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.blockage_present", { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
+    } else {
+        iconUrl = MOUNTAIN_ICON_PATH;
+        iconSize = [22, 22];
+        markerLatLng = [dadosPontoMaisAlto.lat, dadosPontoMaisAlto.lon];
+        mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
+        if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
+        tooltipColor = "#FF9800";
+        mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.highest_point_short", { elevation: dadosPontoMaisAlto.elev.toFixed(1) })}</span>`;
+    }
 
-if (markerLatLng?.[0] && markerLatLng?.[1]) {
-    const markerIcon = L.divIcon({
-        className: "label-bloqueio-dinamico",
-        html: `<img src="${iconUrl}" style="width:${iconSize[0]}px;height:${iconSize[1]}px;">`,
-        iconSize,
-        iconAnchor: [iconSize[0] / 2, iconSize[1] / 2]
-    });
-    const marker = L.marker(markerLatLng, { icon: markerIcon })
-        .addTo(AppState.visadaLayerGroup)
-        .bindTooltip(mensagemTooltip, {
-        permanent: false,
-        direction: "top",
-        className: "tooltip-sinal tooltip-visada-diagnostico",
-        offset: [0, -(iconSize[1] / 2 + 5)]
+    if (markerLatLng?.[0] && markerLatLng?.[1]) {
+        const markerIcon = L.divIcon({
+            className: "label-bloqueio-dinamico",
+            html: `<img src="${iconUrl}" style="width:${iconSize[0]}px;height:${iconSize[1]}px;">`,
+            iconSize,
+            iconAnchor: [iconSize[0] / 2, iconSize[1] / 2]
         });
-    AppState.marcadoresBloqueio?.push?.(marker);
+        const marker = L.marker(markerLatLng, { icon: markerIcon })
+            .addTo(AppState.visadaLayerGroup)
+            .bindTooltip(mensagemTooltip, {
+                permanent: false,
+                direction: "top",
+                className: "tooltip-sinal tooltip-visada-diagnostico",
+                offset: [0, -(iconSize[1] / 2 + 5)]
+            });
+        AppState.marcadoresBloqueio?.push?.(marker);
     }
 
     AppState.linhasDiagnostico?.push?.(linha);
 }
 
-// -----------------------
-// Limpar camadas
-// -----------------------
 function clearMapLayers() {
     if (!map) return;
 
     const layersAndGroups = [
-    AppState.marcadorAntena,
-    AppState.antenaCandidatesLayerGroup,
-    AppState.marcadorPosicionamento,
-    AppState.visadaLayerGroup,
-    window.candidateRepeaterSitesLayerGroup,
-    ...(AppState.marcadoresPivos || []),
-    ...(AppState.circulosPivos || []),
-    ...(AppState.marcadoresBombas || []),
-    ...(AppState.marcadoresLegenda || []),
-    ...Object.values(AppState.pivotsMap || {})
-];
+        AppState.marcadorAntena,
+        AppState.antenaCandidatesLayerGroup,
+        AppState.marcadorPosicionamento,
+        AppState.visadaLayerGroup,
+        window.candidateRepeaterSitesLayerGroup,
+        ...(AppState.marcadoresPivos || []),
+        ...(AppState.circulosPivos || []),
+        ...(AppState.marcadoresBombas || []),
+        ...(AppState.marcadoresLegenda || []),
+        ...Object.values(AppState.pivotsMap || {})
+    ];
 
-layersAndGroups.forEach((layer) => {
-    if (!layer) return;
-    if (typeof layer.clearLayers === "function") {
-        layer.clearLayers();
-    } else if (map.hasLayer(layer)) {
-        map.removeLayer(layer);
-    }
-});
+    layersAndGroups.forEach((layer) => {
+        if (!layer) return;
+        if (typeof layer.clearLayers === "function") {
+            layer.clearLayers();
+        } else if (map.hasLayer(layer)) {
+            map.removeLayer(layer);
+        }
+    });
 
-AppState.repetidoras.forEach((r) => {
-    if (r.marker) map.removeLayer(r.marker);
-    if (r.overlay) map.removeLayer(r.overlay);
-    if (r.label) map.removeLayer(r.label);
+    AppState.repetidoras.forEach((r) => {
+        if (r.marker) map.removeLayer(r.marker);
+        if (r.overlay) map.removeLayer(r.overlay);
+        if (r.label) map.removeLayer(r.label);
     });
     if (AppState.antenaGlobal?.overlay) map.removeLayer(AppState.antenaGlobal.overlay);
 }
 
-// -----------------------
-// Legendas & opacidade
-// -----------------------
 function updateLegendsVisibility() {
     if (!Array.isArray(AppState.marcadoresLegenda)) return;
 
     AppState.marcadoresLegenda.forEach((marker) => {
-    const el = marker.getElement?.();
-    if (!el) return;
+        const el = marker.getElement?.();
+        if (!el) return;
 
-    const type = marker.options.labelType;
-    let show = false;
+        const type = marker.options.labelType;
+        let show = false;
 
-    if (type === "pivot" || type === "bomba") show = AppState.legendasAtivas;
-    else if (type === "antena" || type === "repetidora" || type === "antena_candidate") show = AppState.antenaLegendasAtivas;
+        if (type === "pivot" || type === "bomba") show = AppState.legendasAtivas;
+        else if (type === "antena" || type === "repetidora" || type === "antena_candidate") show = AppState.antenaLegendasAtivas;
 
-    if (type === "antena" || type === "repetidora") {
-        el.style.opacity = AppState.antenaLegendasAtivas ? "1" : "0.5";
-    }
-    el.style.display = show ? "" : "none";
-});
+        if (type === "antena" || type === "repetidora") {
+            el.style.opacity = AppState.antenaLegendasAtivas ? "1" : "0.5";
+        }
+        el.style.display = show ? "" : "none";
+    });
 }
 
 function updateOverlaysOpacity(opacityValue) {
     const isPanelItemVisible = (overlay) => {
-    let visibilityBtn = null;
-    if (AppState.antenaGlobal?.overlay === overlay) {
-        visibilityBtn = document.querySelector("#antena-item button[data-visible]");
-    } else {
-        const rep = AppState.repetidoras.find((r) => r.overlay === overlay);
-        if (rep) visibilityBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
-    }
-    return !visibilityBtn || visibilityBtn.getAttribute("data-visible") === "true";
-};
+        let visibilityBtn = null;
+        if (AppState.antenaGlobal?.overlay === overlay) {
+            visibilityBtn = document.querySelector("#antena-item button[data-visible]");
+        } else {
+            const rep = AppState.repetidoras.find((r) => r.overlay === overlay);
+            if (rep) visibilityBtn = document.querySelector(`#rep-item-${rep.id} button[data-visible]`);
+        }
+        return !visibilityBtn || visibilityBtn.getAttribute("data-visible") === "true";
+    };
 
-AppState.overlaysVisiveis.forEach((overlay) => {
-    if (map.hasLayer(overlay)) {
-        overlay.setOpacity(isPanelItemVisible(overlay) ? opacityValue : 0);
-    }
-});
-}
-
-// -----------------------
-// Candidatos de repetidora (AI)
-// -----------------------
-function drawCandidateRepeaterSites(sites, targetPivotData) {
-if (!map || !window.candidateRepeaterSitesLayerGroup) return;
-
-window.candidateRepeaterSitesLayerGroup.clearLayers();
-if (!Array.isArray(sites) || sites.length === 0) return;
-
-sites.forEach((site, index) => {
-    if (typeof site.lat === "undefined") return;
-
-    const siteLatLng = [site.lat, site.lon];
-    const uniqueMarkerId = `candidate-${index}-${site.lat?.toFixed?.(5)}`;
-
-    const iconHtml = `
-    <div class="candidate-icon-wrapper">
-        ⛰️ ${(site.elevation || 0).toFixed(1)}m<br>
-        ${site.has_los ? `<span class="los-ok">${t("tooltips.los_ok")}</span>` : `<span class="los-no">${t("tooltips.los_no")}</span>`}
-        <br><span class="distancia-info">${t("ui.labels.pivo_distance_label")} ${
-        site.distance_to_target ? site.distance_to_target.toFixed(0) + "m" : "N/A"
-    }</span>
-    </div>`;
-
-    const candidateIcon = L.divIcon({
-        className: "custom-div-icon-ponto-alto",
-        html: iconHtml,
-        iconSize: [130, 48],
-        iconAnchor: [65, 24]
+    AppState.overlaysVisiveis.forEach((overlay) => {
+        if (map.hasLayer(overlay)) {
+            overlay.setOpacity(isPanelItemVisible(overlay) ? opacityValue : 0);
+        }
     });
-
-    const marker = L.marker(siteLatLng, { icon: candidateIcon, customId: uniqueMarkerId, interactive: false });
-    marker.addTo(window.candidateRepeaterSitesLayerGroup);
-
-    if (targetPivotData?.lat) {
-        const targetLatLng = [targetPivotData.lat, targetPivotData.lon];
-        const lineColor = site.has_los ? "rgba(76,175,80,0.7)" : "rgba(255,152,0,0.7)";
-        const line = L.polyline([siteLatLng, targetLatLng], {
-        color: lineColor,
-        weight: 2,
-        dashArray: "5, 5",
-        opacity: 0.75,
-        customId: uniqueMarkerId
-    });
-        line.addTo(window.candidateRepeaterSitesLayerGroup);
-    }
-});
 }
 
 function togglePivoDistances(show) {
@@ -1072,31 +994,28 @@ function togglePivoDistances(show) {
     if (typeof mostrarMensagem === "function") mostrarMensagem(t(key), "sucesso");
 }
 
-// -----------------------
-// Desenhos temporários
-// -----------------------
 function drawTempCircle(center, radiusPoint) {
     const radius = center.distanceTo(radiusPoint);
     if (tempCircle) {
-    tempCircle.setLatLng(center).setRadius(radius);
-    return;
-}
+        tempCircle.setLatLng(center).setRadius(radius);
+        return;
+    }
     tempCircle = L.circle(center, {
-    radius,
-    color: "#D97706",
-    weight: 3,
-    dashArray: "5, 5",
-    fillColor: "#D97706",
-    fillOpacity: 0.1,
-    interactive: false
-}).addTo(map);
+        radius,
+        color: "#D97706",
+        weight: 3,
+        dashArray: "5, 5",
+        fillColor: "#D97706",
+        fillOpacity: 0.1,
+        interactive: false
+    }).addTo(map);
 }
 
 function removeTempCircle() {
     if (tempCircle) {
-    map.removeLayer(tempCircle);
-    tempCircle = null;
-}
+        map.removeLayer(tempCircle);
+        tempCircle = null;
+    }
 }
 
 function generateCircleCoords(center, radius, points = 240) {
@@ -1106,19 +1025,19 @@ function generateCircleCoords(center, radius, points = 240) {
     const lon = center.lng * (Math.PI / 180);
 
     for (let i = 0; i < points; i++) {
-    const bearing = (i / points) * 360 * (Math.PI / 180);
-    const newLat =
-        Math.asin(
-        Math.sin(lat) * Math.cos(radius / earthRadius) +
-        Math.cos(lat) * Math.sin(radius / earthRadius) * Math.cos(bearing)
-    );
-    const newLon =
-        lon +
-        Math.atan2(
-        Math.sin(bearing) * Math.sin(radius / earthRadius) * Math.cos(lat),
-        Math.cos(radius / earthRadius) - Math.sin(lat) * Math.sin(newLat)
-    );
-    coords.push([newLat * (180 / Math.PI), newLon * (180 / Math.PI)]);
+        const bearing = (i / points) * 360 * (Math.PI / 180);
+        const newLat =
+            Math.asin(
+                Math.sin(lat) * Math.cos(radius / earthRadius) +
+                Math.cos(lat) * Math.sin(radius / earthRadius) * Math.cos(bearing)
+            );
+        const newLon =
+            lon +
+            Math.atan2(
+                Math.sin(bearing) * Math.sin(radius / earthRadius) * Math.cos(lat),
+                Math.cos(radius / earthRadius) - Math.sin(lat) * Math.sin(newLat)
+            );
+        coords.push([newLat * (180 / Math.PI), newLon * (180 / Math.PI)]);
     }
     coords.push(coords[0]);
     return coords;
@@ -1132,35 +1051,35 @@ function drawTempSector(center, currentPoint) {
     const coords = generateSectorCoords(center, radius, bearing, 180);
 
     if (tempSectorShape) {
-    tempSectorShape.setLatLngs(coords);
-    return;
-}
-tempSectorShape = L.polygon(coords, {
-    color: "#D97706",
-    weight: 3,
-    dashArray: "8, 8",
-    fillColor: "#D97706",
-    fillOpacity: 0.2,
-    interactive: false
-}).addTo(map);
+        tempSectorShape.setLatLngs(coords);
+        return;
+    }
+    tempSectorShape = L.polygon(coords, {
+        color: "#D97706",
+        weight: 3,
+        dashArray: "8, 8",
+        fillColor: "#D97706",
+        fillOpacity: 0.2,
+        interactive: false
+    }).addTo(map);
 }
 
 function removeTempSector() {
     if (tempSectorShape) {
-    map.removeLayer(tempSectorShape);
-    tempSectorShape = null;
-}
+        map.removeLayer(tempSectorShape);
+        tempSectorShape = null;
+    }
 }
 
 function calculateBearing(p1, p2) {
-  const toRad = (deg) => (deg * Math.PI) / 180;
+    const toRad = (deg) => (deg * Math.PI) / 180;
     const lat1 = toRad(p1.lat);
     const lon1 = toRad(p1.lng);
     const lat2 = toRad(p2.lat);
     const lon2 = toRad(p2.lng);
     const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
 function generateSectorCoords(center, radius, mainAngle, arcAngle = 180) {
@@ -1168,33 +1087,32 @@ function generateSectorCoords(center, radius, mainAngle, arcAngle = 180) {
     const startAngle = mainAngle - arcAngle / 2;
     const points = 40;
     for (let i = 0; i <= points; i++) {
-    const angle = startAngle + (i * arcAngle) / points;
-    const point = L.latLng(center).destination(radius, angle);
-    vertices.push([point.lat, point.lng]);
-}
+        const angle = startAngle + (i * arcAngle) / points;
+        const point = L.latLng(center).destination(radius, angle);
+        vertices.push([point.lat, point.lng]);
+    }
     return vertices;
 }
 
-// extensão de destino geodésico
-    if (!L.LatLng.prototype.destination) {
-L.LatLng.prototype.destination = function (distance, bearing) {
-    const R = 6378137;
-    const toRad = (deg) => (deg * Math.PI) / 180;
-    const toDeg = (rad) => (rad * 180) / Math.PI;
-    const brng = toRad(bearing);
-    const lat1 = toRad(this.lat);
-    const lon1 = toRad(this.lng);
-    const lat2 = Math.asin(
-      Math.sin(lat1) * Math.cos(distance / R) + Math.cos(lat1) * Math.sin(distance / R) * Math.cos(brng)
-    );
-    const lon2 =
-        lon1 +
-        Math.atan2(
-        Math.sin(brng) * Math.sin(distance / R) * Math.cos(lat1),
-        Math.cos(distance / R) - Math.sin(lat1) * Math.sin(lat2)
-    );
-    return L.latLng(toDeg(lat2), toDeg(lon2));
-};
+if (!L.LatLng.prototype.destination) {
+    L.LatLng.prototype.destination = function (distance, bearing) {
+        const R = 6378137;
+        const toRad = (deg) => (deg * Math.PI) / 180;
+        const toDeg = (rad) => (rad * 180) / Math.PI;
+        const brng = toRad(bearing);
+        const lat1 = toRad(this.lat);
+        const lon1 = toRad(this.lng);
+        const lat2 = Math.asin(
+            Math.sin(lat1) * Math.cos(distance / R) + Math.cos(lat1) * Math.sin(distance / R) * Math.cos(brng)
+        );
+        const lon2 =
+            lon1 +
+            Math.atan2(
+                Math.sin(brng) * Math.sin(distance / R) * Math.cos(lat1),
+                Math.cos(distance / R) - Math.sin(lat1) * Math.sin(lat2)
+            );
+        return L.latLng(toDeg(lat2), toDeg(lon2));
+    };
 }
 
 function generatePacmanCoords(center, radius, startAngle, endAngle, points = 80) {
@@ -1206,56 +1124,56 @@ function generatePacmanCoords(center, radius, startAngle, endAngle, points = 80)
     const arcAngle = aEnd - aStart;
     const irrigatedAngle = 360 - arcAngle;
 
-for (let i = 0; i <= points; i++) {
-    const angle = aEnd + (i * irrigatedAngle) / points;
-    const point = center.destination(radius, angle);
-    vertices.push([point.lat, point.lng]);
-}
-vertices.push([center.lat, center.lng]);
-return vertices;
+    for (let i = 0; i <= points; i++) {
+        const angle = aEnd + (i * irrigatedAngle) / points;
+        const point = center.destination(radius, angle);
+        vertices.push([point.lat, point.lng]);
+    }
+    vertices.push([center.lat, center.lng]);
+    return vertices;
 }
 
 function drawTempPacman(center, radiusPoint, currentMousePoint) {
-if (tempPacmanShape) {
-    map.removeLayer(tempPacmanShape);
-    tempPacmanShape = null;
-}
-
-if (!radiusPoint) {
-    const radius = center.distanceTo(currentMousePoint);
-    if (radius > 5) {
-    tempPacmanShape = L.circle(center, {
-        radius,
-        color: "#D97706",
-        weight: 3,
-        dashArray: "5, 5",
-        fillColor: "#D97706",
-        fillOpacity: 0.1,
-        interactive: false
-    }).addTo(map);
+    if (tempPacmanShape) {
+        map.removeLayer(tempPacmanShape);
+        tempPacmanShape = null;
     }
-} else {
-    const radius = center.distanceTo(radiusPoint);
-    const startAngle = calculateBearing(center, radiusPoint);
-    const endAngle = calculateBearing(center, currentMousePoint);
-    const coords = generatePacmanCoords(center, radius, startAngle, endAngle);
 
-    tempPacmanShape = L.polygon(coords, {
-        color: "#D97706",
-        weight: 3,
-        dashArray: "8, 8",
-        fillColor: "#D97706",
-        fillOpacity: 0.2,
-        interactive: false
-    }).addTo(map);
-}
+    if (!radiusPoint) {
+        const radius = center.distanceTo(currentMousePoint);
+        if (radius > 5) {
+            tempPacmanShape = L.circle(center, {
+                radius,
+                color: "#D97706",
+                weight: 3,
+                dashArray: "5, 5",
+                fillColor: "#D97706",
+                fillOpacity: 0.1,
+                interactive: false
+            }).addTo(map);
+        }
+    } else {
+        const radius = center.distanceTo(radiusPoint);
+        const startAngle = calculateBearing(center, radiusPoint);
+        const endAngle = calculateBearing(center, currentMousePoint);
+        const coords = generatePacmanCoords(center, radius, startAngle, endAngle);
+
+        tempPacmanShape = L.polygon(coords, {
+            color: "#D97706",
+            weight: 3,
+            dashArray: "8, 8",
+            fillColor: "#D97706",
+            fillOpacity: 0.2,
+            interactive: false
+        }).addTo(map);
+    }
 }
 
 function removeTempPacman() {
     if (tempPacmanShape) {
-    map.removeLayer(tempPacmanShape);
-    tempPacmanShape = null;
-}
+        map.removeLayer(tempPacmanShape);
+        tempPacmanShape = null;
+    }
 }
 
 // ------------------------------------

@@ -933,20 +933,19 @@ async function handlePivotSelectionForRepeaterSite(pivoData, pivoMarker) {
 
         const resultados = await findHighPointsForRepeater(payload);
 
+        // Limpa marcadores antigos (a função de desenho também faz isso, mas é uma garantia)
         if (window.candidateRepeaterSitesLayerGroup) {
             window.candidateRepeaterSitesLayerGroup.clearLayers();
         }
 
-        if (resultados?.candidate_sites?.length > 0) {
-            drawCandidateRepeaterSites(resultados.candidate_sites, AppState.pivoAlvoParaLocalRepetidora);
-            mostrarMensagem(t('messages.success.found_candidate_sites', { count: resultados.candidate_sites.length }), "sucesso");
-        } else {
-            mostrarMensagem(t('messages.info.no_promising_sites_found'), "info");
-        }
+        // CHAMA AS NOVAS FUNÇÕES
+        showSuggestionsPanel(resultados.candidate_sites);
+        drawCandidateRepeaterSites(resultados.candidate_sites);
 
     } catch (error) {
         console.error("Erro ao buscar locais para repetidora:", error);
         mostrarMensagem(t('messages.errors.find_repeater_fail', { error: error.message || 'Erro desconhecido' }), "erro");
+        hideSuggestionsPanel();
     } finally {
         mostrarLoader(false);
         if (map) map.getContainer().style.cursor = AppState.modoBuscaLocalRepetidora ? 'crosshair' : '';

@@ -19,6 +19,11 @@ const customConfirmMessage = document.getElementById("custom-confirm-message");
 const customConfirmOkBtn = document.getElementById("custom-confirm-ok-btn");
 const customConfirmCancelBtn = document.getElementById("custom-confirm-cancel-btn");
 const btnMoverPivoSemCirculo = document.getElementById("btn-mover-pivo-sem-circulo");
+const suggestionsPanel = document.getElementById("repeater-suggestions-panel");
+const suggestionsList = document.getElementById("suggestions-list");
+const closeSuggestionsBtn = document.getElementById("close-suggestions-panel");
+const filterLosClearBtn = document.getElementById("filter-los-clear");
+const filterLosAllBtn = document.getElementById("filter-los-all");
 
 let dicaLoaderInterval = null;
 let _hideMsgTimer = null;
@@ -539,6 +544,76 @@ const tooltip = container?.querySelector(".drawing-tooltip");
     tooltip.style.opacity = 0;
     setTimeout(() => tooltip.remove(), 100);
     }
+}
+
+// Adicione estas novas funções ao arquivo
+function showSuggestionsPanel(suggestions) {
+    if (!suggestionsPanel || !suggestionsList) return;
+    
+    populateSuggestionsList(suggestions);
+    suggestionsPanel.classList.remove("hidden");
+    
+    closeSuggestionsBtn?.addEventListener('click', hideSuggestionsPanel, { once: true });
+    
+    // Lógica dos filtros
+    filterLosClearBtn?.addEventListener('click', () => {
+        const clearSuggestions = suggestions.filter(s => s.has_los);
+        populateSuggestionsList(clearSuggestions);
+    });
+    filterLosAllBtn?.addEventListener('click', () => populateSuggestionsList(suggestions));
+}
+
+function hideSuggestionsPanel() {
+    if (!suggestionsPanel) return;
+    suggestionsPanel.classList.add("hidden");
+    if(suggestionsList) suggestionsList.innerHTML = ''; 
+    
+    if (window.candidateRepeaterSitesLayerGroup) {
+        window.candidateRepeaterSitesLayerGroup.clearLayers();
+    }
+}
+
+function populateSuggestionsList(suggestions) {
+    if (!suggestionsList) return;
+    suggestionsList.innerHTML = '';
+
+    if (!suggestions || suggestions.length === 0) {
+        suggestionsList.innerHTML = `<p class="text-sm text-white/50 p-2 text-center">${t('messages.info.no_promising_sites_found')}</p>`;
+        return;
+    }
+
+    suggestions.forEach(site => {
+        const item = document.createElement('div');
+        item.className = 'suggestion-item';
+        item.dataset.lat = site.lat;
+        item.dataset.lon = site.lon;
+
+        const isLosClear = site.has_los;
+        const statusColor = isLosClear ? 'text-green-400' : 'text-orange-400';
+        const statusIcon = isLosClear ? 'shield-check' : 'shield-alert';
+
+        item.innerHTML = `
+            <div class="flex justify-between items-center text-sm font-bold">
+                <span>${site.elevation.toFixed(1)}m</span>
+                <span class="${statusColor} flex items-center gap-1">
+                    <i data-lucide="${statusIcon}" class="w-4 h-4"></i>
+                    ${isLosClear ? t("tooltips.los_ok") : t("tooltips.los_no")}
+                </span>
+            </div>
+            <div class="text-xs text-white/60 mt-1 flex justify-between">
+                <span>Dist: ${site.distance_to_target.toFixed(0)}m</span>
+                ${!isLosClear && site.altura_necessaria_torre ? `<span>Torre: ${site.altura_necessaria_torre.toFixed(1)}m</span>` : ''}
+            </div>
+        `;
+
+        item.addEventListener('mouseover', () => window.highlightMarkerByLatLng?.(site.lat, site.lon, true));
+        item.addEventListener('mouseout', () => window.highlightMarkerByLatLng?.(site.lat, site.lon, false));
+        item.addEventListener('click', () => map.flyTo([site.lat, site.lon], 16));
+        
+        suggestionsList.appendChild(item);
+    });
+
+    lucide.createIcons();
 }
 
 /* ========= Exports globais, se outros módulos precisarem ========= */
