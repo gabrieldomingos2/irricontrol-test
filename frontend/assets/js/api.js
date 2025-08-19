@@ -60,7 +60,7 @@ function parseFilenameFromContentDisposition(disposition, fallback) {
  */
 async function apiRequest(endpoint, options = {}) {
   const {
-    timeoutMs = 60000,
+    timeoutMs = 180000,
     expects = options.responseType === "blob" ? "blob" : "json",
     ...fetchOpts
   } = options;
