@@ -4,7 +4,6 @@
       "main": "Irricontrol: Signal Simulator",
       "data_panel": "Data Panel",
       "repeater_panel": "Repeaters",
-      "repeater_suggestions": "Repeater Suggestions",
       "line_of_sight": "Line of Sight (LoS) Analysis",
       "los_pivots": "Line of Sight between Pivots",
       "find_repeater_locations": "Analyze Repeater Locations",
@@ -77,9 +76,7 @@
       "reset": "Reset",
       "simulate": "Run Simulation",
       "cancel": "Cancel",
-      "confirm": "Confirm",
-      "filter_los_clear": "Clear LoS",
-      "filter_all": "All"
+      "confirm": "Confirm"
     }
   },
   "tooltips": {

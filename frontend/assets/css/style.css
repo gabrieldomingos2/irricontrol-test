@@ -114,7 +114,7 @@ html, body {
   stroke:#34c759;
   stroke-width:1;
   fill-opacity:.5;
-  fill:#34c759; /* ✅ corrigido (era fill-color) */
+  fill:#34c759;
 }
 
 
@@ -150,7 +150,6 @@ html, body {
 /* ======================= */
 /* 📍 POPUPS (Leaflet)     */
 /* ======================= */
-/* ✅ use className: 'popup-glass' ao criar o popup */
 .leaflet-popup.popup-glass .leaflet-popup-content-wrapper{
   background: transparent; box-shadow:none; border-radius:0; padding:0;
 }
@@ -166,7 +165,6 @@ html, body {
   .popup-glass-inner{ background: rgba(0,0,0,.8); }
 }
 
-/* ✅ use className: 'popup-repeater' para os popups de repetidora */
 .leaflet-popup.popup-repeater .leaflet-popup-content-wrapper{
   background-color: rgba(6,11,16,0.85)!important;
   color:#e5e7eb; padding:5px 10px!important; border-radius:6px!important;
@@ -496,38 +494,77 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
   }
 }
 
-/* ================================== */
-/* PAINEL DE SUGESTÕES (FLUTUANTE) */
-/* ================================== */
-#suggestions-list {
-  scrollbar-width: thin;
-  scrollbar-color: var(--green) #1a202c;
-}
-#suggestions-list::-webkit-scrollbar { width: 6px; }
-#suggestions-list::-webkit-scrollbar-track { background: #1a202c; border-radius: 10px; }
-#suggestions-list::-webkit-scrollbar-thumb { background-color: var(--green); border-radius: 10px; border: 2px solid #1a202c; }
 
-.suggestion-item {
-  padding: 0.5rem 0.6rem;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid transparent;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+/* ============================================= */
+/* ✨ NOVOS ESTILOS PARA SUGESTÕES DE REPETIDORA */
+/* ============================================= */
+
+/* A "bolinha" verde que ficará no mapa */
+.suggestion-marker-dot {
+  background-color: #22c55e; /* Verde principal */
+  border: 2px solid #ffffff; /* Borda branca para contraste */
+  border-radius: 50%; /* Garante que seja um círculo perfeito */
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.7); /* Efeito de brilho (glow) */
   cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
-.suggestion-item:hover, .suggestion-item.highlighted {
-  background-color: rgba(34, 197, 94, 0.15);
-  border-color: rgba(34, 197, 94, 0.4);
+/* Efeito de aumentar o círculo ao passar o mouse */
+.suggestion-marker-dot:hover {
+    transform: scale(1.3);
 }
 
-/* Garante que o painel esquerdo se ajuste em telas menores */
-@media (max-width:1366px){
-  #left-overlay-panels-container {
-    left: 236px !important; /* Ajustado de 1rem para 220px (barra) + 16px (margem) */
-    top: 3.5rem !important;
-  }
-  #repeater-suggestions-panel {
-    width: 220px !important;
-  }
+/* O painel de informações que aparece no hover */
+.leaflet-tooltip.suggestion-tooltip {
+  background-color: rgba(6, 11, 16, 0.9) !important; /* Fundo escuro translúcido */
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 6px !important;
+  color: #e5e7eb !important;
+  padding: 6px 10px !important; 
+  box-shadow: 0 4px 12px rgba(0,0,0,.5) !important;
+  white-space: nowrap;
+}
+
+/* Remove a setinha padrão do tooltip */
+.leaflet-tooltip.suggestion-tooltip::before {
+  display: none;
+}
+
+/* Esconde o painel de sugestões de repetidora */
+#repeater-suggestions-panel {
+    display: none !important;
+}
+
+/* ============================================= */
+/* ✨ ESTILOS MELHORADOS PARA O TOOLTIP DE SUGESTÃO */
+/* ============================================= */
+
+/* Container principal do conteúdo do tooltip */
+.suggestion-tooltip-content {
+  text-align: center; /* Centraliza o conteúdo */
+  line-height: 1.3;
+}
+
+/* Estilo para a Elevação (dado principal) */
+.tooltip-elevation {
+  font-size: 16px;
+  font-weight: bold; /* Deixa a altura em negrito */
+  color: #ffffff;
+}
+
+/* Estilo para o Status (Visada Livre/Bloqueada) */
+.tooltip-status {
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+/* Estilo para a Distância (informação secundária) */
+.tooltip-distance {
+  font-size: 10px;
+  color: #b0bec5;
+  margin-top: 5px;
+  opacity: 0.8;
 }

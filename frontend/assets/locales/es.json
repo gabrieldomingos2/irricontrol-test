@@ -4,7 +4,6 @@
       "main": "Irricontrol: Simulador de Señal",
       "data_panel": "Panel de Datos",
       "repeater_panel": "Repetidores",
-      "repeater_suggestions": "Sugerencias de Repetidor",
       "line_of_sight": "Análisis de Línea de Visión (LoS)",
       "los_pivots": "Línea de Visión entre Pivotes",
       "find_repeater_locations": "Analizar Ubicaciones para Repetidor",
@@ -77,9 +76,7 @@
       "reset": "Reiniciar",
       "simulate": "Ejecutar Simulación",
       "cancel": "Cancelar",
-      "confirm": "Confirmar",
-      "filter_los_clear": "Visión Despejada",
-      "filter_all": "Todos"
+      "confirm": "Confirmar"
     }
   },
   "tooltips": {

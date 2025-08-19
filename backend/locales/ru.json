@@ -4,7 +4,6 @@
       "main": "Irricontrol: Симулятор Сигнала",
       "data_panel": "Панель Данных",
       "repeater_panel": "Ретрансляторы",
-      "repeater_suggestions": "Предложения по ретрансляторам",
       "line_of_sight": "Анализ Прямой Видимости (LoS)",
       "los_pivots": "Прямая Видимость между Пивотами",
       "find_repeater_locations": "Анализ Местоположений для Ретранслятора",
@@ -77,9 +76,7 @@
       "reset": "Сброс",
       "simulate": "Запустить Симуляцию",
       "cancel": "Отмена",
-      "confirm": "Подтвердить",
-      "filter_los_clear": "Свободная видимость",
-      "filter_all": "Все"
+      "confirm": "Подтвердить"
     }
   },
   "tooltips": {

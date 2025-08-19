@@ -15,8 +15,6 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="assets/css/style.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.1/dist/MarkerCluster.Default.css" />
 </head>
 
 <body class="bg-[#060B10] text-white h-screen w-screen overflow-hidden">
@@ -169,69 +167,54 @@
     <div id="map" class="w-full h-full bg-neutral-900" role="application" aria-label="Mapa"></div>
 </div>
 
-<div id="left-overlay-panels-container" class="absolute top-16 left-[296px] z-20">
-    <div id="repeater-suggestions-panel" class="hidden panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-3 flex flex-col min-h-0">
-        <div class="flex justify-between items-center mb-2">
-            <h3 class="text-sm font-semibold text-green-400" data-i18n="ui.titles.repeater_suggestions">Sugestões de Repetidora</h3>
-            <button id="close-suggestions-panel" class="text-white/60 hover:text-red-500 transition" data-i18n-attr="title" data-i18n="ui.buttons.cancel">
-                <i data-lucide="x" class="w-5 h-5"></i>
+<div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
+
+    <div id="painel-dados" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
+    <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.data_panel"></h2>
+        <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
+            <i data-lucide="chevron-up" class="w-5 h-5"></i>
+        </button>
+    </div>
+<div class="panel-content">
+        <div class="flex justify-between items-center mb-3">
+            <span id="template-info" class="font-medium text-sm text-green-500"></span>
+        </div>
+        <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots"></p>
+        <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage"></p>
+        <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters"></p>
+        <p id="total-centrais" class="text-sm text-white/70 mb-1">
+            <span data-i18n="ui.labels.central_count">Centrais:</span> <span id="central-count-value">0</span>
+        </p>
+        <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses"></p>
+
+    <div class="mt-2 pt-2 border-t border-white/10 flex justify-center">
+        <button id="exportar-pdf-btn"
+                class="inline-flex items-center justify-center gap-2 text-green-400 hover:text-green-300 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline disabled:text-gray-500 hover:underline"
+                disabled
+                data-i18n-attr="title"
+                data-i18n="tooltips.export_pdf_disabled"
+                type="button"
+                aria-label="Exportar relatório PDF">
+            <i data-lucide="file-down" class="w-4 h-4"></i>
+            <span data-i18n="ui.buttons.export_pdf_report">Clique aqui para baixar o relatório</span>
             </button>
         </div>
-        <div class="flex gap-2 mb-2 text-xs">
-            <button id="filter-los-clear" class="flex-1 bg-green-500/20 text-green-300 rounded px-2 py-1 hover:bg-green-500/40 transition" data-i18n="ui.buttons.filter_los_clear">Visada Livre</button>
-            <button id="filter-los-all" class="flex-1 bg-white/10 text-white/70 rounded px-2 py-1 hover:bg-white/20 transition" data-i18n="ui.buttons.filter_all">Todos</button>
-        </div>
-        <div id="suggestions-list" class="space-y-1.5 overflow-y-auto pr-1 max-h-[calc(100vh-300px)]">
-            </div>
     </div>
 </div>
 
-<div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
-    <div id="painel-dados" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-4 flex-shrink-0">
-        <div class="flex justify-between items-center mb-3">
-            <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.data_panel"></h2>
-            <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
-                <i data-lucide="chevron-up" class="w-5 h-5"></i>
-            </button>
-        </div>
-        <div class="panel-content">
-            <div class="flex justify-between items-center mb-3">
-                <span id="template-info" class="font-medium text-sm text-green-500"></span>
-            </div>
-            <p id="total-pivos" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_pivots"></p>
-            <p id="fora-cobertura" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.out_of_coverage"></p>
-            <p id="total-repetidoras" class="text-sm text-white/70 mb-1" data-i18n="ui.labels.total_repeaters"></p>
-            <p id="total-centrais" class="text-sm text-white/70 mb-1">
-                <span data-i18n="ui.labels.central_count">Centrais:</span> <span id="central-count-value">0</span>
-            </p>
-            <p id="total-bombas" class="text-sm text-white/70 mb-1 hidden" data-i18n="ui.labels.pump_houses"></p>
-
-            <div class="mt-2 pt-2 border-t border-white/10 flex justify-center">
-                <button id="exportar-pdf-btn"
-                        class="inline-flex items-center justify-center gap-2 text-green-400 hover:text-green-300 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline disabled:text-gray-500 hover:underline"
-                        disabled
-                        data-i18n-attr="title"
-                        data-i18n="tooltips.export_pdf_disabled"
-                        type="button"
-                        aria-label="Exportar relatório PDF">
-                    <i data-lucide="file-down" class="w-4 h-4"></i>
-                    <span data-i18n="ui.buttons.export_pdf_report">Clique aqui para baixar o relatório</span>
-                </button>
-            </div>
-        </div>
+<div id="painel-repetidoras" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
+    <div class="flex justify-between items-center mb-2 px-2">
+        <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.repeater_panel"></h2>
+        <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
+            <i data-lucide="chevron-up" class="w-5 h-5"></i>
+        </button>
     </div>
+    <div class="panel-content">
+    <div id="lista-repetidoras" class="space-y-1 text-sm overflow-y-auto px-2 pb-2"></div>
+</div>
+</div>
 
-    <div id="painel-repetidoras" class="panel w-64 bg-[#060B10]/70 border border-white/15 backdrop-blur-md rounded-xl shadow-xl p-2 flex flex-col min-h-0 flex-grow">
-        <div class="flex justify-between items-center mb-2 px-2">
-            <h2 class="text-sm font-semibold text-white/80" data-i18n="ui.titles.repeater_panel"></h2>
-            <button class="panel-toggle-btn text-white/60 hover:text-green-500" type="button" aria-label="Recolher/expandir painel">
-                <i data-lucide="chevron-up" class="w-5 h-5"></i>
-            </button>
-        </div>
-        <div class="panel-content">
-            <div id="lista-repetidoras" class="space-y-1 text-sm overflow-y-auto px-2 pb-2"></div>
-        </div>
-    </div>
 </div>
 
 <div id="mensagem"
@@ -242,9 +225,9 @@
     class="hidden absolute inset-0 bg-[#060B10] bg-opacity-80 flex flex-col items-center justify-center z-[10001]"
     role="alert" aria-live="assertive" aria-busy="true" aria-hidden="true">
     <div class="loading-logo-container">
-        <img src="assets/images/irricontrol-loading.png" alt="Carregando..." class="loading-logo" loading="lazy">
-        <div class="loading-spinner"></div>
-    </div>
+    <img src="assets/images/irricontrol-loading.png" alt="Carregando..." class="loading-logo" loading="lazy">
+    <div class="loading-spinner"></div>
+</div>
     <span class="mt-4 text-lg font-bold text-green-500" data-i18n="ui.labels.processing"></span>
 </div>
 
@@ -278,7 +261,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.1/dist/leaflet.markercluster.js" defer></script>
+
 <script src="assets/js/i18n.js" defer></script>
 <script src="assets/js/api.js" defer></script>
 <script src="assets/js/map.js" defer></script>
