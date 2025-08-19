@@ -410,7 +410,7 @@ if (btnLegenda && !btnLegenda.dataset.bound) {
     ensureAppState();
     AppState.legendasAtivas = !AppState.legendasAtivas;
 
-    btnLegenda.classList.toggle("glass-button-active", AppState.legendasAtivas);
+    btnLegenda.classList.toggle("glass-button-active", !AppState.legendasAtivas);
     const icon = btnLegenda.querySelector(".sidebar-icon");
     const iconPath = AppState.legendasAtivas
         ? "assets/images/captions.svg"
