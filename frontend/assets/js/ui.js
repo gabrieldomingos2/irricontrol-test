@@ -188,8 +188,9 @@ const normalized = String(templateName).toLowerCase();
 
 // ajuste aqui conforme seus assets reais
 const MAP = [
-    { test: /brazil[_-\s]?v6/, path: "assets/images/IRRICONTRO.dBm.key.png" },
-    { test: /europe[_-\s]?v6/, path: "assets/images/IRRIEUROPE.dBm.key.png" },
+    { test: /brazil[_-\s]?v6[_-\s]?100dbm/i, path: "assets/images/IRRICONTRO.dBm.key.png" },
+    { test: /brazil[_-\s]?v6[_-\s]?90dbm/i, path: "assets/images/CONTROL90.dBm.key.png" },
+    { test: /europe[_-\s]?v6/i, path: "assets/images/IRRIEUROPE.dBm.key.png" },
 ];
 
 const match = MAP.find((m) => m.test.test(normalized));
