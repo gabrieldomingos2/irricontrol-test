@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Callable, Any, Optional, List, Mapping
+from typing import Dict, Callable, Any, Optional, List, Mapping, Tuple
 import threading
 import time
 
@@ -63,6 +63,8 @@ class TranslationService:
         self.translations: Dict[str, Dict[str, Any]] = {}
         self._files_mtime: Dict[str, float] = {}
         self._lock = threading.RLock()
+        # cache simples (lang,key) -> texto resolvido (já com JSON compactado se necessário)
+        self._cache: Dict[Tuple[str, str], str] = {}
 
         self._load_all_translations()
 
@@ -85,6 +87,9 @@ class TranslationService:
             if not self.locales_dir.is_dir():
                 logger.error("Diretório de locales não encontrado: %s", self.locales_dir)
                 return
+
+            # invalida cache sempre que recarrega tudo
+            self._cache.clear()
 
             count = 0
             for file_path in sorted(self.locales_dir.glob("*.json")):
@@ -109,6 +114,7 @@ class TranslationService:
         Chame isso no startup periódico ou manualmente quando necessário.
         """
         with self._lock:
+            changed = False
             for file_path in sorted(self.locales_dir.glob("*.json")):
                 key = str(file_path)
                 try:
@@ -123,13 +129,20 @@ class TranslationService:
                         lang_code = _normalize_lang(file_path.stem)
                         self.translations[lang_code] = data
                         self._files_mtime[key] = mtime
+                        changed = True
                         logger.info("Tradução recarregada: '%s' (%s)", lang_code, file_path.name)
+
+            if changed:
+                # qualquer alteração invalida o cache (simples e seguro)
+                self._cache.clear()
 
     # --------- API Pública ---------
 
     def set_default_lang(self, code: str) -> None:
         with self._lock:
             self.default_lang = _normalize_lang(code)
+            # default mudou → cache pode ficar inconsistente
+            self._cache.clear()
 
     def available_languages(self) -> List[str]:
         with self._lock:
@@ -170,16 +183,27 @@ class TranslationService:
         return None
 
     def _get_text(self, lang: str, key: str) -> Optional[str]:
+        cache_key = (_normalize_lang(lang), key)
+        with self._lock:
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+
         val = self._get_any(lang, key)
         if val is None:
             return None
+
         if isinstance(val, str):
-            return val
-        # se não for string, devolve JSON compacto (útil p/ listas/objetos)
-        try:
-            return json.dumps(val, ensure_ascii=False, separators=(",", ":"))
-        except Exception:
-            return str(val)
+            text = val
+        else:
+            # se não for string, devolve JSON compacto (útil p/ listas/objetos)
+            try:
+                text = json.dumps(val, ensure_ascii=False, separators=(",", ":"))
+            except Exception:
+                text = str(val)
+
+        with self._lock:
+            self._cache[cache_key] = text
+        return text
 
     def get_translator(self, lang_code: str) -> Callable[[str], str]:
         """

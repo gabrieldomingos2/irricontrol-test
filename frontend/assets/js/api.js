@@ -12,7 +12,8 @@ const BACKEND_URL =
 const API_PREFIX = window.API_PREFIX || "/api/v1";
 
 // Helpers globais opcionais
-const safeT = (...args) => (typeof window.t === "function" ? window.t(...args) : args[0]);
+const safeT = (...args) =>
+  (typeof window.t === "function" ? window.t(...args) : args[0]);
 const notify = (msg, tipo = "info") =>
   (typeof window.mostrarMensagem === "function"
     ? window.mostrarMensagem(msg, tipo)
@@ -51,12 +52,22 @@ function parseFilenameFromContentDisposition(disposition, fallback) {
   return fallback;
 }
 
+// Gera um X-Request-ID simples p/ correlação com o backend
+function _makeRequestId() {
+  // RFC4122-ish (suficiente para correlação de logs)
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 /**
  * API request com timeout, parse inteligente e suporte a blob.
  * options:
  *   - method, headers, body
  *   - expects: 'json' | 'blob' | 'text'  (ou manter responseType: 'blob' por compat)
- *   - timeoutMs: número (default 60000)
+ *   - timeoutMs: número (default 180000)
  */
 async function apiRequest(endpoint, options = {}) {
   const {
@@ -76,6 +87,10 @@ async function apiRequest(endpoint, options = {}) {
   }
   if (!("Accept" in fetchOpts.headers) && expects !== "blob") {
     fetchOpts.headers["Accept"] = "application/json";
+  }
+  // Injeta X-Request-ID para correlação com logs do backend (middleware)
+  if (!("X-Request-ID" in fetchOpts.headers)) {
+    fetchOpts.headers["X-Request-ID"] = _makeRequestId();
   }
 
   const controller = new AbortController();

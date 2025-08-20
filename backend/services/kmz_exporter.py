@@ -104,8 +104,11 @@ def _get_formatted_entity_name_for_backend(
     Usa o tradutor 't' para obter os nomes das entidades.
     O parâmetro 'for_pdf' determina se o nome deve ser simplificado para o PDF.
     """
+    # Altura efetiva: se for sobre pivô e não vier altura, padroniza em 5m
     altura_valor = entity_data.get('altura')
-    altura_str_formatada = f"{altura_valor}m" if altura_valor is not None else ""
+    if entity_data.get('sobre_pivo') and (altura_valor is None or altura_valor == ""):
+        altura_valor = 5
+    altura_str_formatada = f"{altura_valor}m" if isinstance(altura_valor, (int, float)) else (f"{altura_valor}" if altura_valor else "")
 
     entity_type = entity_data.get('type')
     nome_original_do_frontend = entity_data.get('nome')
@@ -233,8 +236,13 @@ def _add_repeaters(doc, data, style, img_dir, overlay_name, desc_name, template,
 
         altura_repetidora = item.get('altura', 5)
 
+        # Garante que o nome use a altura efetiva (incluindo fallback 5m)
+        item_for_name = dict(item)
+        if item_for_name.get('altura') is None or item_for_name.get('altura') == "":
+            item_for_name['altura'] = altura_repetidora
+
         nome_formatado_repetidora = _get_formatted_entity_name_for_backend(
-            entity_data=item,
+            entity_data=item_for_name,
             is_main_antenna=False,
             t=t,
             for_pdf=False

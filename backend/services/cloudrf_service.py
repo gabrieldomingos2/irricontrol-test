@@ -57,23 +57,24 @@ async def _request_with_retries(
 ) -> httpx.Response:
     """
     Faz request propagando TODOS os kwargs (headers/json/etc).
-    Retry apenas para timeouts/erros de rede/HTTP 5xx.
+    Retry para timeouts/erros de transporte/HTTP 5xx e 429 (rate limit).
     """
     attempt = 0
     while True:
         try:
             resp = await client.request(method, url, **kwargs)  # <- KWARGS propagados
-            # Re-tenta só em 5xx
-            if 500 <= resp.status_code < 600:
+            # Re-tenta em 5xx ou 429 (rate limit)
+            if resp.status_code == 429 or (500 <= resp.status_code < 600):
                 raise httpx.HTTPStatusError(str(resp.status_code), request=resp.request, response=resp)
             return resp
-        except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.RemoteProtocolError, httpx.NetworkError):
+        except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.RemoteProtocolError, httpx.TransportError):
             if attempt >= retries:
                 raise
             await asyncio.sleep(backoff * (attempt + 1))
             attempt += 1
         except httpx.HTTPStatusError as e:
-            if 500 <= e.response.status_code < 600 and attempt < retries:
+            status = e.response.status_code
+            if (status == 429 or 500 <= status < 600) and attempt < retries:
                 await asyncio.sleep(backoff * (attempt + 1))
                 attempt += 1
                 continue
@@ -100,14 +101,17 @@ def save_bounds(bounds: list, local_image_path: Path) -> None:
 
 
 async def download_image(url: str, local_image_path: Path) -> None:
-    """Baixa a imagem da CloudRF e grava no caminho local."""
+    """Baixa a imagem da CloudRF e grava no caminho local (com retry)."""
     logger.info(f"  -> Baixando imagem: {url}")
     local_image_path.parent.mkdir(parents=True, exist_ok=True)
     async with await get_http_client() as client:
-        r = await client.get(url)
-        r.raise_for_status()
+        resp = await _request_with_retries(
+            client, "GET", url,
+            headers={"Accept": "image/png, image/*;q=0.8,*/*;q=0.5"}
+        )
+        resp.raise_for_status()
         with open(local_image_path, "wb") as f:
-            f.write(r.content)
+            f.write(resp.content)
     logger.info(f"  -> Imagem salva em: {local_image_path}")
 
 
@@ -221,6 +225,12 @@ async def run_cloudrf_simulation(
     cache_hash = hashlib.sha256(cache_key_string.encode()).hexdigest()
     cache_file_path = settings.SIMULATIONS_CACHE_PATH / f"{cache_hash}.json"
 
+    # Garante diretório de cache existente (belt & suspenders)
+    try:
+        cache_file_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+
     # CACHE HIT
     if cache_file_path.exists():
         logger.info(f"CACHE HIT: {cache_hash[:12]}")
@@ -260,6 +270,7 @@ async def _perform_simulation_and_save_to_cache(
     headers = {
         "key": settings.CLOUDRF_API_KEY,      # header ESSENCIAL para autenticar
         "Content-Type": "application/json",
+        "Accept": "application/json",
     }
 
     async with await get_http_client() as client:

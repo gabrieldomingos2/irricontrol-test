@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import base64
-from datetime import datetime
 import logging
-from typing import List, Dict, Any, Optional, Tuple
-from pathlib import Path
-import re
 import os
+import re
+from datetime import datetime
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
 
 from fpdf import FPDF
 
@@ -41,7 +41,7 @@ class PDFReportGenerator:
         - fallback de fonte robusto (FreeSans -> Helvetica).
     """
 
-    def __init__(self, lang: str = 'pt-br') -> None:
+    def __init__(self, lang: str = "pt-br") -> None:
         self.t = i18n_service.get_translator(lang)
         self.pdf = FPDF(orientation="P", unit="mm", format="A4")
         self.font_family: str = "Helvetica"  # definido em setup_pdf
@@ -57,10 +57,7 @@ class PDFReportGenerator:
 
         # Pasta de fontes: aceita settings.FONTS_DIR ou fallback para /services/fonts
         fonts_dir = getattr(settings, "FONTS_DIR", None)
-        if fonts_dir:
-            fonts_path = Path(str(fonts_dir))
-        else:
-            fonts_path = Path(__file__).resolve().parent / "fonts"
+        fonts_path = Path(str(fonts_dir)) if fonts_dir else Path(__file__).resolve().parent / "fonts"
         fonts_path.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -80,9 +77,7 @@ class PDFReportGenerator:
             self._font(size=10)
 
     def _font(self, size: int = 10, style: str = "") -> None:
-        """
-        Centraliza a seleção de fonte para evitar 'Undefined font' quando FreeSans não existir.
-        """
+        """Centraliza a seleção de fonte para evitar 'Undefined font' quando FreeSans não existir."""
         try:
             self.pdf.set_font(self.font_family, style=style, size=size)
         except Exception as e:
@@ -103,7 +98,7 @@ class PDFReportGenerator:
 
         # Barra superior
         self.pdf.set_fill_color(*COR_SECUNDARIA)
-        self.pdf.rect(0, 0, self.pdf.w, 30, 'F')
+        self.pdf.rect(0, 0, self.pdf.w, 30, "F")
 
         if logo_path:
             try:
@@ -137,7 +132,12 @@ class PDFReportGenerator:
         self.pdf.set_y(-15)
         self._font(style="I", size=8)
         self.pdf.set_text_color(150, 150, 150)
-        self.pdf.cell(0, 10, f"{self.t('ui.labels.powered_by')} Irricontrol | {self.pdf.page_no()}/{{nb}}", align="C")
+        self.pdf.cell(
+            0,
+            10,
+            f"{self.t('ui.labels.powered_by')} Irricontrol | {self.pdf.page_no()}/{{nb}}",
+            align="C",
+        )
 
     def add_section_title(self, title: str) -> None:
         self._font(style="B", size=12)
@@ -149,9 +149,9 @@ class PDFReportGenerator:
 
     def add_text_line(self, label: str, value: Any) -> None:
         self._font(style="B", size=10)
-        self.pdf.cell(40, 6, str(label), 0, 0, 'L')
+        self.pdf.cell(40, 6, str(label), 0, 0, "L")
         self._font(size=10)
-        self.pdf.cell(0, 6, str(value), 0, 1, 'L')
+        self.pdf.cell(0, 6, str(value), 0, 1, "L")
 
     def _table_header(self, col_widths: List[float]) -> None:
         self._font(style="B", size=9)
@@ -163,9 +163,9 @@ class PDFReportGenerator:
             self.t("ui.labels.status"),
             self.t("ui.labels.height_short"),
         ]
-        aligns = ['C', 'C', 'C', 'C']
-        for w, h, a in zip(col_widths, headers, aligns):
-            self.pdf.cell(w, 7, h, 1, 0, a, 1)
+        aligns = ["C", "C", "C", "C"]
+        for width, text, align in zip(col_widths, headers, aligns):
+            self.pdf.cell(width, 7, text, 1, 0, align, 1)
         self.pdf.ln(7)
 
     def _format_row(
@@ -174,16 +174,17 @@ class PDFReportGenerator:
         *,
         is_main_antenna_table: bool = False,
         is_central_table: bool = False,
-        title_label: str = ""
-    ) -> Tuple[str, str, Tuple[int, int, int], str]:
+        title_label: str = "",
+    ) -> Tuple[str, str, Tuple[int, int, int], str, str]:
+        """Retorna (name, coords, status_color, status_text, altura_str_final)."""
         # Nome
-        name = str(item.get('nome', 'N/A'))
+        name = str(item.get("nome", "N/A"))
 
-        if item.get('type') == 'pivo':
-            match = re.search(r'(\d+)$', str(item.get('nome', '')))
-            pivo_num = match.group(1) if match else ''
+        if item.get("type") == "pivo":
+            match = re.search(r"(\d+)$", str(item.get("nome", "")))
+            pivo_num = match.group(1) if match else ""
             name = f"{self.t('entity_names.pivot')} {pivo_num}".strip()
-        elif item.get('type') == 'bomba':
+        elif item.get("type") == "bomba":
             name = self.t("entity_names.irripump")
         elif is_main_antenna_table:
             name = _get_formatted_entity_name_for_backend(item, True, self.t, for_pdf=True)
@@ -200,17 +201,19 @@ class PDFReportGenerator:
             status_text = "*"
             status_color = (0, 0, 0)
         else:
-            fora = bool(item.get('fora', True))
+            fora = bool(item.get("fora", True))
             status_text = self.t("tooltips.out_of_signal") if fora else self.t("tooltips.in_signal")
             status_color = (255, 0, 0) if fora else (0, 128, 0)
 
         # Altura a exibir
-        altura_para_exibir = item.get('altura')
+        altura_para_exibir = item.get("altura")
         if altura_para_exibir is None:
-            altura_para_exibir = item.get('altura_receiver', 'N/A')
-        altura_str_final = f"{altura_para_exibir}m" if isinstance(altura_para_exibir, (int, float)) else str(altura_para_exibir)
+            altura_para_exibir = item.get("altura_receiver", "N/A")
+        altura_str_final = (
+            f"{altura_para_exibir}m" if isinstance(altura_para_exibir, (int, float)) else str(altura_para_exibir)
+        )
 
-        return name, coords, status_color, altura_str_final
+        return name, coords, status_color, status_text, altura_str_final
 
     def add_equipment_table(
         self,
@@ -218,7 +221,7 @@ class PDFReportGenerator:
         data: List[Dict[str, Any]],
         *,
         is_main_antenna_table: bool = False,
-        is_central_table: bool = False
+        is_central_table: bool = False,
     ) -> None:
         if not data:
             return
@@ -236,7 +239,7 @@ class PDFReportGenerator:
         fill = False
 
         for item in data:
-            name, coords, status_color, altura_str_final = self._format_row(
+            name, coords, status_color, status_text, altura_str_final = self._format_row(
                 item,
                 is_main_antenna_table=is_main_antenna_table,
                 is_central_table=is_central_table,
@@ -245,18 +248,26 @@ class PDFReportGenerator:
 
             # Nome
             self.pdf.set_text_color(*COR_TEXTO_ESCURO)
-            self.pdf.cell(col_widths[0], 7, name, 1, 0, 'L', fill)
+            self.pdf.cell(col_widths[0], 7, name, 1, 0, "L", fill)
 
             # Coords
-            self.pdf.cell(col_widths[1], 7, coords, 1, 0, 'L', fill)
+            self.pdf.cell(col_widths[1], 7, coords, 1, 0, "L", fill)
 
             # Status
             self.pdf.set_text_color(*status_color)
-            self.pdf.cell(col_widths[2], 7, status_color == (0, 128, 0) and self.t("tooltips.in_signal") or self.t("tooltips.out_of_signal") if status_color != (0, 0, 0) else "*", 1, 0, 'C', fill)
+            self.pdf.cell(
+                col_widths[2],
+                7,
+                status_text,
+                1,
+                0,
+                "C",
+                fill,
+            )
 
             # Altura
             self.pdf.set_text_color(*COR_TEXTO_ESCURO)
-            self.pdf.cell(col_widths[3], 7, altura_str_final, 1, 1, 'C', fill)
+            self.pdf.cell(col_widths[3], 7, altura_str_final, 1, 1, "C", fill)
 
             fill = not fill
 
@@ -267,9 +278,15 @@ class PDFReportGenerator:
     def _embed_map_from_base64(self, map_image_base64: str) -> None:
         """
         Aceita 'data:image/png;base64,...' ou base64 puro. Salva temp e insere.
+        Tenta calcular altura proporcional com PIL se disponível; senão, faz um avanço razoável.
         """
         try:
-            header, b64 = (map_image_base64.split(",", 1) + [""])[:2] if "base64," in map_image_base64 else ("", map_image_base64)
+            header, b64 = (
+                (map_image_base64.split(",", 1) + [""])[:2]
+                if "base64," in map_image_base64
+                else ("", map_image_base64)
+            )
+            b64 = b64.strip()
             ext = "png"
             if header.startswith("data:image/"):
                 ext = header.split("/")[1].split(";")[0] or "png"
@@ -279,12 +296,30 @@ class PDFReportGenerator:
             tmp_img = tmp_dir / f"map_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
 
             with open(tmp_img, "wb") as f:
-                f.write(base64.b64decode(b64))
+                f.write(base64.b64decode(b64, validate=False))
 
             # Insere a imagem ocupando largura útil
             usable_w = self.pdf.w - self.pdf.l_margin - self.pdf.r_margin
-            self.pdf.image(str(tmp_img), x=self.pdf.l_margin, y=self.pdf.get_y(), w=usable_w)
-            self.pdf.ln(usable_w * 0.6 / 3)  # avanço modesto; FPDF recalcula altura da img
+
+            # Tenta estimar altura com PIL (opcional)
+            img_h_px = None
+            try:
+                from PIL import Image  # type: ignore
+
+                with Image.open(tmp_img) as im:
+                    w_px, h_px = im.size
+                    if w_px > 0:
+                        img_h_px = int(h_px * (usable_w / w_px))
+            except Exception:
+                pass
+
+            if img_h_px and img_h_px > 0:
+                self.pdf.image(str(tmp_img), x=self.pdf.l_margin, y=self.pdf.get_y(), w=usable_w, h=img_h_px)
+                self.pdf.ln(max(10, img_h_px / 5))
+            else:
+                self.pdf.image(str(tmp_img), x=self.pdf.l_margin, y=self.pdf.get_y(), w=usable_w)
+                # Avanço conservador
+                self.pdf.ln(usable_w * 0.3)
 
             # Limpa o arquivo temp
             try:
@@ -296,7 +331,7 @@ class PDFReportGenerator:
             logger.warning("Falha ao embutir map_image_base64: %s", e)
             # Fallback visual
             self.pdf.set_draw_color(200, 200, 200)
-            self.pdf.cell(0, 30, self.t("ui.labels.map_view"), border=1, ln=1, align='C')
+            self.pdf.cell(0, 30, self.t("ui.labels.map_view"), border=1, ln=1, align="C")
 
     def generate_report(
         self,
@@ -305,11 +340,9 @@ class PDFReportGenerator:
         bombas_data: List[Dict[str, Any]],
         repetidoras_data: List[Dict[str, Any]],
         template_id: str,
-        map_image_base64: Optional[str] = None
+        map_image_base64: Optional[str] = None,
     ) -> Path:
-        """
-        Gera o PDF e retorna o caminho completo do arquivo.
-        """
+        """Gera o PDF e retorna o caminho completo do arquivo."""
         # Header
         self.add_header()
 
@@ -323,16 +356,16 @@ class PDFReportGenerator:
 
         # Resumo cobertura
         total_pivos = len(pivos_data)
-        fora_cobertura = sum(1 for p in pivos_data if p.get('fora', True))
+        fora_cobertura = sum(1 for p in pivos_data if p.get("fora", True))
 
         total_repetidoras_resumo = 0
         total_centrais_resumo = 0
 
         def _contabiliza(ent: Dict[str, Any]) -> Tuple[int, int]:
-            typ = ent.get('type')
-            if typ == 'central':
+            typ = ent.get("type")
+            if typ == "central":
                 return (0, 1)
-            if typ == 'central_repeater_combined':
+            if typ == "central_repeater_combined":
                 return (1, 1)
             return (1, 0)
 
@@ -346,11 +379,11 @@ class PDFReportGenerator:
             total_repetidoras_resumo += r
             total_centrais_resumo += c
 
-        self.add_text_line(self.t('ui.labels.total_pivots'), total_pivos)
-        self.add_text_line(self.t('ui.labels.out_of_coverage'), fora_cobertura)
-        self.add_text_line(self.t('ui.labels.total_repeaters'), total_repetidoras_resumo)
-        self.add_text_line(self.t('ui.labels.central_count'), total_centrais_resumo)
-        self.add_text_line(self.t('ui.labels.pump_houses'), len(bombas_data))
+        self.add_text_line(self.t("ui.labels.total_pivots"), total_pivos)
+        self.add_text_line(self.t("ui.labels.out_of_coverage"), fora_cobertura)
+        self.add_text_line(self.t("ui.labels.total_repeaters"), total_repetidoras_resumo)
+        self.add_text_line(self.t("ui.labels.central_count"), total_centrais_resumo)
+        self.add_text_line(self.t("ui.labels.pump_houses"), len(bombas_data))
         self.pdf.ln(3)
 
         # Mapa (opcional)
@@ -363,41 +396,48 @@ class PDFReportGenerator:
 
         # 1) Centrais (combinado entra aqui com altura 5m)
         all_centrals_for_table: List[Dict[str, Any]] = []
-        if antena_principal_data and antena_principal_data.get('type') in ['central', 'central_repeater_combined']:
+        if antena_principal_data and antena_principal_data.get("type") in ["central", "central_repeater_combined"]:
             central_copy = dict(antena_principal_data)
-            central_copy['is_main_antenna'] = True
-            if central_copy.get('type') == 'central_repeater_combined':
-                central_copy['altura'] = 5
+            central_copy["is_main_antenna"] = True
+            if central_copy.get("type") == "central_repeater_combined":
+                central_copy["altura"] = 5
             all_centrals_for_table.append(central_copy)
 
         for rep in repetidoras_data:
-            if rep.get('type') in ['central', 'central_repeater_combined']:
+            if rep.get("type") in ["central", "central_repeater_combined"]:
                 c = dict(rep)
-                if c.get('type') == 'central_repeater_combined':
-                    c['altura'] = 5
+                if c.get("type") == "central_repeater_combined":
+                    c["altura"] = 5
                 all_centrals_for_table.append(c)
 
-        all_centrals_for_table.sort(key=lambda x: (not x.get('is_main_antenna', False), str(x.get('nome', ''))))
+        all_centrals_for_table.sort(
+            key=lambda x: (not x.get("is_main_antenna", False), str(x.get("nome", "")))
+        )
         if all_centrals_for_table:
-            self.add_equipment_table(self.t("ui.labels.central_count"), all_centrals_for_table, is_central_table=True, is_main_antenna_table=True)
+            self.add_equipment_table(
+                self.t("ui.labels.central_count"),
+                all_centrals_for_table,
+                is_central_table=True,
+                is_main_antenna_table=True,
+            )
 
         # 2) Repetidoras (inclui “parte repetidora” de combinados com altura REAL)
         all_repeaters_for_table: List[Dict[str, Any]] = [
-            rep for rep in repetidoras_data if rep.get('type') not in ['central', 'central_repeater_combined']
+            rep for rep in repetidoras_data if rep.get("type") not in ["central", "central_repeater_combined"]
         ]
 
-        if antena_principal_data and antena_principal_data.get('type') == 'central_repeater_combined':
+        if antena_principal_data and antena_principal_data.get("type") == "central_repeater_combined":
             rc = dict(antena_principal_data)
-            rc['type'] = 'default'  # força tratativa de nome de repetidora
+            rc["type"] = "default"  # força tratativa de nome de repetidora
             all_repeaters_for_table.append(rc)
 
         for rep in repetidoras_data:
-            if rep.get('type') == 'central_repeater_combined':
+            if rep.get("type") == "central_repeater_combined":
                 rc = dict(rep)
-                rc['type'] = 'default'
+                rc["type"] = "default"
                 all_repeaters_for_table.append(rc)
 
-        all_repeaters_for_table.sort(key=lambda x: str(x.get('nome', '')))
+        all_repeaters_for_table.sort(key=lambda x: str(x.get("nome", "")))
         if all_repeaters_for_table:
             self.add_equipment_table(self.t("ui.labels.repeaters"), all_repeaters_for_table)
 
@@ -413,8 +453,8 @@ class PDFReportGenerator:
         # Saída
         output_dir = settings.ARQUIVOS_DIR_PATH / "reports"
         output_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename_prefix_clean = self.t('kml.filename_prefix')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_prefix_clean = self.t("kml.filename_prefix")
         report_filename = f"{filename_prefix_clean}_report_{timestamp}.pdf"
         output_path = output_dir / report_filename
 

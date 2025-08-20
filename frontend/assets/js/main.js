@@ -374,7 +374,7 @@ async function startMainSimulation(antenaData) {
             had_height_in_kmz: antenaData.had_height_in_kmz || false
         };
 
-        if(AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
+        if (AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
 
         AppState.marcadorAntena = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
 
@@ -616,7 +616,7 @@ async function handleMapClick(e) {
     AppState.ultimoCliqueFoiSobrePivo = false;
     AppState.coordenadaClicada = e.latlng;
 
-    if(typeof removePositioningMarker === 'function') {
+    if (typeof removePositioningMarker === 'function') {
         removePositioningMarker();
     }
 
@@ -659,7 +659,7 @@ async function handleIrripumpDrawClick(e) {
         mostrarMensagem(t('messages.success.irripump_created', { name: novoNome }), "sucesso");
 
         setTimeout(() => {
-            if(AppState.modoDesenhoIrripump) {
+            if (AppState.modoDesenhoIrripump) {
                 mostrarMensagem(t('messages.info.draw_irripump_still_active'), "info");
             }
         }, 2500);
@@ -742,7 +742,7 @@ async function handleConfirmRepetidoraClick() {
             id, marker: novaRepetidoraMarker, overlay: null, label: null,
             altura: alturaAntena, altura_receiver: alturaReceiver,
             lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
-            imagem_filename: null, sobre_pivo: AppState.ultimoCliqueFoiSobrePivo|| false,
+            imagem_filename: null, sobre_pivo: AppState.ultimoCliqueFoiSobrePivo || false,
             nome: nomeRep,
             original_name: nomeRep,
             is_from_kmz: isFromKmz,
@@ -763,8 +763,8 @@ async function handleConfirmRepetidoraClick() {
         repetidoraObj.label = labelRepetidora;
 
         const alturaRepetidoraHtml = (alturaAntena !== null && alturaAntena !== undefined)
-        ? `<span>${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}</span>`
-        : '';
+            ? `<span>${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}</span>`
+            : '';
 
         const tooltipRepetidoraContent = `
         <div style="text-align: center;">
@@ -1043,7 +1043,7 @@ async function handlePivotDrawClick(e) {
         mostrarMensagem(t('messages.success.pivot_created', { name: novoPivo.nome }), "sucesso");
 
         setTimeout(() => {
-            if(AppState.modoDesenhoPivo) {
+            if (AppState.modoDesenhoPivo) {
                 mostrarMensagem(t('messages.info.draw_pivot_still_active'), "info");
             }
         }, 2500);
@@ -1141,7 +1141,7 @@ async function handleExportPdfReportClick() {
 }
 
 async function handleResetClick(showMessage = true) {
-    if(showMessage) {
+    if (showMessage) {
         console.log("🔄 Resetando aplicação...");
     }
 
@@ -1545,8 +1545,8 @@ function createEditablePivotMarker(pivoInfo) {
             }
 
             if (pivoEmLastData.circle_center_lat !== undefined) {
-                    pivoEmLastData.circle_center_lat = currentPos.lat;
-                    pivoEmLastData.circle_center_lon = currentPos.lng;
+                pivoEmLastData.circle_center_lat = currentPos.lat;
+                pivoEmLastData.circle_center_lon = currentPos.lng;
             }
         }
 
@@ -1592,14 +1592,14 @@ function createEditablePivotMarker(pivoInfo) {
             const nomeCicloParaDeletar = `Ciclo ${nome}`;
             const cicloParaDeletar = AppState.ciclosGlobais.find(c => c.nome_original_circulo === nomeCicloParaDeletar);
 
-            if(pivoParaDeletar) {
+            if (pivoParaDeletar) {
                 const historyEntry = {
                     type: 'delete',
                     deletedPivot: { ...pivoParaDeletar },
                     deletedCiclo: cicloParaDeletar ? { ...cicloParaDeletar } : null
                 };
                 AppState.historyStack.push(historyEntry);
-                if(undoButton) undoButton.disabled = false;
+                if (undoButton) undoButton.disabled = false;
             }
 
             map.removeLayer(editMarker);
@@ -1620,7 +1620,7 @@ function enablePivoEditingMode() {
 
     AppState.historyStack = [];
     const undoButton = document.getElementById("desfazer-edicao");
-    if(undoButton) undoButton.disabled = true;
+    if (undoButton) undoButton.disabled = true;
 
     AppState.marcadoresPivos.forEach(m => map.removeLayer(m));
     AppState.marcadoresPivos = [];
@@ -1699,9 +1699,7 @@ function desfazerUltimaAcao() {
 
             mostrarMensagem(t('messages.success.action_undone_move', { pivot_name: pivotName }), "sucesso");
         }
-    }
-
-    else if (lastAction.type === 'delete') {
+    } else if (lastAction.type === 'delete') {
         const { deletedPivot, deletedCiclo } = lastAction;
         AppState.lastPivosDataDrawn.push(deletedPivot);
         if (deletedCiclo) {
@@ -1865,16 +1863,12 @@ function handleCancelDraw(e) {
         removeDrawingTooltip(map);
         messageKey = 'messages.info.draw_pivot_cancelled';
         drawCancelled = true;
-    }
-
-    else if (AppState.modoDesenhoPivoSetorial && AppState.centroPivoTemporario) {
+    } else if (AppState.modoDesenhoPivoSetorial && AppState.centroPivoTemporario) {
         if (typeof removeTempSector === 'function') removeTempSector();
         removeDrawingTooltip(map);
         messageKey = 'messages.info.draw_sector_cancelled';
         drawCancelled = true;
-    }
-
-    else if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
+    } else if (AppState.modoDesenhoPivoPacman && AppState.centroPivoTemporario) {
         if (typeof removeTempPacman === 'function') removeTempPacman();
         removeDrawingTooltip(map);
         messageKey = 'messages.info.draw_pacman_cancelled';

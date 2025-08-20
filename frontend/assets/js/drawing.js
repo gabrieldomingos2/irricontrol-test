@@ -1,6 +1,6 @@
 // assets/js/drawing.js
 /* global L, map, AppState, t, updateLegendsVisibility, drawCirculos, reavaliarPivosViaAPI, runTargetedDiagnostic,
-          handleLoSTargetClick, handlePivotSelectionForRepeaterSite, removePositioningMarker, handleSpecialMarkerSelection, lucide */
+        handleLoSTargetClick, handlePivotSelectionForRepeaterSite, removePositioningMarker, handleSpecialMarkerSelection, lucide */
 
 // -- Ícones (use paths relativos para funcionar em qualquer host/subpath) --
 const TORRE_ICON_PATH = "assets/images/cloudrf.png";
@@ -8,7 +8,7 @@ const BOMBA_ICON_AZUL_PATH = "assets/images/homegardenbusiness.png";
 const BOMBA_ICON_VERMELHO_PATH = "assets/images/homegardenbusiness-red.png";
 const ATTENTION_ICON_PATH = "assets/images/attention-icon-original.svg";
 const CHECK_ICON_PATH = "assets/images/circle-check-big.svg";
-const MOUNTAIN_ICON_PATH = "assets/images/attention-icon-original.svg"; // ajuste se tiver uma montanha separada
+const MOUNTAIN_ICON_PATH = "assets/images/attention-icon-original.svg";
 const CAPTIONS_ON_ICON_PATH = "assets/images/captions.svg";
 const CAPTIONS_OFF_ICON_PATH = "assets/images/captions-off.svg";
 
@@ -455,7 +455,7 @@ function drawPivos(pivosData, useEdited = false) {
         } else if (AppState.modoBuscaLocalRepetidora && typeof handlePivotSelectionForRepeaterSite === "function") {
         handlePivotSelectionForRepeaterSite(pivo, marker);
         } else {
-        window.ultimoCliqueFoiSobrePivo = true;
+        AppState.ultimoCliqueFoiSobrePivo = true;
         AppState.coordenadaClicada = e.latlng;
         if (typeof removePositioningMarker === "function") removePositioningMarker();
         document.getElementById("painel-repetidora")?.classList.remove("hidden");
@@ -708,9 +708,9 @@ AppState.lastPivosDataDrawn.forEach((pivo) => {
 function drawImageOverlay(url, bounds, opacity = 1.0) {
     if (!map || !url || !bounds) return null;
 
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const BACKEND_URL = isLocal ? "http://localhost:8000" : "https://irricontrol-test.onrender.com";
-    const fullUrl = url.startsWith("http") ? url : `${BACKEND_URL}${url}`;
+    const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    const base = window.BACKEND_URL ?? (isLocal ? "http://localhost:8000" : "https://irricontrol-test.onrender.com");
+    const fullUrl = /^https?:/.test(url) ? url : `${base}${url}`;
     const imageBounds = [
         [bounds[0], bounds[1]],
         [bounds[2], bounds[3]]
@@ -747,7 +747,7 @@ function addRepetidoraNoPainel(repetidora) {
         )}" data-id="${repetidora.id}" data-action="toggle-visibility" data-visible="true">
         <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
         </button>
-        <button class="text-red-500 hover:text-red-400 text-xs font-bold transition" title="Remover Repetidora" data-id="${repetidora.id}" data-action="remover">❌</button>
+        <button class="text-red-500 hover:text-red-400 text-xs font-bold transition" title="${t('ui.titles.remove_repeater')}" data-id="${repetidora.id}" data-action="remover">❌</button>
     </div>`;
 
     container.appendChild(item);
@@ -755,7 +755,7 @@ function addRepetidoraNoPainel(repetidora) {
 
     repetidora.marker?.on("contextmenu", (e) => {
     L.DomEvent.stop(e);
-    showRenameRepeaterMenu(repetidora.marker, repetidora.nome, false, repetidora.id, repetidora.type);
+    showRenameRepeaterMenu(repetidora.marker, repetidora.nome, false, repetidora.id);
 });
 
     item.querySelector('[data-action="diagnostico"]')?.addEventListener("click", () => runTargetedDiagnostic?.(repetidora));
@@ -870,6 +870,7 @@ let defs = svg.querySelector("defs");
 }
     const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
     gradient.setAttribute("id", id);
+    gradient.setAttribute("gradientUnits", "userSpaceOnUse");
     gradient.innerHTML =
     `<stop offset="0%" stop-color="green"/><stop offset="50%" stop-color="yellow"/><stop offset="100%" stop-color="red"/>`;
     defs.appendChild(gradient);
@@ -1099,7 +1100,7 @@ function removeTempCircle() {
 }
 }
 
-function generateCircleCoords(center, radius, points = 240) {
+function generateCircleCoords(center, radius, points = 128) {
     const coords = [];
     const earthRadius = 6378137;
     const lat = center.lat * (Math.PI / 180);

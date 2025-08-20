@@ -1,7 +1,7 @@
 import re
 from PIL import Image
 import httpx
-import requests # Adicionado para downloads
+import requests  # Adicionado para downloads
 from math import sqrt, radians, sin, cos, atan2
 from typing import List, Dict, Optional, Union, TypedDict, Tuple, Any
 from pathlib import Path
@@ -112,7 +112,7 @@ def _check_coverage_sync(
                 distance = haversine(lat, lon, source['lat'], source['lon'])
                 if distance < PROXIMITY_THRESHOLD_METERS:
                     coberto = True
-                    logger.info("  -> 🎯 '%s' dentro da zona de segurança (%.1fm).", entity_data['nome'], distance)
+                    logger.info("  -> 🎯 '%s' dentro da zona de segurança (%.1fm).", entity_data.get('nome', '<sem nome>'), distance)
                     break
 
             if coberto:
@@ -122,7 +122,18 @@ def _check_coverage_sync(
 
             # 2) Teste de cobertura por pixel alpha
             for overlay_data in overlays_info:
-                bounds = overlay_data["bounds"]
+                bounds = list(overlay_data["bounds"])
+                if len(bounds) != 4:
+                    logger.warning("  -> ⚠️ Bounds inválidos para overlay: %s", bounds)
+                    continue
+
+                # Normaliza (S,W,N,E)
+                s, w, n, e = bounds
+                if s > n:
+                    s, n = n, s
+                if w > e:
+                    w, e = e, w
+
                 imagem_path = Path(overlay_data["imagem_path"])
 
                 if not imagem_path.is_file():
@@ -135,12 +146,6 @@ def _check_coverage_sync(
 
                     pil_image = imagens_abertas_cache[imagem_path]
                     img_width, img_height = pil_image.size
-                    s, w, n, e = bounds
-
-                    if s > n:
-                        s, n = n, s
-                    if w > e:
-                        w, e = e, w
 
                     delta_lon = e - w
                     delta_lat = n - s
@@ -157,13 +162,16 @@ def _check_coverage_sync(
                             break
                 except Exception as ex:
                     logger.error("  -> ❌ Erro ao analisar overlay p/ '%s': %s",
-                                entity_data['nome'], ex, exc_info=True)
+                                entity_data.get('nome', '<sem nome>'), ex, exc_info=True)
 
             entity_data_atualizado["fora"] = not coberto
             entities_atualizadas.append(entity_data_atualizado)
     finally:
         for img_obj in imagens_abertas_cache.values():
-            img_obj.close()
+            try:
+                img_obj.close()
+            except Exception:
+                pass
 
     logger.info("  -> (Thread) Concluída verificação de %d entidades.", len(entities))
     return entities_atualizadas
@@ -289,7 +297,7 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
 
     perfil_final: List[ElevationPoint] = [
         {"lat": pontos_amostrados[i][0], "lon": pontos_amostrados[i][1],
-        "elev": float(elevacoes_terreno[i]), "dist": i / num_passos}
+            "elev": float(elevacoes_terreno[i]), "dist": i / num_passos}
         for i in range(num_passos + 1)
     ]
 
@@ -307,11 +315,13 @@ async def obter_perfil_elevacao(pontos: List[Tuple[float, float]], alt1: float, 
 def _download_file(url: str, output_path: Path) -> None:
     """Faz o download de um arquivo de forma robusta."""
     try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)  # garante pasta
         with requests.get(url, stream=True, timeout=90) as r:
             r.raise_for_status()
             with open(output_path, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                    if chunk:
+                        f.write(chunk)
         logger.info("    -> (DEM) Download concluído: %s", output_path)
     except requests.RequestException as e:
         logger.error("    -> (DEM) ❌ Falha no download de %s: %s", url, e)
@@ -324,22 +334,22 @@ def _download_and_clip_dem(bounds_dem_wgs84: Tuple[float, float, float, float], 
     Muito mais robusto que a biblioteca 'elevation'.
     """
     min_lon, min_lat, max_lon, max_lat = bounds_dem_wgs84
-    
+
     # URL do tile de 1 grau de arco SRTM (fonte: https://registry.opendata.aws/terrain-tiles/)
-    dem_source_url = "https://s3.amazonaws.com/elevation-tiles-prod/skadi/{N}{W}/{N}{W}.hgt.gz"
+    dem_source_url = "https://s3.amazonaws.com/elevation-tiles-prod/skadi/{N}{W}/{N}{W}.hgt.gz"  # mantido para referência
 
     # Simplificado: assume que a área está contida num único tile de 1x1 grau.
     # Para áreas maiores, seria necessário um mosaico.
     lat_tile = int(np.floor(min_lat))
     lon_tile = int(np.floor(min_lon))
-    
+
     N_S = 'N' if lat_tile >= 0 else 'S'
     W_E = 'W' if lon_tile < 0 else 'E'
     lat_str = f"{abs(lat_tile):02d}"
     lon_str = f"{abs(lon_tile):03d}"
 
     tile_url = f"https://elevation-tiles-prod.s3.amazonaws.com/skadi/{N_S}{lat_str}/{N_S}{lat_str}{W_E}{lon_str}.hgt.gz"
-    
+
     dem_temp_dir = output_dem_path.parent / "temp"
     dem_temp_dir.mkdir(parents=True, exist_ok=True)
     temp_gz_path = dem_temp_dir / f"{N_S}{lat_str}{W_E}{lon_str}.hgt.gz"
@@ -350,7 +360,7 @@ def _download_and_clip_dem(bounds_dem_wgs84: Tuple[float, float, float, float], 
     try:
         logger.info("    -> (DEM) Recortando tile para os limites da área...")
         geom = box(min_lon, min_lat, max_lon, max_lat)
-        
+
         with rasterio.open(f"gzip://{temp_gz_path}") as src:
             out_image, out_transform = rasterio.mask.mask(src, [geom], crop=True)
             out_meta = src.meta.copy()
@@ -365,13 +375,16 @@ def _download_and_clip_dem(bounds_dem_wgs84: Tuple[float, float, float, float], 
             dest.write(out_image)
 
         logger.info("    -> (DEM) Arquivo DEM recortado e salvo em: %s", output_dem_path)
-    
+
     except Exception as e:
         logger.error("    -> (DEM) ❌ Falha ao recortar o DEM com Rasterio: %s", e, exc_info=True)
         raise IOError(f"Falha ao processar o arquivo DEM: {e}")
     finally:
         # Limpa o arquivo temporário
-        temp_gz_path.unlink(missing_ok=True)
+        try:
+            temp_gz_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 async def obter_dem_para_area_geografica(
@@ -448,11 +461,15 @@ async def encontrar_locais_altos_para_repetidora(
                 logger.warning("  -> ⚠️ Coords insuficientes (%d) p/ formar polígono de pivô %d. Pulando.",
                                 len(shapely_coords), i + 1)
 
-    # Bounds totais das imagens ativas
+    # Bounds totais das imagens ativas (normalizados)
     min_s, min_w = float('inf'), float('inf')
     max_n, max_e = float('-inf'), float('-inf')
     for ov in active_overlays_data:
         s, w, n, e = ov['bounds']
+        if s > n:
+            s, n = n, s
+        if w > e:
+            w, e = e, w
         min_s, min_w = min(min_s, s), min(min_w, w)
         max_n, max_e = max(max_n, n), max(max_e, e)
     if any(val in (float('inf'), float('-inf')) for val in [min_s, max_n, min_w, max_e]):
@@ -580,7 +597,10 @@ async def encontrar_locais_altos_para_repetidora(
         logger.error("  -> ❌ Erro durante processamento dos picos/LOS: %s", e_proc, exc_info=True)
     finally:
         for img in imagens_overlay_pil_cache.values():
-            img.close()
+            try:
+                img.close()
+            except Exception:
+                pass
 
     # Ordena: preferir LOS, depois maior elevação, depois menor distância
     candidate_sites_list.sort(key=lambda s: (

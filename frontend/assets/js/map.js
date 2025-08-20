@@ -17,30 +17,44 @@ function ensureAppState() {
 
 /**
  * Inicializa o mapa Leaflet, camada de satélite e grupos.
+ * Pode ser chamado mais de uma vez com segurança (faz cleanup do mapa anterior).
  */
 function initMap() {
-ensureAppState();
+    ensureAppState();
 
-map = L.map("map", {
+// Destroi mapa anterior (se existir) para evitar listeners duplicados/erro de container já inicializado
+    if (map && map.remove) {
+        try {
+        map.off();
+        map.remove();
+    } catch (_) {}
+    map = null;
+}
+
+const container = document.getElementById("map");
+    if (!container) {
+    console.error("Elemento #map não encontrado.");
+    return;
+}
+
+map = L.map(container, {
     zoomControl: false,
-    preferCanvas: true, // geralmente melhora performance com muitos vetores
+    preferCanvas: true, // melhora performance com muitos vetores
 }).setView([-15, -55], 5);
 
-const tiles = L.tileLayer(
-    "https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-    {
-        maxZoom: 20,
-        subdomains: ["mt0", "mt1", "mt2", "mt3"],
-      attribution: "", // você pode adicionar atribuição se desejar
-    }
-).addTo(map);
+// Camada de satélite (Google). Observação: respeite os termos de uso do provedor.
+const tiles = L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", {
+    maxZoom: 20,
+    subdomains: ["mt0", "mt1", "mt2", "mt3"],
+    attribution: "",
+}).addTo(map);
 
-tiles.on("tileerror", (e) => {
-    // Evita poluir console; comente se quiser ver todos os erros de tile
+  tiles.on("tileerror", (/* e */) => {
+    // Silencioso por padrão; descomente para depurar:
     // console.warn("Falha ao carregar tile:", e);
 });
 
-  // Grupos
+// Grupos
 AppState.visadaLayerGroup = L.layerGroup().addTo(map);
 AppState.antenaCandidatesLayerGroup = L.layerGroup().addTo(map);
 
@@ -65,17 +79,21 @@ setupCandidateRemovalListener();
 // Atualização de ícones em zoom, se a função existir
 map.on("zoomend", () => {
     if (typeof updatePivotIcons === "function") {
+        try {
         updatePivotIcons();
+        } catch (e) {
+        console.warn("updatePivotIcons lançou erro:", e);
+        }
     }
 });
 
 // Ajusta mapa ao redimensionar janela
 window.addEventListener("resize", () => {
-    map.invalidateSize();
+    if (map && map.invalidateSize) map.invalidateSize();
 });
 
 // Aplica visibilidade inicial
-    applyVisadaVisibility();
+applyVisadaVisibility();
 }
 
 /**
@@ -90,31 +108,48 @@ function setVisadaVisible(visible) {
 // Sincroniza botão/aria
 const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
-    btnVisada.classList.toggle("glass-button-active", AppState.visadaVisivel);
-    btnVisada.setAttribute("aria-pressed", String(AppState.visadaVisivel));
+        btnVisada.classList.toggle("glass-button-active", AppState.visadaVisivel);
+        btnVisada.setAttribute("aria-pressed", String(AppState.visadaVisivel));
     }
 }
 
 /**
  * Aplica o estado atual AppState.visadaVisivel às camadas do grupo.
+ * Suporta vetores, markers, ImageOverlay, TileLayer e grupos aninhados.
  */
 function applyVisadaVisibility() {
     const group = AppState.visadaLayerGroup;
     if (!group) return;
 
-const visible = !!AppState.visadaVisivel;
+    const visible = !!AppState.visadaVisivel;
 
-group.eachLayer((layer) => {
+    const applyToLayer = (layer) => {
     const targetOpacity = visible ? 1 : 0;
 
-// Vetores (Polylines/Polygons/Circles)
-    if (layer.setStyle) {
-// guarda fillOpacity original 1x
-    if (layer.options && typeof layer.options.__fillOpacityOriginal === "undefined") {
+// Grupos aninhados (LayerGroup/FeatureGroup)
+    if (layer && typeof layer.getLayers === "function") {
+        layer.getLayers().forEach(applyToLayer);
+        return;
+    }
+
+    // Raster (ImageOverlay / TileLayer)
+    if (typeof layer.setOpacity === "function") {
+        try {
+            layer.setOpacity(targetOpacity);
+        } catch (_) {}
+        // Tenta também mexer em eventos
+        if (layer._image) {
+        layer._image.style.pointerEvents = visible ? "auto" : "none";
+    }
+    return;
+    }
+
+    // Vetores (Polyline/Polygon/Circle/GeoJSON)
+    if (typeof layer.setStyle === "function") {
+      // Guarda fillOpacity original (apenas 1x)
+        if (layer.options && typeof layer.options.__fillOpacityOriginal === "undefined") {
         const orig =
-        typeof layer.options.fillOpacity === "number"
-            ? layer.options.fillOpacity
-            : 0.5;
+            typeof layer.options.fillOpacity === "number" ? layer.options.fillOpacity : 0.5;
         layer.options.__fillOpacityOriginal = orig;
     }
     const baseFill =
@@ -122,30 +157,38 @@ group.eachLayer((layer) => {
             ? layer.options.__fillOpacityOriginal
             : 0.5;
 
-    layer.setStyle({
-        opacity: targetOpacity,
-        fillOpacity: visible ? baseFill : 0,
-    });
+    try {
+        layer.setStyle({
+            opacity: targetOpacity,
+            fillOpacity: visible ? baseFill : 0,
+        });
+    } catch (_) {}
 
-// pointer-events via pane/style (para vetores geralmente não é necessário)
-    if (layer._path) {
-        layer._path.style.pointerEvents = visible ? "auto" : "none";
+      // pointer-events em SVG path
+        if (layer._path) {
+            layer._path.style.pointerEvents = visible ? "auto" : "none";
     }
-    }
-// Markers com ícone DOM (DivIcon / default)
-    else if (layer.getElement && typeof layer.getElement === "function") {
-    const el = layer.getElement();
-    if (el) {
+    return;
+}
+
+    // Markers com elemento DOM (DivIcon / default)
+    if (layer && typeof layer.getElement === "function") {
+        const el = layer.getElement();
+        if (el) {
         el.style.opacity = targetOpacity;
         el.style.pointerEvents = visible ? "auto" : "none";
+        }
+    return;
     }
-    }
-// Fallback direto no _icon (alguns tipos de marker)
-    else if (layer._icon) {
+
+    // Fallback direto no _icon (alguns tipos de marker)
+    if (layer && layer._icon) {
         layer._icon.style.opacity = targetOpacity;
         layer._icon.style.pointerEvents = visible ? "auto" : "none";
     }
-});
+};
+
+group.eachLayer(applyToLayer);
 
 console.log(`Visada: ${visible ? "Ativada" : "Desativada"}`);
 }
@@ -162,7 +205,7 @@ function toggleVisada() {
  * Usa delegação para não precisar adicionar listeners por marker.
  */
 function setupCandidateRemovalListener() {
-if (!map) {
+    if (!map) {
     console.error("Mapa não inicializado.");
     return;
 }
@@ -176,7 +219,7 @@ map.on("click", function (e) {
         if (!markerIdToRemove) return;
 
     // Evita que o click no "X" seja interpretado como clique no mapa
-    L.DomEvent.stop(e);
+        L.DomEvent.stop(e);
 
     if (window.candidateRepeaterSitesLayerGroup) {
         const toRemove = [];
@@ -187,9 +230,7 @@ map.on("click", function (e) {
         });
 
         if (toRemove.length) {
-            toRemove.forEach((l) =>
-                window.candidateRepeaterSitesLayerGroup.removeLayer(l)
-        );
+            toRemove.forEach((l) => window.candidateRepeaterSitesLayerGroup.removeLayer(l));
             console.log("Candidato removido:", markerIdToRemove);
             if (typeof mostrarMensagem === "function") {
             mostrarMensagem(t("messages.success.repeater_suggestion_removed"), "sucesso");
