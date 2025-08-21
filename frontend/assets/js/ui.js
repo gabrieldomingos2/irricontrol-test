@@ -429,15 +429,23 @@ const btnAntLeg = document.getElementById("toggle-antenas-legendas");
 if (btnAntLeg && !btnAntLeg.dataset.bound) {
     btnAntLeg.dataset.bound = "1";
     btnAntLeg.addEventListener("click", () => {
-    ensureAppState();
-    AppState.antenaLegendasAtivas = !AppState.antenaLegendasAtivas;
-    btnAntLeg.classList.toggle("glass-button-active", AppState.antenaLegendasAtivas);
-    const icon = btnAntLeg.querySelector(".sidebar-icon");
-    if (icon) {
-        icon.style.webkitMaskImage = `url('assets/images/radio.svg')`;
-        icon.style.maskImage = `url('assets/images/radio.svg')`;
-    }
-    if (typeof updateLegendsVisibility === "function") updateLegendsVisibility();
+        ensureAppState();
+        AppState.antenaLegendasAtivas = !AppState.antenaLegendasAtivas;
+
+        // CORREÇÃO: Invertemos a lógica com "!" para que o botão fique ativo quando as legendas estiverem INATIVAS.
+        btnAntLeg.classList.toggle("glass-button-active", !AppState.antenaLegendasAtivas);
+
+        // MELHORIA: Trocamos o ícone para um feedback visual melhor, como no outro botão de legenda.
+        const icon = btnAntLeg.querySelector(".sidebar-icon");
+        if (icon) {
+            const iconPath = AppState.antenaLegendasAtivas
+                ? 'assets/images/radio.svg'
+                : 'assets/images/radio-off.svg'; // Crie este ícone (um rádio com um traço sobre ele)
+            icon.style.webkitMaskImage = `url('${iconPath}')`;
+            icon.style.maskImage = `url('${iconPath}')`;
+        }
+        
+        if (typeof updateLegendsVisibility === "function") updateLegendsVisibility();
     });
 }
 
