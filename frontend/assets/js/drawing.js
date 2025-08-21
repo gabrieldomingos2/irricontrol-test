@@ -887,53 +887,63 @@ function drawVisadaComGradiente(pontoA, pontoB) {
     }).addTo(AppState.visadaLayerGroup);
 }
 
-function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPontoMaisAlto, nomeDiagnostico, distanciaFormatada = null) {
+function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPontoMaisAlto, nomeDiagnostico, distanciaFormatada = null, fullProfileData = null, analysisPayload = null) {
     if (!map || !AppState.visadaLayerGroup) return;
 
     const linha = drawVisadaComGradiente(latlonOrigem, latlonDestino);
     const estaBloqueado = dadosBloqueioAPI?.diff > 0.1;
 
-let iconUrl;
-let iconSize;
-let mensagemTooltip;
-let markerLatLng;
-let tooltipColor;
+    let iconUrl;
+    let iconSize;
+    let mensagemTooltip;
+    let markerLatLng;
+    let tooltipColor;
 
-if (estaBloqueado) {
-    iconUrl = ATTENTION_ICON_PATH;
-    iconSize = [24, 24];
-    markerLatLng = [dadosBloqueioAPI.lat, dadosBloqueioAPI.lon];
-    mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
-    if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
-    mensagemTooltip += `<br>${t("tooltips.blockage_point", { elevation: dadosBloqueioAPI.elev.toFixed(1) })}`;
-    tooltipColor = "#FF9800";
-    mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.blockage_present", { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
-} else {
-    iconUrl = MOUNTAIN_ICON_PATH;
-    iconSize = [22, 22];
-    markerLatLng = [dadosPontoMaisAlto.lat, dadosPontoMaisAlto.lon];
-    mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
-    if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
-    tooltipColor = "#FF9800";
-    mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.highest_point_short", { elevation: dadosPontoMaisAlto.elev.toFixed(1) })}</span>`;
-}
+    if (estaBloqueado) {
+        iconUrl = ATTENTION_ICON_PATH;
+        iconSize = [24, 24];
+        markerLatLng = [dadosBloqueioAPI.lat, dadosBloqueioAPI.lon];
+        mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
+        if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
+        mensagemTooltip += `<br>${t("tooltips.blockage_point", { elevation: dadosBloqueioAPI.elev.toFixed(1) })}`;
+        tooltipColor = "#FF9800";
+        mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.blockage_present", { diff: dadosBloqueioAPI.diff.toFixed(1) })}</span>`;
+    } else {
+        iconUrl = MOUNTAIN_ICON_PATH;
+        iconSize = [22, 22];
+        markerLatLng = [dadosPontoMaisAlto.lat, dadosPontoMaisAlto.lon];
+        mensagemTooltip = `<strong>${nomeDiagnostico}</strong>`;
+        if (distanciaFormatada) mensagemTooltip += `<br>${t("ui.labels.pivo_distance_label")} ${distanciaFormatada}`;
+        tooltipColor = "#FF9800";
+        mensagemTooltip += `<br><span style="color:${tooltipColor};">${t("tooltips.highest_point_short", { elevation: dadosPontoMaisAlto.elev.toFixed(1) })}</span>`;
+    }
 
-if (markerLatLng?.[0] && markerLatLng?.[1]) {
-    const markerIcon = L.divIcon({
-        className: "label-bloqueio-dinamico",
-        html: `<img src="${iconUrl}" style="width:${iconSize[0]}px;height:${iconSize[1]}px;">`,
-        iconSize,
-        iconAnchor: [iconSize[0] / 2, iconSize[1] / 2]
-    });
-    const marker = L.marker(markerLatLng, { icon: markerIcon })
-        .addTo(AppState.visadaLayerGroup)
-        .bindTooltip(mensagemTooltip, {
-        permanent: false,
-        direction: "top",
-        className: "tooltip-sinal tooltip-visada-diagnostico",
-        offset: [0, -(iconSize[1] / 2 + 5)]
+    if (markerLatLng?.[0] && markerLatLng?.[1]) {
+        const markerIcon = L.divIcon({
+            className: "label-bloqueio-dinamico blockage-icon-button",
+            html: `<img src="${iconUrl}" style="width:${iconSize[0]}px;height:${iconSize[1]}px;">`,
+            iconSize,
+            iconAnchor: [iconSize[0] / 2, iconSize[1] / 2]
         });
-    AppState.marcadoresBloqueio?.push?.(marker);
+
+        const marker = L.marker(markerLatLng, { icon: markerIcon })
+            .addTo(AppState.visadaLayerGroup)
+            .bindTooltip(mensagemTooltip, {
+                permanent: false,
+                direction: "top",
+                className: "tooltip-sinal tooltip-visada-diagnostico",
+                offset: [0, -(iconSize[1] / 2 + 5)]
+            });
+        
+        marker.on('click', () => {
+            if (fullProfileData && analysisPayload && window.Analysis3D) {
+                window.Analysis3D.show(fullProfileData, analysisPayload.altura_antena, analysisPayload.altura_receiver);
+            } else {
+                console.warn("Dados do perfil de elevação não disponíveis para este ícone.");
+            }
+        });
+
+        AppState.marcadoresBloqueio?.push?.(marker);
     }
 
     AppState.linhasDiagnostico?.push?.(linha);

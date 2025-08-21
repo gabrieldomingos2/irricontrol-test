@@ -106,51 +106,62 @@ window.Analysis3D = (() => {
 
     // Inicializa o gráfico 2D (já estava correto)
     function initChart(initialTowerHeight) {
-        if (profileChart) profileChart.destroy();
-    
-        const labels = terrainData.map(p => (p.dist * 100).toFixed(0) + '%');
-        const terrainElevations = terrainData.map(p => p.elev);
-        const initialLos = calculateLineOfSight(initialTowerHeight);
+    if (profileChart) profileChart.destroy();
 
-        profileChart = new Chart(chartCanvas, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Terreno',
-                    data: terrainElevations,
-                    borderColor: 'rgba(156, 163, 175, 0.7)',
-                    backgroundColor: 'rgba(156, 163, 175, 0.3)',
-                    fill: 'start',
-                    pointRadius: 0,
-                    borderWidth: 1.5,
-                }, {
-                    label: 'Linha de Visada',
-                    data: initialLos.points,
-                    borderColor: initialLos.isBlocked ? '#ef4444' : '#22c55e',
-                    borderWidth: 3,
-                    pointRadius: 0,
-                    fill: false,
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        title: { display: true, text: 'Elevação (m)', color: '#9ca3af' },
-                        ticks: { color: '#9ca3af' }
-                    },
-                    x: {
-                        title: { display: true, text: 'Distância do Percurso', color: '#9ca3af' },
-                        ticks: { color: '#9ca3af' }
-                    }
+    // NOVO: Calcula a distância total em metros entre o ponto inicial e final
+    const startPoint = L.latLng(terrainData[0].lat, terrainData[0].lon);
+    const endPoint = L.latLng(terrainData[terrainData.length - 1].lat, terrainData[terrainData.length - 1].lon);
+    const totalDistance = startPoint.distanceTo(endPoint); // Distância total em metros
+
+    // ALTERADO: Gera as legendas do eixo X em metros
+    const labels = terrainData.map(p => (p.dist * totalDistance).toFixed(0) + 'm');
+    const terrainElevations = terrainData.map(p => p.elev);
+    const initialLos = calculateLineOfSight(initialTowerHeight);
+
+    profileChart = new Chart(chartCanvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Terreno',
+                data: terrainElevations,
+                borderColor: 'rgba(156, 163, 175, 0.7)',
+                backgroundColor: 'rgba(156, 163, 175, 0.3)',
+                fill: 'start',
+                pointRadius: 0,
+                borderWidth: 1.5,
+            }, {
+                label: 'Linha de Visada',
+                data: initialLos.points,
+                borderColor: initialLos.isBlocked ? '#ef4444' : '#22c55e',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    title: { display: true, text: 'Elevação (m)', color: '#9ca3af' },
+                    ticks: { color: '#9ca3af' }
                 },
-                plugins: {
-                    legend: { labels: { color: '#d1d5db' } }
+                x: {
+                    // ALTERADO: Atualiza o título do eixo X
+                    title: { display: true, text: 'Distância do Percurso (m)', color: '#9ca3af' },
+                    ticks: { 
+                        color: '#9ca3af',
+                        maxRotation: 45, // Evita que os textos se sobreponham
+                        minRotation: 45
+                    }
                 }
+            },
+            plugins: {
+                legend: { labels: { color: '#d1d5db' } }
             }
-        });
-    }
+        }
+    });
+}
 
     // Função pública para mostrar e inicializar o modal
     function show(profileData, initialTowerHeight, initialReceiverHeight) {

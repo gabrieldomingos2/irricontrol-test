@@ -568,3 +568,35 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
   margin-top: 5px;
   opacity: 0.8;
 }
+
+
+/* ========================= */
+/* ✒️ MODAL ANÁLISE 3D      */
+/* ========================= */
+
+/* Garante que o container do Mapbox se ajuste ao layout */
+#map-3d-container .mapboxgl-canvas-container,
+#map-3d-container .mapboxgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Esconde o logo e a atribuição do Mapbox para uma UI mais limpa no modal */
+#map-3d-container .mapboxgl-ctrl-logo,
+#map-3d-container .mapboxgl-ctrl-attrib {
+  display: none !important;
+}
+
+
+/* ========================= */
+/* ✒️ ÍCONE DE BLOQUEIO CLICÁVEL */
+/* ========================= */
+.blockage-icon-button {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.blockage-icon-button:hover {
+  transform: scale(1.2);
+  filter: drop-shadow(0 0 5px rgba(255, 255, 0, 0.7));
+}

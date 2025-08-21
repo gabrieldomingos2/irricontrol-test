@@ -379,9 +379,18 @@ async function startMainSimulation(antenaData) {
         AppState.marcadorAntena = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
 
         AppState.marcadorAntena.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            handleSpecialMarkerSelection(AppState.marcadorAntena);
-        });
+    L.DomEvent.stopPropagation(e);
+    if (AppState.modoLoSPivotAPivot) {
+        const antennaItemData = {
+            ...AppState.antenaGlobal,
+            fora: false,
+            id: 'main_antenna'
+        };
+        handleLoSTargetClick(antennaItemData, AppState.marcadorAntena);
+    } else {
+        handleSpecialMarkerSelection(AppState.marcadorAntena);
+    }
+});
 
         AppState.marcadorAntena.on('contextmenu', (e) => {
             L.DomEvent.stop(e);
@@ -737,6 +746,22 @@ async function handleConfirmRepetidoraClick() {
         }
 
         const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
+
+        novaRepetidoraMarker.on('click', (e) => {
+    L.DomEvent.stopPropagation(e);
+    if (AppState.modoLoSPivotAPivot) {
+        const repetidora = AppState.repetidoras.find(r => r.marker === e.target);
+        if (repetidora) {
+            const repeaterItemData = {
+                ...repetidora,
+                fora: false
+            };
+            handleLoSTargetClick(repeaterItemData, e.target);
+        }
+    } else {
+        handleSpecialMarkerSelection(e.target);
+    }
+});
 
         repetidoraObj = {
             id, marker: novaRepetidoraMarker, overlay: null, label: null,
@@ -1345,7 +1370,8 @@ async function runTargetedDiagnostic(diagnosticoSource) {
             const nomeDiagnostico = `${sourceName} → ${alvo.nome}`;
             drawDiagnostico(
                 payload.pontos[0], payload.pontos[1],
-                data.bloqueio, data.ponto_mais_alto, nomeDiagnostico, distanciaFormatada
+                data.bloqueio, data.ponto_mais_alto, nomeDiagnostico, distanciaFormatada,
+                data, payload // Passa os dados completos para o clique
             );
         } catch (error) {
             console.error(`Erro no diagnóstico do alvo ${alvo.nome}:`, error);
@@ -1749,100 +1775,126 @@ function toggleLoSPivotAPivotMode() {
 async function handleLoSTargetClick(itemData, itemMarker) {
     if (!AppState.modoLoSPivotAPivot) return;
 
-    const hasGoodSignal = itemData.fora === false;
-    const targetLatlng = itemMarker.getLatLng();
+    const PIVOT_DEFAULT_SOURCE_HEIGHT = 5;
     const defaultReceiverHeight = (AppState.antenaGlobal?.altura_receiver) ?? 3;
 
+    // --- LÓGICA DE SELEÇÃO DO PRIMEIRO PONTO (ORIGEM) ---
     if (!AppState.losSourcePivot) {
-        if (!hasGoodSignal) {
-            mostrarMensagem(t('messages.errors.los_source_must_have_signal'), "erro");
-            return;
-        }
-        AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
-        if (itemData.id === 'main_antenna' || itemData.id === AppState.antenaGlobal?.id) {
-            AppState.losSourcePivot.isMainAntenna = true;
-            AppState.losSourcePivot.type = AppState.antenaGlobal.type;
-            AppState.losSourcePivot.altura = AppState.antenaGlobal.altura;
-        } else {
-            const rep = AppState.repetidoras.find(r => r.id === itemData.id);
-            if (rep) {
-                AppState.losSourcePivot.isMainAntenna = false;
-                AppState.losSourcePivot.type = rep.type;
-                AppState.losSourcePivot.altura = rep.altura;
-            }
-        }
-        mostrarMensagem(t('messages.info.los_source_selected', { name: itemData.nome }), "sucesso");
-    } else {
-        if (itemData.nome === AppState.losSourcePivot.nome) {
-            mostrarMensagem(t('messages.info.los_source_already_selected', { name: itemData.nome }), "info");
-            return;
-        }
-        if (hasGoodSignal) {
-            const confirmed = await showCustomConfirm(t('messages.confirm.change_los_source', { sourceName: AppState.losSourcePivot.nome, newName: itemData.nome }));
-            if (confirmed) {
-                AppState.losSourcePivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
-                if (itemData.id === 'main_antenna' || itemData.id === AppState.antenaGlobal?.id) {
-                    AppState.losSourcePivot.isMainAntenna = true;
-                    AppState.losSourcePivot.type = AppState.antenaGlobal.type;
-                    AppState.losSourcePivot.altura = AppState.antenaGlobal.altura;
+        // NOVO: A restrição de 'precisa ter sinal' foi removida.
+        // Agora qualquer ponto pode ser a origem.
+        let sourceHeight;
+        let sourceIsMainAntenna = false;
+        let sourceType = 'pivot';
+
+        if (itemData.id) {
+            if (itemData.id === 'main_antenna' || (AppState.antenaGlobal && itemData.id === AppState.antenaGlobal.id)) {
+                sourceHeight = AppState.antenaGlobal.altura;
+                sourceIsMainAntenna = true;
+                sourceType = AppState.antenaGlobal.type;
+            } else {
+                const rep = AppState.repetidoras.find(r => r.id === itemData.id);
+                if (rep) {
+                    sourceHeight = rep.altura;
+                    sourceType = rep.type;
                 } else {
-                    const rep = AppState.repetidoras.find(r => r.id === itemData.id);
-                    if (rep) {
-                        AppState.losSourcePivot.isMainAntenna = false;
-                        AppState.losSourcePivot.type = rep.type;
-                        AppState.losSourcePivot.altura = rep.altura;
-                    }
+                    sourceHeight = PIVOT_DEFAULT_SOURCE_HEIGHT;
                 }
-                AppState.losTargetPivot = null;
-                if (AppState.visadaLayerGroup) AppState.visadaLayerGroup.clearLayers();
-                AppState.linhasDiagnostico = [];
-                AppState.marcadoresBloqueio = [];
-                mostrarMensagem(t('messages.info.los_source_changed', { name: itemData.nome }), "sucesso");
             }
-            return;
+        } else {
+            sourceHeight = PIVOT_DEFAULT_SOURCE_HEIGHT;
         }
 
-        AppState.losTargetPivot = { nome: itemData.nome, latlng: targetLatlng, altura: defaultReceiverHeight };
-        mostrarLoader(true);
-        let ocorreuErroNaAnalise = false;
-        let distanciaFormatada = "N/A";
-        try {
-            if (typeof setVisadaVisible === 'function') setVisadaVisible(true);
+        AppState.losSourcePivot = {
+            ...itemData,
+            latlng: itemMarker.getLatLng(),
+            altura: sourceHeight,
+            isMainAntenna: sourceIsMainAntenna,
+            type: sourceType
+        };
+        
+        mostrarMensagem(t('messages.info.los_source_selected', { name: itemData.nome }), "sucesso");
+        return; // Aguarda a seleção do segundo ponto
+    }
 
-            const distanciaEntreAlvos = AppState.losSourcePivot.latlng.distanceTo(AppState.losTargetPivot.latlng);
-            distanciaFormatada = distanciaEntreAlvos > 999 ? (distanciaEntreAlvos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntreAlvos) + ' m';
+    // --- LÓGICA DE SELEÇÃO DO SEGUNDO PONTO (ALVO) E EXECUÇÃO ---
+    const sourceData = AppState.losSourcePivot;
+    const targetData = {
+        ...itemData,
+        latlng: itemMarker.getLatLng()
+    };
 
-            const payload = {
-                pontos: [
-                    [AppState.losSourcePivot.latlng.lat, AppState.losSourcePivot.latlng.lng],
-                    [AppState.losTargetPivot.latlng.lat, AppState.losTargetPivot.latlng.lng]
-                ],
-                altura_antena: AppState.losSourcePivot.altura,
-                altura_receiver: AppState.losTargetPivot.altura,
-                return_highest_point: true
-            };
-            const resultadoApi = await getElevationProfile(payload);
-            const estaBloqueado = resultadoApi.bloqueio?.diff > 0.1;
+    if (sourceData.nome === targetData.nome) {
+        mostrarMensagem(t('messages.info.los_source_already_selected', { name: itemData.nome }), "info");
+        return;
+    }
 
-            const sourceDisplayName = getFormattedAntennaOrRepeaterName(AppState.losSourcePivot);
-            drawDiagnostico(payload.pontos[0], payload.pontos[1], resultadoApi.bloqueio, resultadoApi.ponto_mais_alto, `${sourceDisplayName} → ${AppState.losTargetPivot.nome}`, distanciaFormatada);
+    // NOVO: Determina qual ponto é o transmissor e qual é o receptor
+    let transmitter, receiver;
+    const sourceHasSignal = sourceData.fora === false || sourceData.id; // Antenas/Reps sempre têm sinal
+    const targetHasSignal = targetData.fora === false || itemData.id;
 
-            let statusKey = 'los_result_clear';
-            if (estaBloqueado) statusKey = 'los_result_blocked';
-            else if (resultadoApi.bloqueio) statusKey = 'los_result_clear_critical';
+    if (!sourceHasSignal && !targetHasSignal) {
+        mostrarMensagem(t('messages.errors.los_need_one_signal_source'), "erro");
+        AppState.losSourcePivot = null; // Reseta a seleção
+        return;
+    }
 
-            mostrarMensagem(t(`messages.info.${statusKey}`, { source: sourceDisplayName, target: AppState.losTargetPivot.nome, distance: distanciaFormatada }), estaBloqueado ? "erro" : "sucesso");
+    if (sourceHasSignal) {
+        transmitter = sourceData;
+        receiver = targetData;
+    } else {
+        // Ordem invertida: o alvo é a fonte de sinal
+        transmitter = targetData;
+        receiver = sourceData;
+    }
 
-        } catch (error) {
-            ocorreuErroNaAnalise = true;
-            console.error(`Erro no diagnóstico LoS Alvo a Alvo:`, error);
-            mostrarMensagem(t('messages.info.los_result_error', { source: AppState.losSourcePivot?.nome || 'Origem', target: AppState.losTargetPivot?.nome || 'Destino', distance: distanciaFormatada, error: error.message }), "erro");
-        } finally {
-            mostrarLoader(false);
-            AppState.losSourcePivot = null;
-            AppState.losTargetPivot = null;
-            if (AppState.modoLoSPivotAPivot) setTimeout(() => { if (AppState.modoLoSPivotAPivot) mostrarMensagem(t('messages.info.los_new_source_prompt'), "info"); }, ocorreuErroNaAnalise ? 700 : 1800);
+    // Atribui as alturas corretas para o cálculo
+    transmitter.altura = transmitter.altura || (transmitter.id ? AppState.antenaGlobal?.altura : PIVOT_DEFAULT_SOURCE_HEIGHT);
+    receiver.altura = defaultReceiverHeight;
+
+
+    mostrarLoader(true);
+    let ocorreuErroNaAnalise = false;
+    try {
+        if (typeof setVisadaVisible === 'function') setVisadaVisible(true);
+
+        const distanciaEntreAlvos = transmitter.latlng.distanceTo(receiver.latlng);
+        const distanciaFormatada = distanciaEntreAlvos > 999 ? (distanciaEntreAlvos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntreAlvos) + ' m';
+
+        const payload = {
+            pontos: [
+                [transmitter.latlng.lat, transmitter.latlng.lng],
+                [receiver.latlng.lat, receiver.latlng.lng]
+            ],
+            altura_antena: transmitter.altura,
+            altura_receiver: receiver.altura,
+            return_highest_point: true
+        };
+        const resultadoApi = await getElevationProfile(payload);
+        const estaBloqueado = resultadoApi.bloqueio?.diff > 0.1;
+
+        if (window.Analysis3D && typeof window.Analysis3D.show === 'function') {
+            // Garante que a altura da "torre" seja sempre a do transmissor
+            window.Analysis3D.show(resultadoApi, transmitter.altura, receiver.altura);
         }
+
+        const sourceDisplayName = getFormattedAntennaOrRepeaterName(transmitter);
+        drawDiagnostico(payload.pontos[0], payload.pontos[1], resultadoApi.bloqueio, resultadoApi.ponto_mais_alto, `${sourceDisplayName} → ${receiver.nome}`, distanciaFormatada, resultadoApi, payload);
+
+        let statusKey = 'los_result_clear';
+        if (estaBloqueado) statusKey = 'los_result_blocked';
+        else if (resultadoApi.bloqueio) statusKey = 'los_result_clear_critical';
+
+        mostrarMensagem(t(`messages.info.${statusKey}`, { source: sourceDisplayName, target: receiver.nome, distance: distanciaFormatada }), estaBloqueado ? "erro" : "sucesso");
+
+    } catch (error) {
+        ocorreuErroNaAnalise = true;
+        console.error(`Erro no diagnóstico LoS Alvo a Alvo:`, error);
+        mostrarMensagem(t('messages.info.los_result_error', { source: transmitter?.nome || 'Origem', target: receiver?.nome || 'Destino', distance: "N/A", error: error.message }), "erro");
+    } finally {
+        mostrarLoader(false);
+        AppState.losSourcePivot = null; // Reseta a seleção para a próxima análise
+        if (AppState.modoLoSPivotAPivot) setTimeout(() => { if (AppState.modoLoSPivotAPivot) mostrarMensagem(t('messages.info.los_new_source_prompt'), "info"); }, ocorreuErroNaAnalise ? 700 : 1800);
     }
 }
 
