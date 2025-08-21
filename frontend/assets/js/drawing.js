@@ -882,7 +882,7 @@ function drawVisadaComGradiente(pontoA, pontoB) {
     renderer: L.svg(),
     color: "url(#gradient-visada)",
     weight: 2,
-    opacity: AppState.visadaVisivel ? 1 : 0.5,
+    opacity: AppState.visadaVisivel ? 1 : 0,
     dashArray: "8 8"
     }).addTo(AppState.visadaLayerGroup);
 }
@@ -982,20 +982,23 @@ function updateLegendsVisibility() {
     if (!Array.isArray(AppState.marcadoresLegenda)) return;
 
     AppState.marcadoresLegenda.forEach((marker) => {
-    const el = marker.getElement?.();
-    if (!el) return;
+        const el = marker.getElement?.();
+        if (!el) return;
 
-    const type = marker.options.labelType;
-    let show = false;
+        const type = marker.options.labelType;
+        let show = false;
 
-    if (type === "pivot" || type === "bomba") show = AppState.legendasAtivas;
-    else if (type === "antena" || type === "repetidora" || type === "antena_candidate") show = AppState.antenaLegendasAtivas;
+        // Determina se a legenda específica deve ser mostrada com base no estado global
+        if (type === "pivot" || type === "bomba") {
+            show = AppState.legendasAtivas;
+        } else if (type === "antena" || type === "repetidora" || type === "antena_candidate") {
+            show = AppState.antenaLegendasAtivas;
+        }
 
-    if (type === "antena" || type === "repetidora") {
-        el.style.opacity = AppState.antenaLegendasAtivas ? "1" : "0.5";
-    }
-    el.style.display = show ? "" : "none";
-});
+        // Lógica unificada e corrigida: usa apenas a propriedade 'display'.
+        // Isso garante que as legendas fiquem totalmente visíveis ou totalmente ocultas.
+        el.style.display = show ? "" : "none";
+    });
 }
 
 function updateOverlaysOpacity(opacityValue) {

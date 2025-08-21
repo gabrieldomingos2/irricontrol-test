@@ -1807,6 +1807,8 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         let ocorreuErroNaAnalise = false;
         let distanciaFormatada = "N/A";
         try {
+            if (typeof setVisadaVisible === 'function') setVisadaVisible(true);
+
             const distanciaEntreAlvos = AppState.losSourcePivot.latlng.distanceTo(AppState.losTargetPivot.latlng);
             distanciaFormatada = distanciaEntreAlvos > 999 ? (distanciaEntreAlvos / 1000).toFixed(1) + ' km' : Math.round(distanciaEntreAlvos) + ' m';
 

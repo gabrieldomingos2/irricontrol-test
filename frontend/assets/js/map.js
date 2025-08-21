@@ -68,7 +68,7 @@ const btnVisada = document.getElementById("btn-visada");
 if (btnVisada) {
     btnVisada.addEventListener("click", toggleVisada);
     // estado inicial coerente
-    btnVisada.classList.toggle("glass-button-active", AppState.visadaVisivel);
+    btnVisada.classList.toggle("glass-button-active", !AppState.visadaVisivel);
     btnVisada.setAttribute("aria-pressed", String(AppState.visadaVisivel));
 } else {
     console.error("Botão #btn-visada não encontrado!");
@@ -108,7 +108,7 @@ function setVisadaVisible(visible) {
 // Sincroniza botão/aria
 const btnVisada = document.getElementById("btn-visada");
     if (btnVisada) {
-        btnVisada.classList.toggle("glass-button-active", AppState.visadaVisivel);
+        btnVisada.classList.toggle("glass-button-active", !AppState.visadaVisivel);
         btnVisada.setAttribute("aria-pressed", String(AppState.visadaVisivel));
     }
 }
