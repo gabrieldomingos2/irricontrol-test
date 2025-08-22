@@ -877,27 +877,24 @@ let defs = svg.querySelector("defs");
 }
 
 function drawVisadaComGradiente(pontoA, pontoB) {
-    criarGradienteVisada();
-    return L.polyline([pontoA, pontoB], {
-    renderer: L.svg(),
-    color: "url(#gradient-visada)",
-    weight: 2,
-    opacity: AppState.visadaVisivel ? 1 : 0,
-    dashArray: "8 8"
+
+    const linha = L.polyline([pontoA, pontoB], {
+        color: 'yellow',
+        weight: 2,
+        opacity: AppState.visadaVisivel ? 1 : 0,
+        dashArray: "8 8"
     }).addTo(AppState.visadaLayerGroup);
+
+    return linha;
 }
 
-function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPontoMaisAlto, nomeDiagnostico, distanciaFormatada = null, fullProfileData = null, analysisPayload = null) {
+function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPontoMaisAlto, nomeDiagnostico, distanciaFormatada = null, fullProfileData = null, analysisPayload = null, featuresToDraw = null) {
     if (!map || !AppState.visadaLayerGroup) return;
 
     const linha = drawVisadaComGradiente(latlonOrigem, latlonDestino);
     const estaBloqueado = dadosBloqueioAPI?.diff > 0.1;
 
-    let iconUrl;
-    let iconSize;
-    let mensagemTooltip;
-    let markerLatLng;
-    let tooltipColor;
+    let iconUrl, iconSize, mensagemTooltip, markerLatLng, tooltipColor;
 
     if (estaBloqueado) {
         iconUrl = ATTENTION_ICON_PATH;
@@ -935,9 +932,10 @@ function drawDiagnostico(latlonOrigem, latlonDestino, dadosBloqueioAPI, dadosPon
                 offset: [0, -(iconSize[1] / 2 + 5)]
             });
         
+        // CORREÇÃO: O evento de clique agora também passa os 'featuresToDraw'
         marker.on('click', () => {
             if (fullProfileData && analysisPayload && window.Analysis3D) {
-                window.Analysis3D.show(fullProfileData, analysisPayload.altura_antena, analysisPayload.altura_receiver);
+                window.Analysis3D.show(fullProfileData, analysisPayload.altura_antena, analysisPayload.altura_receiver, featuresToDraw);
             } else {
                 console.warn("Dados do perfil de elevação não disponíveis para este ícone.");
             }
@@ -1300,3 +1298,4 @@ window.drawTempSector = drawTempSector;
 window.removeTempSector = removeTempSector;
 window.drawTempPacman = drawTempPacman;
 window.removeTempPacman = removeTempPacman;
+window.criarGradienteVisada = criarGradienteVisada;

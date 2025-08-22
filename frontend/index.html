@@ -141,7 +141,7 @@
       SIDEBAR ESQUERDA (TEMPLATES, BUSCA, KMZ)
       Ocupa altura entre topbar e footer
       ========================================= -->
-  <div class="absolute top-14 bottom-14 left-0 w-[280px] bg-[#060B10] z-40 p-4 overflow-y-auto">
+  <div class="absolute top-14 bottom-14left-0 w-[280px] bg-[#060B10] z-40 p-4 overflow-y-auto">
     <!-- Template/modelo -->
     <div class="mb-4 backdrop-blur bg-white/5 border border-white/15 px-3 py-[6px] rounded-lg shadow-sm flex items-center gap-2">
       <label for="template-modelo" class="text-sm text-white/70 whitespace-nowrap" data-i18n="ui.labels.template"></label>
@@ -338,19 +338,21 @@
       ========================================= -->
   <div id="modal-3d-analysis"
       class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[19000] transition-opacity duration-300">
-    <div  class="flex flex-col w-[90vw] h-[90vh] bg-[#0A0F14]/90 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl shadow-green-500/10 transition-all duration-300">
-      <div class="flex justify-between items-center bg-black/20 px-6 py-3 rounded-t-xl border-b border-white/10">
-        <h3 class="text-lg font-bold text-green-400 flex items-center gap-3">
-          <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
-          Análise de Visada Interativa
-        </h3>
-        <div class="flex items-center gap-4">
-          <label for="tower-height-slider" class="text-sm text-white/70">Altura da Torre (m):</label>
-          <input id="tower-height-slider" type="range" min="1" max="100" step="1" value="5" class="range-slider-custom w-48">
-          <span id="tower-height-value" class="text-white font-semibold w-12 text-center">5 m</span>
-        </div>
-        <button id="close-3d-modal-btn" class="text-red-400 hover:text-red-500 font-bold text-2xl transition" type="button" aria-label="Fechar">×</button>
-      </div>
+    <div class="flex flex-col w-[90vw] max-w-[1600px] h-[85vh] bg-[#0A0F14]/90 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl shadow-green-500/10 transition-all duration-300">
+      <div class="flex items-center bg-black/20 px-6 py-3 rounded-t-xl border-b border-white/10">
+    <h3 class="text-lg font-bold text-green-400 flex items-center gap-3">
+        <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+        <span data-i18n="ui.titles.interactive_los_analysis">Análise de Visada Interativa</span>
+    </h3>
+
+    <div class="flex-grow flex justify-end pr-[28rem] items-center gap-2 px-4">
+        <label for="tower-height-slider" class="text-sm text-white/70" data-i18n="ui.labels.tower_height_m">Altura da Torre (m):</label>
+        <input id="tower-height-slider" type="range" min="1" max="100" step="1" value="5" class="range-slider-custom w-32">
+        <span id="tower-height-value" class="text-white font-semibold w-12 text-center">5 m</span>
+    </div>
+
+    <button id="close-3d-modal-btn" class="text-red-400 hover:text-red-500 font-bold text-2xl transition" type="button" aria-label="Fechar">×</button>
+</div>
 
       <div class="flex-grow grid grid-cols-2 gap-px bg-white/10 overflow-hidden rounded-b-xl">
         <div id="map-3d-container" class="w-full h-full bg-neutral-800"></div>

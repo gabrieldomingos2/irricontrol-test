@@ -58,6 +58,10 @@ const tiles = L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", 
 AppState.visadaLayerGroup = L.layerGroup().addTo(map);
 AppState.antenaCandidatesLayerGroup = L.layerGroup().addTo(map);
 
+if (typeof criarGradienteVisada === 'function') {
+    criarGradienteVisada();
+}
+
 if (!window.candidateRepeaterSitesLayerGroup) {
     window.candidateRepeaterSitesLayerGroup = L.layerGroup().addTo(map);
     console.log("candidateRepeaterSitesLayerGroup inicializado e adicionado ao mapa.");

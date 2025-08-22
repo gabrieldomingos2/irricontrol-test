@@ -1368,11 +1368,18 @@ async function runTargetedDiagnostic(diagnosticoSource) {
         try {
             const data = await getElevationProfile(payload);
             const nomeDiagnostico = `${sourceName} → ${alvo.nome}`;
+            const featuresToDraw = {
+                pivos: AppState.lastPivosDataDrawn,
+                ciclos: AppState.ciclosGlobais,
+                antena: AppState.antenaGlobal,
+                repetidoras: AppState.repetidoras
+            };
             drawDiagnostico(
                 payload.pontos[0], payload.pontos[1],
                 data.bloqueio, data.ponto_mais_alto, nomeDiagnostico, distanciaFormatada,
-                data, payload // Passa os dados completos para o clique
+                data, payload, featuresToDraw // Adiciona o novo parâmetro aqui
             );
+
         } catch (error) {
             console.error(`Erro no diagnóstico do alvo ${alvo.nome}:`, error);
             mostrarMensagem(t('messages.errors.los_diagnostic_fail', { name: alvo.nome }), "erro");
@@ -1780,8 +1787,6 @@ async function handleLoSTargetClick(itemData, itemMarker) {
 
     // --- LÓGICA DE SELEÇÃO DO PRIMEIRO PONTO (ORIGEM) ---
     if (!AppState.losSourcePivot) {
-        // NOVO: A restrição de 'precisa ter sinal' foi removida.
-        // Agora qualquer ponto pode ser a origem.
         let sourceHeight;
         let sourceIsMainAntenna = false;
         let sourceType = 'pivot';
@@ -1813,7 +1818,7 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         };
         
         mostrarMensagem(t('messages.info.los_source_selected', { name: itemData.nome }), "sucesso");
-        return; // Aguarda a seleção do segundo ponto
+        return; 
     }
 
     // --- LÓGICA DE SELEÇÃO DO SEGUNDO PONTO (ALVO) E EXECUÇÃO ---
@@ -1828,14 +1833,13 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         return;
     }
 
-    // NOVO: Determina qual ponto é o transmissor e qual é o receptor
     let transmitter, receiver;
-    const sourceHasSignal = sourceData.fora === false || sourceData.id; // Antenas/Reps sempre têm sinal
+    const sourceHasSignal = sourceData.fora === false || sourceData.id;
     const targetHasSignal = targetData.fora === false || itemData.id;
 
     if (!sourceHasSignal && !targetHasSignal) {
         mostrarMensagem(t('messages.errors.los_need_one_signal_source'), "erro");
-        AppState.losSourcePivot = null; // Reseta a seleção
+        AppState.losSourcePivot = null; 
         return;
     }
 
@@ -1843,15 +1847,12 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         transmitter = sourceData;
         receiver = targetData;
     } else {
-        // Ordem invertida: o alvo é a fonte de sinal
         transmitter = targetData;
         receiver = sourceData;
     }
 
-    // Atribui as alturas corretas para o cálculo
     transmitter.altura = transmitter.altura || (transmitter.id ? AppState.antenaGlobal?.altura : PIVOT_DEFAULT_SOURCE_HEIGHT);
     receiver.altura = defaultReceiverHeight;
-
 
     mostrarLoader(true);
     let ocorreuErroNaAnalise = false;
@@ -1874,12 +1875,24 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         const estaBloqueado = resultadoApi.bloqueio?.diff > 0.1;
 
         if (window.Analysis3D && typeof window.Analysis3D.show === 'function') {
-            // Garante que a altura da "torre" seja sempre a do transmissor
-            window.Analysis3D.show(resultadoApi, transmitter.altura, receiver.altura);
+            const featuresToDraw = {
+                pivos: AppState.lastPivosDataDrawn,
+                ciclos: AppState.ciclosGlobais,
+                antena: AppState.antenaGlobal,
+                repetidoras: AppState.repetidoras
+            };
+            // AJUSTE 1: A variável correta aqui é 'resultadoApi', e não 'data'.
+            window.Analysis3D.show(resultadoApi, payload.altura_antena, payload.altura_receiver, featuresToDraw);
         }
 
         const sourceDisplayName = getFormattedAntennaOrRepeaterName(transmitter);
-        drawDiagnostico(payload.pontos[0], payload.pontos[1], resultadoApi.bloqueio, resultadoApi.ponto_mais_alto, `${sourceDisplayName} → ${receiver.nome}`, distanciaFormatada, resultadoApi, payload);
+        const featuresToDraw = {
+            pivos: AppState.lastPivosDataDrawn,
+            ciclos: AppState.ciclosGlobais,
+            antena: AppState.antenaGlobal,
+            repetidoras: AppState.repetidoras
+        };
+        drawDiagnostico(payload.pontos[0], payload.pontos[1], resultadoApi.bloqueio, resultadoApi.ponto_mais_alto, `${sourceDisplayName} → ${receiver.nome}`, distanciaFormatada, resultadoApi, payload, featuresToDraw);
 
         let statusKey = 'los_result_clear';
         if (estaBloqueado) statusKey = 'los_result_blocked';
@@ -1893,7 +1906,7 @@ async function handleLoSTargetClick(itemData, itemMarker) {
         mostrarMensagem(t('messages.info.los_result_error', { source: transmitter?.nome || 'Origem', target: receiver?.nome || 'Destino', distance: "N/A", error: error.message }), "erro");
     } finally {
         mostrarLoader(false);
-        AppState.losSourcePivot = null; // Reseta a seleção para a próxima análise
+        AppState.losSourcePivot = null; 
         if (AppState.modoLoSPivotAPivot) setTimeout(() => { if (AppState.modoLoSPivotAPivot) mostrarMensagem(t('messages.info.los_new_source_prompt'), "info"); }, ocorreuErroNaAnalise ? 700 : 1800);
     }
 }

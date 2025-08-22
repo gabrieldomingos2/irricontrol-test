@@ -586,17 +586,3 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 #map-3d-container .mapboxgl-ctrl-attrib {
   display: none !important;
 }
-
-
-/* ========================= */
-/* ✒️ ÍCONE DE BLOQUEIO CLICÁVEL */
-/* ========================= */
-.blockage-icon-button {
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.blockage-icon-button:hover {
-  transform: scale(1.2);
-  filter: drop-shadow(0 0 5px rgba(255, 255, 0, 0.7));
-}

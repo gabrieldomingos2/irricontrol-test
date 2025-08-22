@@ -1,8 +1,6 @@
 // assets/js/3d_analysis.js
 
-// Envolvemos em um objeto para não poluir o escopo global
 window.Analysis3D = (() => {
-    // Referências aos elementos do DOM
     const modal = document.getElementById('modal-3d-analysis');
     const mapContainer = document.getElementById('map-3d-container');
     const chartCanvas = document.getElementById('profile-chart-canvas');
@@ -10,46 +8,93 @@ window.Analysis3D = (() => {
     const heightValue = document.getElementById('tower-height-value');
     const closeBtn = document.getElementById('close-3d-modal-btn');
 
-    // Variáveis de estado do módulo
     let map3d, profileChart, terrainData = [], receiverHeight = 3;
 
-    // Função que recalcula a linha de visada (roda 100% no cliente)
+    // --- Funções Auxiliares (Círculos, etc.) ---
+    function destination(lat, lon, distance, bearing) {
+        const R = 6378137;
+        const toRad = (deg) => (deg * Math.PI) / 180;
+        const toDeg = (rad) => (rad * 180) / Math.PI;
+        const brng = toRad(bearing);
+        const lat1 = toRad(lat);
+        const lon1 = toRad(lon);
+        const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distance / R) + Math.cos(lat1) * Math.sin(distance / R) * Math.cos(brng));
+        const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(distance / R) * Math.cos(lat1), Math.cos(distance / R) - Math.sin(lat1) * Math.sin(lat2));
+        return [toDeg(lon2), toDeg(lat2)];
+    }
+
+    function generateCircleCoords(center, radius, points = 64) {
+        const coords = [];
+        for (let i = 0; i < points; i++) {
+            const bearing = (i / points) * 360;
+            coords.push(destination(center.lat, center.lon, radius, bearing));
+        }
+        coords.push(coords[0]);
+        return [coords];
+    }
+
+    // --- Lógica Principal ---
+    function drawFeaturesOn3DMap(features) {
+        if (!map3d || !features) return;
+        const circleFeatures = [];
+        (features.pivos || []).forEach(pivo => {
+            if (pivo.tipo === 'custom' && Array.isArray(pivo.coordenadas)) {
+                const coords = pivo.coordenadas.map(c => [c[1], c[0]]);
+                circleFeatures.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } });
+            } else if (pivo.raio) {
+                const center = { lat: pivo.circle_center_lat || pivo.lat, lon: pivo.circle_center_lon || pivo.lon };
+                const coordinates = generateCircleCoords(center, pivo.raio);
+                circleFeatures.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates } });
+            }
+        });
+
+        const source = map3d.getSource('pivots-source');
+        if (source) {
+            source.setData({ type: 'FeatureCollection', features: circleFeatures });
+        } else {
+            map3d.addSource('pivots-source', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: circleFeatures }
+            });
+        }
+
+        if (!map3d.getLayer('pivots-layer-line')) {
+            map3d.addLayer({
+                id: 'pivots-layer-line',
+                type: 'line',
+                source: 'pivots-source',
+                paint: { 'line-color': '#FF4136', 'line-width': 2, 'line-opacity': 0.8 }
+            });
+        }
+    }
+
     function calculateLineOfSight(startHeight) {
         const startElev = terrainData[0].elev + startHeight;
         const endElev = terrainData[terrainData.length - 1].elev + receiverHeight;
         let isBlocked = false;
-
         const losPoints = terrainData.map((point, index) => {
             const progress = index / (terrainData.length - 1);
             const losElevation = startElev + progress * (endElev - startElev);
-            if (point.elev > losElevation) {
-                isBlocked = true;
-            }
+            if (point.elev > losElevation) isBlocked = true;
             return losElevation;
         });
         return { points: losPoints, isBlocked };
     }
 
-    // Função que atualiza as visualizações
     function updateVisualization(newTowerHeight) {
         heightValue.textContent = `${newTowerHeight.toFixed(0)} m`;
         const losData = calculateLineOfSight(newTowerHeight);
-
-        // Atualiza gráfico
         if (profileChart) {
             profileChart.data.datasets[1].data = losData.points;
             profileChart.data.datasets[1].borderColor = losData.isBlocked ? '#ef4444' : '#22c55e';
             profileChart.update('none');
         }
-
-        // NOVO: Atualiza a cor da linha no mapa 3D em tempo real
         if (map3d && map3d.getLayer('los-line-layer')) {
             map3d.setPaintProperty('los-line-layer', 'line-color', losData.isBlocked ? '#ef4444' : '#22c55e');
         }
     }
 
-    // Inicializa o mapa 3D
-    function initMapbox(initialData) {
+    function initMapbox(initialData, initialLos, featuresToDraw) {
         mapboxgl.accessToken = 'pk.eyJ1IjoiMzYzMzUzMzZnYSIsImEiOiJjbWVsaHZmN2YwaGZvMmxwemtyOHlzczNwIn0.V6Y5GLafCzXd6Bnqjtu89Q';
         map3d = new mapboxgl.Map({
             container: mapContainer,
@@ -59,71 +104,55 @@ window.Analysis3D = (() => {
         });
 
         map3d.on('load', () => {
-            map3d.addSource('mapbox-dem', {
-                'type': 'raster-dem',
-                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-                'tileSize': 512,
-                'maxzoom': 14
-            });
+            map3d.addSource('mapbox-dem', { 'type': 'raster-dem', 'url': 'mapbox://mapbox.mapbox-terrain-dem-v1' });
             map3d.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
             
-            // NOVO: Desenha a linha e as torres no mapa
             const startPoint = [initialData[0].lon, initialData[0].lat];
             const endPoint = [initialData[initialData.length - 1].lon, initialData[initialData.length - 1].lat];
 
-            // Marcadores para origem e alvo
-            new mapboxgl.Marker({ color: '#22c55e', scale: 0.8 }).setLngLat(startPoint).addTo(map3d); // Origem (verde)
-            new mapboxgl.Marker({ color: '#f87171', scale: 0.8 }).setLngLat(endPoint).addTo(map3d); // Alvo (vermelho)
+            new mapboxgl.Marker({ color: '#22c55e', scale: 0.8 }).setLngLat(startPoint).addTo(map3d);
+            new mapboxgl.Marker({ color: '#f87171', scale: 0.8 }).setLngLat(endPoint).addTo(map3d);
 
-            // Fonte de dados GeoJSON para a linha
             map3d.addSource('los-line-source', {
                 'type': 'geojson',
-                'data': {
-                    'type': 'Feature',
-                    'properties': {},
-                    'geometry': { 'type': 'LineString', 'coordinates': [startPoint, endPoint] }
-                }
+                'data': { 'type': 'Feature', 'geometry': { 'type': 'LineString', 'coordinates': [startPoint, endPoint] } }
             });
             
-            // Camada (layer) que desenha a linha
             map3d.addLayer({
                 'id': 'los-line-layer',
                 'type': 'line',
                 'source': 'los-line-source',
                 'layout': { 'line-join': 'round', 'line-cap': 'round' },
                 'paint': {
-                    'line-color': '#22c55e', // Cor inicial (será atualizada)
+                    'line-color': initialLos.isBlocked ? '#ef4444' : '#22c55e',
                     'line-width': 4,
-                    'line-dasharray': [2, 2] // Linha pontilhada
+                    'line-dasharray': [2, 2]
                 }
             });
             
-            // Foca o mapa na área de interesse
+            drawFeaturesOn3DMap(featuresToDraw);
+            
             const bounds = new mapboxgl.LngLatBounds(startPoint, endPoint);
             map3d.fitBounds(bounds, { padding: { top: 100, bottom: 100, left: 50, right: 50 } });
         });
     }
 
-    // Inicializa o gráfico 2D (já estava correto)
-    function initChart(initialTowerHeight) {
+    function initChart(initialLos) {
     if (profileChart) profileChart.destroy();
 
-    // NOVO: Calcula a distância total em metros entre o ponto inicial e final
     const startPoint = L.latLng(terrainData[0].lat, terrainData[0].lon);
     const endPoint = L.latLng(terrainData[terrainData.length - 1].lat, terrainData[terrainData.length - 1].lon);
-    const totalDistance = startPoint.distanceTo(endPoint); // Distância total em metros
+    const totalDistance = startPoint.distanceTo(endPoint);
 
-    // ALTERADO: Gera as legendas do eixo X em metros
     const labels = terrainData.map(p => (p.dist * totalDistance).toFixed(0) + 'm');
     const terrainElevations = terrainData.map(p => p.elev);
-    const initialLos = calculateLineOfSight(initialTowerHeight);
 
     profileChart = new Chart(chartCanvas, {
         type: 'line',
         data: {
             labels,
             datasets: [{
-                label: 'Terreno',
+                label: t('ui.chart_labels.terrain'), // Traduzido
                 data: terrainElevations,
                 borderColor: 'rgba(156, 163, 175, 0.7)',
                 backgroundColor: 'rgba(156, 163, 175, 0.3)',
@@ -131,7 +160,7 @@ window.Analysis3D = (() => {
                 pointRadius: 0,
                 borderWidth: 1.5,
             }, {
-                label: 'Linha de Visada',
+                label: t('ui.chart_labels.line_of_sight'), // Traduzido
                 data: initialLos.points,
                 borderColor: initialLos.isBlocked ? '#ef4444' : '#22c55e',
                 borderWidth: 3,
@@ -143,17 +172,11 @@ window.Analysis3D = (() => {
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    title: { display: true, text: 'Elevação (m)', color: '#9ca3af' },
-                    ticks: { color: '#9ca3af' }
+                    title: { display: true, text: t('ui.chart_labels.elevation_m'), color: '#9ca3af' } // Traduzido
                 },
                 x: {
-                    // ALTERADO: Atualiza o título do eixo X
-                    title: { display: true, text: 'Distância do Percurso (m)', color: '#9ca3af' },
-                    ticks: { 
-                        color: '#9ca3af',
-                        maxRotation: 45, // Evita que os textos se sobreponham
-                        minRotation: 45
-                    }
+                    title: { display: true, text: t('ui.chart_labels.distance_m'), color: '#9ca3af' }, // Traduzido
+                    ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 45 }
                 }
             },
             plugins: {
@@ -163,30 +186,32 @@ window.Analysis3D = (() => {
     });
 }
 
-    // Função pública para mostrar e inicializar o modal
-    function show(profileData, initialTowerHeight, initialReceiverHeight) {
+    function show(profileData, initialTowerHeight, initialReceiverHeight, featuresToDraw) {
         terrainData = profileData.perfil;
         receiverHeight = initialReceiverHeight;
 
         modal.classList.remove('hidden');
         
+        const initialLos = calculateLineOfSight(initialTowerHeight);
+        
         setTimeout(() => {
-            initMapbox(terrainData);
-            initChart(initialTowerHeight);
+            initMapbox(terrainData, initialLos, featuresToDraw);
+            initChart(initialLos);
         }, 50);
 
         heightSlider.value = initialTowerHeight;
         heightValue.textContent = `${initialTowerHeight} m`;
     }
+    
+    // --- Event Listeners ---
+    // NOVO: Conecta o slider à função de atualização
+    heightSlider.addEventListener('input', (e) => {
+        updateVisualization(parseFloat(e.target.value));
+    });
 
-    // Event Listeners internos do módulo
-    heightSlider.addEventListener('input', (e) => updateVisualization(parseFloat(e.target.value)));
     closeBtn.addEventListener('click', () => {
         modal.classList.add('hidden');
         if (map3d) {
-            // ATUALIZADO: Limpeza completa dos recursos do Mapbox
-            if (map3d.getLayer('los-line-layer')) map3d.removeLayer('los-line-layer');
-            if (map3d.getSource('los-line-source')) map3d.removeSource('los-line-source');
             map3d.remove();
             map3d = null;
         }
@@ -196,5 +221,5 @@ window.Analysis3D = (() => {
         }
     });
 
-    return { show }; // Expõe apenas a função `show`
+    return { show };
 })();
