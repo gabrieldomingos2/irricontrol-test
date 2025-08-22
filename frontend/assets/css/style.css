@@ -586,3 +586,13 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 #map-3d-container .mapboxgl-ctrl-attrib {
   display: none !important;
 }
+
+
+/* ================================= */
+/* 🗺️ AJUSTES FINOS DO MAPA (LEAFLET) */
+/* ================================= */
+
+/* Remove a borda/contorno branco que aparece ao clicar no mapa */
+#map:focus, .leaflet-container:focus {
+    outline: none !important;
+}
