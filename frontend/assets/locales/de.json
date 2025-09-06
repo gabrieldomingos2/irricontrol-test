@@ -26,8 +26,7 @@
       "move_pivot_center": "Auswählen, um nur das Pivot-Zentrum zu verschieben",
       "save_position": "Position speichern",
       "interactive_los_analysis": "Interaktive Sichtlinienanalyse",
-      "confirmation_needed": "Bestätigung erforderlich",
-      "remove_repeater": "Repeater Entfernen"
+      "confirmation_needed": "Bestätigung erforderlich"
     },
     "labels": {
       "tools": "Werkzeuge",
@@ -159,8 +158,7 @@
       "generic_error": "Unerwarteter Fehler. Bitte versuchen Sie es erneut.",
       "template_load_fail": "Fehler beim Abrufen der Vorlagen. Überprüfen Sie Ihre Verbindung.",
       "pdf_export_fail": "Fehler beim Exportieren des PDF-Berichts: {error}",
-      "load_kmz_first": "Importieren Sie eine KMZ-Datei, bevor Sie den Bericht erstellen.",
-      "los_need_one_signal_source": "Sie müssen mindestens das Zentrum eines Pivots mit Signal auswählen, um die Sichtlinienanalyse auszuführen."
+      "load_kmz_first": "Importieren Sie eine KMZ-Datei, bevor Sie den Bericht erstellen."
     },
     "info": {
       "no_towers_found": "Keine Antennen in der KMZ gefunden. Fügen Sie eine manuell durch Klicken auf die Karte hinzu.",

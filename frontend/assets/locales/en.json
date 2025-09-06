@@ -26,8 +26,7 @@
       "move_pivot_center": "Select to Move Only the Pivot Center",
       "save_position": "Save Position",
       "interactive_los_analysis": "Interactive LoS Analysis",
-      "confirmation_needed": "Confirmation needed",
-      "remove_repeater": "Remove Repeater"
+      "confirmation_needed": "Confirmation needed"
     },
     "labels": {
       "tools": "Tools",
@@ -159,8 +158,7 @@
       "generic_error": "Unexpected error. Please try again.",
       "template_load_fail": "Failed to fetch templates. Check your connection.",
       "pdf_export_fail": "Failed to export PDF report: {error}",
-      "load_kmz_first": "Import a KMZ file before generating the report.",
-      "los_need_one_signal_source": "You need to select at least the center of a pivot with signal to run the line-of-sight analysis."
+      "load_kmz_first": "Import a KMZ file before generating the report."
     },
     "info": {
       "no_towers_found": "No antennas found in the KMZ. Add one manually by clicking on the map.",

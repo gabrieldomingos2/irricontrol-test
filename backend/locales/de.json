@@ -24,9 +24,7 @@
       "export_pdf_report": "PDF-Bericht exportieren",
       "confirm_needed": "Bestätigung erforderlich",
       "move_pivot_center": "Auswählen, um nur das Pivot-Zentrum zu verschieben",
-      "save_position": "Position speichern",
-      "interactive_los_analysis": "Interaktive Sichtlinienanalyse",
-      "confirmation_needed": "Bestätigung erforderlich"
+      "save_position": "Position speichern"
     },
     "labels": {
       "tools": "Werkzeuge",
@@ -64,8 +62,7 @@
       "central_count": "Zentralen:",
       "shown": "angezeigt",
       "hidden": "ausgeblendet",
-      "editor_group": "Pivots bearbeiten",
-      "tower_height_m": "Turmhöhe (m):"
+      "editor_group": "Pivots bearbeiten"
     },
     "placeholders": {
       "lat_lon_search": "Breitengrad, Längengrad"
@@ -80,16 +77,8 @@
       "simulate": "Simulation ausführen",
       "cancel": "Abbrechen",
       "confirm": "Bestätigen"
-        },
-        "chart_labels": {
-            "terrain": "Gelände",
-            "line_of_sight": "Sichtlinie",
-            "elevation_m": "Höhe (m)",
-            "distance_m": "Streckenlänge (m)",
-            "receiver_elevation_m": "Empfängerhöhe (m)",
-            "tower_elevation_m": "Turmhöhe (m)"
-        }
-    },
+    }
+  },
   "tooltips": {
     "out_of_signal": "Kein Signal",
     "in_signal": "Mit Signal",

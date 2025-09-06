@@ -181,21 +181,16 @@ if (ativo) {
 }
 
 /* ========= Legenda (imagem) ========= */
-const LEGEND_CLASSES = ["legend-brazil-100","legend-brazil-90","legend-europe"];
-function clearLegendClassesSafe() {
-  // remove só as classes de tamanho da legenda, sem apagar utilitários (absolute/top/right/hidden)
-    LEGEND_CLASSES.forEach(c => legendContainer.classList.remove(c));
-}
-
 function updateLegendImage(templateName) {
     if (!legendContainer || !legendImage || !templateName) return;
 
 const normalized = String(templateName).toLowerCase();
 
+// ajuste aqui conforme seus assets reais
 const MAP = [
-    { test: /brazil[_-\s]?v6[_-\s]?100dbm/i, path: "assets/images/IRRICONTRO.dBm.key.png", cls: "legend-brazil-100" },
-    { test: /brazil[_-\s]?v6[_-\s]?90dbm/i,  path: "assets/images/CONTROL90.dBm.key.png",  cls: "legend-brazil-90"  },
-    { test: /europe[_-\s]?v6/i,              path: "assets/images/IRRIEUROPE.dBm.key.png", cls: "legend-europe"    },
+    { test: /brazil[_-\s]?v6[_-\s]?100dbm/i, path: "assets/images/IRRICONTRO.dBm.key.png" },
+    { test: /brazil[_-\s]?v6[_-\s]?90dbm/i, path: "assets/images/CONTROL90.dBm.key.png" },
+    { test: /europe[_-\s]?v6/i, path: "assets/images/IRRIEUROPE.dBm.key.png" },
 ];
 
 const match = MAP.find((m) => m.test.test(normalized));
@@ -205,12 +200,14 @@ if (!match) {
     return;
 }
 
-    legendContainer.classList.remove("legend-brazil-100", "legend-brazil-90", "legend-europe");
-    if (match.cls) legendContainer.classList.add(match.cls);
-
-    legendImage.onerror = () => legendContainer.classList.add("hidden");
-    legendImage.onload  = () => legendContainer.classList.remove("hidden");
-    legendImage.src = match.path;
+legendImage.onerror = () => {
+// se a imagem não existir, apenas esconda para não quebrar UI
+    legendContainer.classList.add("hidden");
+};
+legendImage.onload = () => {
+    legendContainer.classList.remove("hidden");
+};
+legendImage.src = match.path;
 }
 
 /* ========= Painel de dados ========= */
@@ -443,7 +440,7 @@ if (btnAntLeg && !btnAntLeg.dataset.bound) {
         if (icon) {
             const iconPath = AppState.antenaLegendasAtivas
                 ? 'assets/images/radio.svg'
-                : 'assets/images/radio.svg'; // Crie este ícone (um rádio com um traço sobre ele)
+                : 'assets/images/radio-off.svg'; // Crie este ícone (um rádio com um traço sobre ele)
             icon.style.webkitMaskImage = `url('${iconPath}')`;
             icon.style.maskImage = `url('${iconPath}')`;
         }
