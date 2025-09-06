@@ -39,20 +39,41 @@ const container = document.getElementById("map");
 
 map = L.map(container, {
     zoomControl: false,
-    preferCanvas: true, // melhora performance com muitos vetores
+    preferCanvas: true,
+
+    // Suavidade do zoom
+    zoomAnimation: true,
+    zoomAnimationThreshold: 1,
+
+    // Passos menores no scroll (zoom fracionário)
+    zoomSnap: 0.25,
+    zoomDelta: 0.25,
+
+    // Suaviza “nervosismo” do touchpad/mouse
+    wheelDebounceTime: 40,     // 30–80 (aumente se o scroll for muito sensível)
+    wheelPxPerZoomLevel: 90,   // 80–120 (maior = mais suave)
+
+    // Rolagem e inércia
+    scrollWheelZoom: true,     // ou 'center' se quiser sempre no centro do mapa
+    inertia: true,
+    inertiaDeceleration: 2500, // deixa a inércia mais aveludada
+    inertiaMaxSpeed: 1500
 }).setView([-15, -55], 5);
+
+// (Opcional) Sempre dar zoom no CENTRO do mapa, não no ponteiro do mouse
+// map.options.scrollWheelZoom = 'center';
 
 // Camada de satélite (Google). Observação: respeite os termos de uso do provedor.
 const tiles = L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", {
     maxZoom: 20,
     subdomains: ["mt0", "mt1", "mt2", "mt3"],
     attribution: "",
-}).addTo(map);
 
-  tiles.on("tileerror", (/* e */) => {
-    // Silencioso por padrão; descomente para depurar:
-    // console.warn("Falha ao carregar tile:", e);
-});
+    // Suaviza carregamento durante animação de zoom
+    updateWhenZooming: true,
+    updateInterval: 50,  // menor atraso na atualização
+    keepBuffer: 4        // evita “piscar” ao redor nas bordas
+}).addTo(map);
 
 // Grupos
 AppState.visadaLayerGroup = L.layerGroup().addTo(map);
