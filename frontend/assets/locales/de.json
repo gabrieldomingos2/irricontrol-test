@@ -25,7 +25,8 @@
       "confirm_needed": "Bestätigung erforderlich",
       "move_pivot_center": "Auswählen, um nur das Pivot-Zentrum zu verschieben",
       "save_position": "Position speichern",
-      "interactive_los_analysis": "Interaktive Sichtlinienanalyse"
+      "interactive_los_analysis": "Interaktive Sichtlinienanalyse",
+      "confirmation_needed": "Bestätigung erforderlich"
     },
     "labels": {
       "tools": "Werkzeuge",
@@ -84,7 +85,9 @@
             "terrain": "Gelände",
             "line_of_sight": "Sichtlinie",
             "elevation_m": "Höhe (m)",
-            "distance_m": "Streckenlänge (m)"
+            "distance_m": "Streckenlänge (m)",
+            "receiver_elevation_m": "Empfängerhöhe (m)",
+            "tower_elevation_m": "Turmhöhe (m)"
         }
     },
   "tooltips": {

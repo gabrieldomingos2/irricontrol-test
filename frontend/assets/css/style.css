@@ -596,3 +596,140 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 #map:focus, .leaflet-container:focus {
     outline: none !important;
 }
+
+
+/* ================================= */
+/* 🗺️ BARRA DE ROLAGEM (Interactive LoS Analysis) — centrada */
+/* ================================= */
+
+/* Parametrização */
+:root{
+  --track-thickness: 6px;
+  --track-border: 1px;
+  --thumb-size: 16px;
+
+  /* comprimento da barra (ajuste aqui) */
+  --slider-length: 22vh;
+  --slider-max: 180px;
+  --slider-min: 120px;
+
+  /* Chrome/Edge/Safari */
+  --thumb-offset-x-webkit: 6px;  
+  --thumb-offset-y-webkit: 0px;  
+
+  /* Firefox */
+  --thumb-offset-x-moz: -3px;
+  --thumb-offset-y-moz: -2px;
+}
+
+.los-vertical-control{
+  position: relative;
+  width: 100%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+}
+
+.los-legend-vertical{
+  position: absolute;
+  left: .5rem;
+  top: 47%;  /* 🔼 antes era 50% */
+  transform: translateY(-50%) rotate(180deg);
+  writing-mode: vertical-rl;
+  color: #9ca3af;
+  font-size: .75rem;
+  letter-spacing: .5px;
+  user-select: none;
+  pointer-events: none;
+  opacity: .95;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+
+.los-vertical-value{
+  color:#fff; font-weight:600; font-size:.9rem;
+  text-shadow:0 0 8px rgba(34,197,94,.35);
+}
+
+/* slider vertical (comprimento/altura total) */
+.los-vertical-slider{
+  writing-mode: bt-lr;
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  width: var(--track-thickness);
+  height: var(--slider-length);
+  max-height: var(--slider-max);
+  min-height: var(--slider-min);
+  background: transparent;
+  outline: none;
+  accent-color: var(--green);
+}
+
+/* fallback p/ engines sem slider-vertical */
+@supports not (-webkit-appearance: slider-vertical){
+  .los-vertical-slider{
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--slider-length);
+    height: var(--track-thickness);
+    transform: rotate(-90deg);
+    transform-origin: center;
+  }
+}
+
+/* trilho */
+.los-vertical-slider::-webkit-slider-runnable-track{
+  width: var(--track-thickness);
+  height: 100%;
+  background: #4A5568;
+  border-radius: 9999px;
+  border: var(--track-border) solid rgba(255,255,255,.15);
+}
+.los-vertical-slider::-moz-range-track{
+  width: var(--track-thickness);
+  height: 100%;
+  background: #4A5568;
+  border-radius: 9999px;
+  border: var(--track-border) solid rgba(255,255,255,.15);
+}
+
+/* thumbs centralizados */
+.los-vertical-slider::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  background-color: var(--green);
+  border-radius: 50%;
+  border: none;
+  box-shadow: 0 0 10px rgba(34,197,94,.65);
+  transition: transform .2s;
+  transform: translate(var(--thumb-offset-x-webkit), var(--thumb-offset-y-webkit));
+}
+.los-vertical-slider:active::-webkit-slider-thumb{
+  transform: translate(var(--thumb-offset-x-webkit), var(--thumb-offset-y-webkit)) scale(1.15);
+}
+
+.los-vertical-slider::-moz-range-thumb{
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  background-color: var(--green);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(34,197,94,.65);
+  transition: transform .2s;
+  transform: translate(var(--thumb-offset-x-moz), var(--thumb-offset-y-moz));
+}
+.los-vertical-slider:active::-moz-range-thumb{
+  transform: translate(var(--thumb-offset-x-moz), var(--thumb-offset-y-moz)) scale(1.15);
+}
+
+/* responsivo */
+@media (max-width:1366px){
+  .los-vertical-slider{ height: 20vh; max-height: 160px; }
+}
+@media (max-width:1024px){
+  .los-vertical-slider{ height: 18vh; max-height: 150px; }
+}

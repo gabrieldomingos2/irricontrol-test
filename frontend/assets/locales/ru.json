@@ -25,7 +25,8 @@
       "confirm_needed": "Требуется Подтверждение",
       "move_pivot_center": "Выберите, чтобы Переместить только Центр Пивота",
       "save_position": "Сохранить Позицию",
-      "interactive_los_analysis": "Интерактивный анализ LoS"
+      "interactive_los_analysis": "Интерактивный анализ LoS",
+      "confirmation_needed": "Требуется подтверждение"
     },
     "labels": {
       "tools": "Инструменты",
@@ -84,7 +85,9 @@
             "terrain": "Местность",
             "line_of_sight": "Линия прямой видимости",
             "elevation_m": "Высота (м)",
-            "distance_m": "Расстояние по курсу (м)"
+            "distance_m": "Расстояние по курсу (м)",
+            "receiver_elevation_m": "Высота приёмника (м)",
+            "tower_elevation_m": "Высота башни (м)"
         }
     },
   "tooltips": {

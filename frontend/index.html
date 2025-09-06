@@ -141,7 +141,7 @@
       SIDEBAR ESQUERDA (TEMPLATES, BUSCA, KMZ)
       Ocupa altura entre topbar e footer
       ========================================= -->
-  <div class="absolute top-14 bottom-14left-0 w-[280px] bg-[#060B10] z-40 p-4 overflow-y-auto">
+  <div class="absolute top-14 bottom-14 left-0 w-[280px] bg-[#060B10] z-50 p-4 overflow-y-auto">
     <!-- Template/modelo -->
     <div class="mb-4 backdrop-blur bg-white/5 border border-white/15 px-3 py-[6px] rounded-lg shadow-sm flex items-center gap-2">
       <label for="template-modelo" class="text-sm text-white/70 whitespace-nowrap" data-i18n="ui.labels.template"></label>
@@ -333,35 +333,61 @@
     </div>
   </div>
 
-    <!-- =========================================
-      MODAL 3D (Análise de Visada Interativa)
-      ========================================= -->
-  <div id="modal-3d-analysis"
-      class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[19000] transition-opacity duration-300">
-    <div class="flex flex-col w-[90vw] max-w-[1600px] h-[85vh] bg-[#0A0F14]/90 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl shadow-green-500/10 transition-all duration-300">
-      <div class="flex items-center bg-black/20 px-6 py-3 rounded-t-xl border-b border-white/10">
-    <h3 class="text-lg font-bold text-green-400 flex items-center gap-3">
+<!-- =========================================
+    MODAL 3D (Análise de Visada Interativa)
+    ========================================= -->
+<div id="modal-3d-analysis"
+    class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[19000] transition-opacity duration-300">
+  <div class="flex flex-col w-[90vw] max-w-[1600px] h-[85vh] bg-[#0A0F14]/90 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl shadow-green-500/10 transition-all duration-300">
+    
+    <!-- Cabeçalho -->
+    <div class="flex items-center justify-between bg-black/20 px-6 py-3 rounded-t-xl border-b border-white/10">
+      <h3 class="text-lg font-bold text-green-400 flex items-center gap-3">
         <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
         <span data-i18n="ui.titles.interactive_los_analysis">Análise de Visada Interativa</span>
-    </h3>
+      </h3>
 
-    <div class="flex-grow flex justify-end pr-[28rem] items-center gap-2 px-4">
-        <label for="tower-height-slider" class="text-sm text-white/70" data-i18n="ui.labels.tower_height_m">Altura da Torre (m):</label>
-        <input id="tower-height-slider" type="range" min="1" max="100" step="1" value="5" class="range-slider-custom w-32">
-        <span id="tower-height-value" class="text-white font-semibold w-12 text-center">5 m</span>
+      <!-- Botão Fechar -->
+      <button id="close-3d-modal-btn"
+            class="w-10 h-10 flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500/80 rounded-full font-bold text-3xl transition"
+            type="button" aria-label="Fechar">×</button>
     </div>
 
-    <button id="close-3d-modal-btn" class="text-red-400 hover:text-red-500 font-bold text-2xl transition" type="button" aria-label="Fechar">×</button>
-</div>
+    <!-- Conteúdo -->
+    <div class="flex-grow grid grid-cols-[1fr_auto_1fr_auto] gap-px bg-white/10 overflow-hidden rounded-b-xl">
+      <!-- MAPA -->
+      <div id="map-3d-container" class="w-full h-full bg-neutral-800"></div>
 
-      <div class="flex-grow grid grid-cols-2 gap-px bg-white/10 overflow-hidden rounded-b-xl">
-        <div id="map-3d-container" class="w-full h-full bg-neutral-800"></div>
-        <div class="w-full h-full bg-[#0A0F14] p-4">
-          <canvas id="profile-chart-canvas"></canvas>
+      <!-- COLUNA ESQUERDA: Torre (A) -->
+      <div class="w-16 h-full bg-[#0A0F14] flex items-center justify-center">
+        <div class="los-vertical-control">
+          <div class="los-legend-vertical" data-i18n="ui.chart_labels.tower_elevation_m">
+            Tower Elevation (m)
+          </div>
+          <input id="tower-height-slider-vertical" type="range" min="1" max="100" step="1" value="15" class="los-vertical-slider">
+          <div id="tower-height-value-vertical" class="los-vertical-value">15 m</div>
+        </div>
+      </div>
+
+      <!-- GRÁFICO -->
+      <div class="w-full h-full bg-[#0A0F14] p-4 relative">
+        <canvas id="profile-chart-canvas"></canvas>
+      </div>
+
+      <!-- COLUNA DIREITA: Receptor (B) -->
+      <div class="w-16 h-full bg-[#0A0F14] flex items-center justify-center border-l border-white/10">
+        <div class="los-vertical-control">
+          <div class="los-legend-vertical" data-i18n="ui.chart_labels.receiver_elevation_m">
+            Receiver Elevation (m)
+          </div>
+          <input id="receiver-height-slider-vertical" type="range" min="1" max="100" step="1" value="3" class="los-vertical-slider">
+          <div id="receiver-height-value-vertical" class="los-vertical-value">3 m</div>
         </div>
       </div>
     </div>
   </div>
+</div>
+
 
   <!-- =========================================
       SCRIPTS (ORDEM IMPORTA)

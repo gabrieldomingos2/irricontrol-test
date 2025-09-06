@@ -25,7 +25,8 @@
       "confirm_needed": "Confirmación Necesaria",
       "move_pivot_center": "Seleccione para Mover Solo el Centro del Pivote",
       "save_position": "Guardar Posición",
-      "interactive_los_analysis": "Análisis de Visión Interactivo"
+      "interactive_los_analysis": "Análisis de Visión Interactivo",
+      "confirmation_needed": "Confirmación necesaria"
     },
     "labels": {
       "tools": "Herramientas",
@@ -84,7 +85,9 @@
             "terrain": "Terreno",
             "line_of_sight": "Línea de Visión",
             "elevation_m": "Elevación (m)",
-            "distance_m": "Distancia del Recorrido (m)"
+            "distance_m": "Distancia del Recorrido (m)",
+            "receiver_elevation_m": "Elevación del Receptor (m)",
+            "tower_elevation_m": "Elevación de la torre (m)"
         }
     },
   "tooltips": {

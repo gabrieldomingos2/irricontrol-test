@@ -61,7 +61,7 @@ class TemplateID(str, Enum):
 # --- Dicionário de Internacionalização (i18n) ---
 I18N_KEYWORDS: Dict[str, Dict[str, List[str]]] = {
     "ANTENA": {
-        "pt": ["antena", "torre", "central", "base", "repetidora", "barracão", "galpão", "silo", "caixa", "caixa d'água", "poste"],
+        "pt": ["antena", "torre", "central", "base", "repetidora", "barracão", "galpão", "sede", "silo", "caixa", "caixa d'água", "poste"],
         "en": ["antenna", "tower", "base", "station", "repeater", "radio", "site", "shed", "warehouse", "silo", "water tank", "pole", "post"],
         "es": ["antena", "torre", "base", "estación", "repetidora", "radio", "cobertizo", "galpón", "almacén", "silo", "tanque de agua", "depósito de agua", "poste"],
         "de": ["antenne", "turm", "basisstation", "repeater", "funkmast", "schuppen", "lagerhalle", "silo", "wassertank", "mast", "pfosten"],
