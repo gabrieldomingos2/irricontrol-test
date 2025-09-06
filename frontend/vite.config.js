@@ -1,8 +1,3 @@
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  root: './', // garante que o index.html seja carregado corretamente
-  server: {
-    port: 5173,
-  },
-});
+import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
+export default defineConfig({ plugins: [tailwindcss()] })

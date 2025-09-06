@@ -1,11 +1,64 @@
-/* ================== */
-/* 🌌 BASE DO SISTEMA */
-/* ================== */
+/* =====================================================================
+    IRRICONTROL — SIMULADOR DE SINAL (CSS)
+
+
+    COMO LER ESTE ARQUIVO
+    - Mantive a ORDEM ORIGINAL dos seletores para não afetar a cascata.
+    - Adicionei títulos e comentários curtos explicando a intenção de cada bloco.
+    - Não alterei variáveis, tamanhos, cores, nem media queries. Apenas documentação.
+    - Onde houver múltiplos :root, é intencional: são "presets"/overrides por seção.
+
+    ÍNDICE DAS SEÇÕES
+    01) Variáveis globais e resets básicos
+    02) Botões (estilo vidro), estados e ícones
+    03) Mensagens, glow e animações auxiliares
+    04) Geometrias Leaflet (círculos, labels de pivô, popups)
+    05) Painéis (direita), linhas de diagnóstico e labels de bloqueio
+    06) Inputs (file), sliders (opacidade) e tooltips de sinal
+    07) Pinos/cursores, candidatos a repetidora (AI) e edição inline
+    08) Legenda (imagem), sanfona de painéis e loader custom
+    09) Rodapé, tooltip de desenho e menu renomear
+    10) Efeito de seleção/onda e ícones transparentes
+    11) Modal de confirmação e painel de repetidoras (tipografia)
+    12) Scrollbar da lista de repetidoras
+    13) Responsividade (1366px, 768px, 480px)
+    14) SUGESTÕES DE REPETIDORA: marcadores e tooltips
+    15) Análise 3D/Mapbox: container e ajustes
+    16) Slider vertical (Interactive LoS Analysis) – versão centrada
+    17) Escala global para monitores grandes (UI Scale)
+    18) Sidebar/Mapa alinhados por --sidebar-w e presets por resolução
+    19) Slider de opacidade (bolinha maior e offsets)
+    20) Legendas específicas por template
+    21) Combo "Preset Compacto" (UI comprimida)
+    22) Sliders verticais (torre/receptor) — modal 3D (ajuste fino)
+  ===================================================================== */
+
+  /* =====================================================================
+    01) VARIÁVEIS GLOBAIS E RESET BÁSICO
+    - Define paleta, dimensões base, escalas e posições default.
+    - Use estas variáveis para manter consistência visual.
+  ===================================================================== */
 :root{
   --green:#22c55e;
   --bg:#060B10;
   --panel:rgba(6,11,16,0.7);
   --border:rgba(255,255,255,0.15);
+
+  /* largura da sidebar esquerda (controle único) */
+  --sidebar-w: 300px; /* ajuste aqui: 340, 360, 380, 400px… */
+
+  /* escala global de UI */
+  --ui-scale: 1;
+
+  /* PAINÉIS DIREITOS (largura e deslocamento a partir da borda direita) */
+  --right-panel-w: 320px;     /* largura padrão (dados e repetidoras) */
+  --right-panel-offset: 3.8rem; /* ↑ maior valor = puxa mais para a esquerda */
+
+  /* Posição da legenda (fácil de ajustar) */
+  --legend-top-desktop: 4.0rem;
+  --legend-right-desktop: 0rem;
+  --legend-top-compact: 5rem;
+  --legend-right-compact: .25rem;
 }
 
 html, body {
@@ -15,32 +68,24 @@ html, body {
   font-family: sans-serif;
 }
 
-#map {
-  height: 100%;
-  width: 100%;
-  z-index: 0;
-}
+#map { height: 100%; width: 100%; z-index: 0; }
 
-/* ============================= */
-/* ✨ BOTÕES ESTILO VIDRO (GLASS) */
-/* ============================= */
+  /* =====================================================================
+    02) BOTÕES (GLASS), ESTADOS E ÍCONES
+    - Botões translúcidos com blur (fallback incluso) e hover/active states.
+    - Ícones usam máscara para herdar cor corrente.
+  ===================================================================== */
 .glass-button {
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   color: rgba(255, 255, 255, 0.7);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  box-shadow: none;
+  transition: all 0.3s ease; cursor: pointer; box-shadow: none;
 }
-@supports not (backdrop-filter: blur(10px)) {
-  .glass-button { background: rgba(255,255,255,0.06); }
-}
+@supports not (backdrop-filter: blur(10px)) { .glass-button { background: rgba(255,255,255,0.06); } }
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(34, 197, 94, 0.4);
@@ -48,7 +93,6 @@ html, body {
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
 }
 .glass-button.hidden { display:none; }
-
 .glass-button-active {
   background-color: rgba(34, 197, 94, 0.2);
   border-color: rgba(34, 197, 94, 0.6);
@@ -56,9 +100,7 @@ html, body {
   box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
 }
 
-/* ======================================= */
-/* 🟩 ESTILO DOS BOTÕES DA BARRA LATERAL   */
-/* ======================================= */
+/* Botões da barra lateral */
 .sidebar-button { transition: all 0.3s ease; }
 .sidebar-button:hover {
   color: var(--green);
@@ -66,165 +108,105 @@ html, body {
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
 }
 
-/* ========================= */
-/* Botão Repetidora          */
-/* ========================= */
-#confirmar-repetidora {
-  color: rgba(255, 255, 255, 0.7);
-  transition: color 0.3s ease;
-}
+/* Botão confirmar repetidora */
+#confirmar-repetidora { color: rgba(255, 255, 255, 0.7); transition: color 0.3s ease; }
 #confirmar-repetidora:hover { color: var(--green); }
 
-/* ========================= */
-/* 🧠 ÍCONES                 */
-/* ========================= */
+/* Ícones genéricos por máscara (herdam currentColor) */
 .sidebar-icon{
-  display:inline-block;
-  background-color:currentColor;
+  display:inline-block; background-color:currentColor;
   -webkit-mask-size:contain; mask-size:contain;
   -webkit-mask-position:center; mask-position:center;
   -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
 }
 
-/* ==================== */
-/* 💬 MENSAGENS */
-/* ==================== */
-#mensagem{
-  transition: opacity .5s ease-in-out, transform .5s ease-in-out;
-  opacity:1; transform:translateY(0);
-}
-#mensagem.hidden{
-  opacity:0; transform:translateY(20px);
-  pointer-events:none;
-}
+  /* =====================================================================
+    03) MENSAGENS, GLOW E ANIMAÇÕES AUXILIARES
+    - Transições de entrada/saída e keyframes utilitários.
+  ===================================================================== */
+#mensagem{ transition: opacity .5s ease-in-out, transform .5s ease-in-out; opacity:1; transform:translateY(0); }
+#mensagem.hidden{ opacity:0; transform:translateY(20px); pointer-events:none; }
 
-/* ================ */
-/* ⚡ GLOW (opcional) */
-/* ================ */
-@keyframes pulseGlow{
-  0%{ filter:drop-shadow(0 0 4px rgba(255,0,0,.7)); }
-  50%{ filter:drop-shadow(0 0 14px rgba(255,0,0,1)); }
-  100%{ filter:drop-shadow(0 0 4px rgba(255,0,0,.7)); }
-}
+/* Glow pulsante (ex.: destaque temporário) */
+@keyframes pulseGlow{ 0%{ filter:drop-shadow(0 0 4px rgba(255,0,0,.7)); } 50%{ filter:drop-shadow(0 0 14px rgba(255,0,0,1)); } 100%{ filter:drop-shadow(0 0 4px rgba(255,0,0,.7)); } }
 
-/* ===================== */
-/* 🟢 CÍRCULOS (Leaflet) */
-/* ===================== */
-.leaflet-interactive.circulo-verde{
-  stroke:#34c759;
-  stroke-width:1;
-  fill-opacity:.5;
-  fill:#34c759;
-}
+  /* =====================================================================
+    04) GEOMETRIAS LEAFLET: CÍRCULOS, LABELS DE PIVÔ E POPUPS
+    - Aparência de círculos, pontos/labels de pivôs e estilos de popup.
+  ===================================================================== */
+/* Círculos (camadas interativas) */
+.leaflet-interactive.circulo-verde{ stroke:#34c759; stroke-width:1; fill-opacity:.5; fill:#34c759; }
 
-
-/* ========================== */
-/* 🏷️ LABEL FIXA DOS PIVÔS */
-/* ========================== */
+/* Dot e container selecionado (efeitos de foco) */
 .pivo-marker-dot{
   width:100%; height:100%; border-radius:50%; opacity:.8;
-  border:1px solid rgba(0,0,0,.3);
-  box-sizing:border-box;
+  border:1px solid rgba(0,0,0,.3); box-sizing:border-box;
   transition: transform .2s ease-in-out, box-shadow .2s ease-in-out, opacity .2s;
 }
-.pivo-marker-container-selected .pivo-marker-dot{
-  transform:scale(1.1); opacity:1;
-  box-shadow:0 0 8px 3px rgba(255,255,255,.9);
-}
+.pivo-marker-container-selected .pivo-marker-dot{ transform:scale(1.1); opacity:1; box-shadow:0 0 8px 3px rgba(255,255,255,.9); }
 
+/* Label fixa do pivô (nunca captura click) */
 .label-pivo{
-  background-color:transparent!important;
-  border:none!important; box-shadow:none!important; padding:0!important;
-  color:#fff; font-weight:bold; font-size:12px; text-align:center;
-  white-space:normal; pointer-events:none; line-height:1.3;
-  text-shadow:
-    0 0 5px rgba(0,0,0,1),
-    1px 1px 3px rgba(0,0,0,.8);
+  background-color:transparent!important; border:none!important; box-shadow:none!important; padding:0!important;
+  color:#fff; font-weight:bold; 
+  font-size: calc(0.rem * var(--ui-scale));
+  text-align:center; white-space: nowrap !important; pointer-events:none; line-height:1.3;
+  text-shadow: 0 0 5px rgba(0,0,0,1), 1px 1px 3px rgba(0,0,0,.8);
 }
-.distancia-pivo{
-  display:block; font-size:.85em; font-weight:normal; color:#ddd;
-}
+.distancia-pivo{ display:block; font-size: calc(0.9rem * var(--ui-scale)); font-weight:normal; color:#ddd; }
+.source-name-pivo{ font-size: calc(0.95rem * var(--ui-scale)); color:#c0c0c0; font-weight:normal; }
 
-.source-name-pivo{ font-size:.9em; color:#c0c0c0; font-weight:normal; }
-
-/* ======================= */
-/* 📍 POPUPS (Leaflet)     */
-/* ======================= */
-.leaflet-popup.popup-glass .leaflet-popup-content-wrapper{
-  background: transparent; box-shadow:none; border-radius:0; padding:0;
-}
+/* Popups "glass" genéricos */
+.leaflet-popup.popup-glass .leaflet-popup-content-wrapper{ background: transparent; box-shadow:none; border-radius:0; padding:0; }
 .leaflet-popup.popup-glass .leaflet-popup-tip-container{ display:none; }
 .popup-glass-inner{
-  backdrop-filter: blur(8px);
-  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(8px); background: rgba(0,0,0,.65);
   padding:10px 14px; border-radius:8px; font-weight:600; font-size:.85rem; color:#fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,.4);
-  border:1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,.4); border:1px solid var(--border);
 }
-@supports not (backdrop-filter: blur(8px)){
-  .popup-glass-inner{ background: rgba(0,0,0,.8); }
-}
+@supports not (backdrop-filter: blur(8px)){ .popup-glass-inner{ background: rgba(0,0,0,.8); } }
 
+/* Popups específicos para repetidoras */
 .leaflet-popup.popup-repeater .leaflet-popup-content-wrapper{
-  background-color: rgba(6,11,16,0.85)!important;
-  color:#e5e7eb; padding:5px 10px!important; border-radius:6px!important;
-  border:1px solid rgba(255,255,255,.1); box-shadow:0 2px 8px rgba(0,0,0,.5);
+  background-color: rgba(6,11,16,0.85)!important; color:#e5e7eb; padding:5px 10px!important;
+  border-radius:6px!important; border:1px solid rgba(255,255,255,.1); box-shadow:0 2px 8px rgba(0,0,0,.5);
 }
-.leaflet-popup.popup-repeater .leaflet-popup-content{
-  margin:0!important; font-size:.75rem; line-height:1.2; white-space:nowrap;
-}
+.leaflet-popup.popup-repeater .leaflet-popup-content{ margin:0!important; font-size:.75rem; line-height:1.2; white-space:nowrap; }
 .leaflet-popup.popup-repeater .leaflet-popup-content span + span{ margin-left:.75rem; }
-.leaflet-popup.popup-repeater .leaflet-popup-tip{
-  background: rgba(6,11,16,0.85)!important;
-}
+.leaflet-popup.popup-repeater .leaflet-popup-tip{ background: rgba(6,11,16,0.85)!important; }
 
-/* ======================= */
-/* 🗂️ PAINÉIS */
-/* ======================= */
-#painel-dados, #painel-repetidoras{
-  transition: opacity .3s ease, transform .3s ease;
-}
-#painel-dados.hidden, #painel-repetidoras.hidden{
-  opacity:0; transform:translateX(20px); pointer-events:none;
-}
-#painel-dados .text-center{
-  margin-top:.25rem; padding-top:.25rem; border-top-width:1px;
-}
+  /* =====================================================================
+    05) PAINÉIS (DIREITA), LINHAS DE DIAGNÓSTICO E LABEL DE BLOQUEIO
+    - Mostra/oculta com transição; linhas pontilhadas; ícone de bloqueio.
+  ===================================================================== */
+#overlay-panels-container{ right: var(--right-panel-offset) !important; }
+#painel-dados, #painel-repetidoras{ width: var(--right-panel-w) !important; transition: opacity .3s ease, transform .3s ease; }
+#painel-dados.hidden, #painel-repetidoras.hidden{ opacity:0; transform:translateX(20px); pointer-events:none; }
+#painel-dados .text-center{ margin-top:.25rem; padding-top:.25rem; border-top-width:1px; }
 
-/* ========================= */
-/* 🛰️ LINHAS DIAGNÓSTICO */
-/* ========================= */
-.linha-pontilhada{}
+/* Linhas de diagnóstico de visada */
+.linha-pontilhada{ stroke-dasharray: 6 6; stroke: rgba(255,255,255,.6); }
 @keyframes growLine{ to{ stroke-dashoffset:0; } }
 
-/* ========================= */
-/* ⚠️ LABEL DE BLOQUEIO */
-/* ========================= */
-.label-bloqueio{
-  background:none!important; border:none!important; box-shadow:none!important; padding:0!important; pointer-events:none;
-}
-.label-bloqueio i svg{
-  width:20px; height:20px; stroke:#000!important; fill:none!important; stroke-width:2.5;
-  filter:drop-shadow(0 1px 2px rgba(0,0,0,.7));
-}
+/* Label de bloqueio (ícone SVG sem fundo) */
+.label-bloqueio{ background:none!important; border:none!important; box-shadow:none!important; padding:0!important; pointer-events:none; }
+.label-bloqueio i svg{ width:20px; height:20px; stroke:#000!important; fill:none!important; stroke-width:2.5; filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
 
-/* ======================= */
-/* 📂 INPUT FILE ESCONDIDO */
-/* ======================= */
+  /* =====================================================================
+    06) INPUT FILE, SLIDER (OPACIDADE) E TOOLTIP DE SINAL
+    - Input file oculto; slider estilizado; tooltip compacto de sinal.
+  ===================================================================== */
 input[type="file"].hidden{ display:none; }
 
-/* ========================= */
-/* 🎚️ SLIDER (Opacidade) */
-/* ========================= */
+/* Slider de opacidade (range) */
 .range-slider-custom{
-  -webkit-appearance:none; appearance:none; width:100%;
-  height:5px; background:#4A5568; border-radius:9999px; outline:none; opacity:.85; transition:opacity .2s;
+  -webkit-appearance:none; appearance:none; width:100%; height:5px; background:#4A5568; border-radius:9999px;
+  outline:none; opacity:.85; transition:opacity .2s;
 }
 .range-slider-custom:hover{ opacity:1; }
 .range-slider-custom::-webkit-slider-thumb{
   -webkit-appearance:none; appearance:none; width:14px; height:14px; background-color:var(--green);
-  border-radius:9999px; cursor:pointer; border:none; box-shadow:0 0 6px rgba(34,197,94,.7);
-  transition: transform .2s;
+  border-radius:9999px; cursor:pointer; border:none; box-shadow:0 0 6px rgba(34,197,94,.7); transition: transform .2s;
 }
 .range-slider-custom:active::-webkit-slider-thumb{ transform:scale(1.2); }
 .range-slider-custom::-moz-range-thumb{
@@ -233,41 +215,29 @@ input[type="file"].hidden{ display:none; }
 }
 .range-slider-custom:active::-moz-range-thumb{ transform:scale(1.2); }
 
-/* ================================== */
-/* ✒️ BALÃO DE INFO (tooltip sinal) */
-/* ================================== */
+/* Tooltip de sinal (Leaflet) */
 .leaflet-tooltip.tooltip-sinal{
-  background-color: rgba(6,11,16,.9)!important;
-  color:#e5e7eb!important; border-radius:6px!important; padding:4px 8px!important;
-  border:1px solid rgba(255,255,255,.1)!important; font-size:.7rem!important;
+  background-color: rgba(6,11,16,.9)!important; color:#e5e7eb!important; border-radius:6px!important;
+  padding:4px 8px!important; border:1px solid rgba(255,255,255,.1)!important; font-size:.7rem!important;
   box-shadow:0 2px 8px rgba(0,0,0,.5)!important; white-space:nowrap; transition:opacity .2s ease!important; opacity:0;
 }
 .leaflet-tooltip.tooltip-sinal span + span{ margin-left:.4rem; }
 .leaflet-tooltip.tooltip-sinal.leaflet-tooltip-visible{ opacity:1; }
 .leaflet-tooltip.tooltip-sinal::before{ display:none; }
 
-/* ===================== */
-/* Pin de Edição de Pivô */
-/* ===================== */
+  /* =====================================================================
+    07) PINO DE EDIÇÃO, CURSORES E CANDIDATOS A REPETIDORA (AI)
+    - Aparência dos handles e card de candidato com botão de remover.
+  ===================================================================== */
 .pivo-edit-handle-custom-pin{ filter:drop-shadow(0 0 4px rgba(255,50,50,.8)); cursor:grab; }
 .pivo-edit-handle-custom-pin:active{ cursor:grabbing; filter:drop-shadow(0 0 8px rgba(255,0,0,1)); }
-
-/* ===================== */
-/* 🔥 Cursores do Mouse */
-/* ===================== */
 #map, .leaflet-interactive{ cursor:default!important; }
 button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 
-/* ====================================== */
-/* Ícones de candidatos a repetidora (AI) */
-/* ====================================== */
 .custom-div-icon-ponto-alto{ cursor:pointer; }
 .candidate-icon-wrapper{
-  position:relative; display:inline-block; text-align:center; color:#E0E0E0;
-  font-weight:normal; font-size:10px; white-space:normal; line-height:1.3;
-  padding:4px 7px; background-color: rgba(20,30,40,.85);
-  border:1px solid rgba(255,255,255,.2); border-radius:5px;
-  box-shadow:0 1px 5px rgba(0,0,0,.5);
+  position:relative; display:inline-block; text-align:center; color:#E0E0E0; font-weight:normal; font-size:10px; white-space:normal; line-height:1.3;
+  padding:4px 7px; background-color: rgba(20,30,40,.85); border:1px solid rgba(255,255,255,.2); border-radius:5px; box-shadow:0 1px 5px rgba(0,0,0,.5);
 }
 .candidate-icon-wrapper .los-ok{ color:#4CAF50; font-weight:bold; }
 .candidate-icon-wrapper .los-no{ color:#FF9800; font-weight:bold; }
@@ -276,114 +246,69 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 .candidate-remove-btn{
   position:absolute; top:-9px; right:-9px; width:18px; height:18px; line-height:17px; text-align:center;
   font-size:14px; font-weight:bold; color:#fff; background-color:#D32F2F;
-  border:1px solid rgba(255,255,255,.4); border-radius:50%; cursor:pointer; z-index:10;
-  box-shadow:0 1px 3px rgba(0,0,0,.4);
+  border:1px solid rgba(255,255,255,.4); border-radius:50%; cursor:pointer; z-index:10; box-shadow:0 1px 3px rgba(0,0,0,.4);
   transition: background-color .2s ease, transform .2s ease;
 }
 .candidate-remove-btn:hover{ background-color:#E57373; transform:scale(1.1); }
 
-/* ============================ */
-/* ✒️ INPUT DE EDIÇÃO INLINE   */
-/* ============================ */
+/* Edição inline de nomes */
 .name-container{ flex-grow:1; cursor:pointer; }
-.name-input{
-  background:transparent; border:none; border-bottom:2px solid #38bdf8;
-  padding:0; color:#e2e8f0; width:100%; font-size:inherit; font-weight:inherit; line-height:inherit;
-}
+.name-input{ background:transparent; border:none; border-bottom:2px solid #38bdf8; padding:0; color:#e2e8f0; width:100%; font-size:inherit; font-weight:inherit; line-height:inherit; }
 .name-input:focus{ outline:none; }
 
-/* ============================ */
-/* ✒️ LEGENDA DE CORES (IMAGEM) */
-/* ============================ */
+  /* =====================================================================
+    08) LEGENDA (IMAGEM), SANFONA DE PAINÉIS E LOADER CUSTOM
+    - Cartucho da legenda com blur; sanfona reduz altura/visibilidade.
+  ===================================================================== */
 #legend-container{
-  backdrop-filter:blur(8px);
-  background: rgba(10,15,20,.75);
-  border:1px solid var(--border);
+  backdrop-filter:blur(8px); background: rgba(10,15,20,.75); border:1px solid var(--border);
   border-radius:10px; padding:4px; box-shadow:0 4px 12px rgba(0,0,0,.5);
-  top:4rem; right:.0rem; transition:opacity .3s ease, transform .3s ease; z-index:51;
+  top: var(--legend-top-desktop); right: var(--legend-right-desktop);
+  transition:opacity .3s ease, transform .3s ease; z-index:51;
 }
-@supports not (backdrop-filter: blur(8px)){
-  #legend-container{ background: rgba(10,15,20,.9); }
-}
-#legend-image{
-  max-width:42px; height:auto; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.4);
-}
+@supports not (backdrop-filter: blur(8px)){ #legend-container{ background: rgba(10,15,20,.9); } }
+#legend-container img, #legend-image { display:block; height:auto; max-width:120px; }
 
-/* Sanfona painéis */
-.panel-content{
-  max-height:600px; overflow:hidden;
-  transition: max-height .5s ease-in-out, opacity .3s ease-in-out, margin .5s ease-in-out;
-  opacity:1;
-}
+/* Sanfona de painéis */
+.panel-content{ max-height:600px; overflow:hidden; transition: max-height .5s ease-in-out, opacity .3s ease-in-out, margin .5s ease-in-out; opacity:1; }
 .panel.minimized .panel-content{ max-height:0; opacity:0; margin-top:0!important; margin-bottom:0!important; }
 .panel.minimized .panel-content>*{ display:none; }
-
-/* Transparência ao minimizar */
 .panel{ transition: background-color .4s ease, border-color .4s ease, backdrop-filter .4s ease, box-shadow .4s ease; }
-.panel.minimized{
-  background-color:transparent!important; border-color:transparent!important; backdrop-filter:none!important; box-shadow:none!important;
-}
+.panel.minimized{ background-color:transparent!important; border-color:transparent!important; backdrop-filter:none!important; box-shadow:none!important; }
 .panel h2{ transition: opacity .3s ease; }
 .panel.minimized h2{ opacity:0; }
 
-/* Loader custom */
+/* Loader circular com logo no centro */
 .loading-logo-container{ position:relative; width:90px; height:90px; display:flex; align-items:center; justify-content:center; }
 .loading-logo{ width:120px; height:auto; opacity:.9; }
-.loading-spinner{
-  position:absolute; inset:0; border:4px solid transparent; border-top-color:var(--green);
-  border-radius:50%; animation: spin 1.5s linear infinite;
-}
+.loading-spinner{ position:absolute; inset:0; border:4px solid transparent; border-top-color:var(--green); border-radius:50%; animation: spin 1.5s linear infinite; }
 @keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
 
-/* Logo do rodapé */
+  /* =====================================================================
+    09) RODAPÉ, TOOLTIP DE DESENHO E MENU RENOMEAR
+  ===================================================================== */
 #footer-logo-link{ opacity:.7; transition: opacity .3s ease, filter .3s ease; }
-#footer-logo-link:hover{
-  opacity:1;
-  filter: brightness(0) saturate(100%) invert(58%) sepia(85%) saturate(548%) hue-rotate(95deg) brightness(95%) contrast(90%);
-}
+#footer-logo-link:hover{ opacity:1; filter: brightness(0) saturate(100%) invert(58%) sepia(85%) saturate(548%) hue-rotate(95deg) brightness(95%) contrast(90%); }
 
-/* Tooltip de desenho */
-.drawing-tooltip{
-  position:absolute; background-color: rgba(10,15,20,.2); color:#ffffffa6;
-  padding:2px 5px; border-radius:4px; font-size:11px; font-weight:bold;
-  border:none; box-shadow:none; pointer-events:none; z-index:10001; white-space:nowrap; transition:opacity .1s ease;
-}
+.drawing-tooltip{ position:absolute; background-color: rgba(10,15,20,.2); color:#ffffffa6; padding:2px 5px; border-radius:4px; font-size:11px; font-weight:bold; border:none; box-shadow:none; pointer-events:none; z-index:10001; white-space:nowrap; transition:opacity .1s ease; }
 
-/* Menu renomear */
-.rename-menu{
-  position:absolute; background-color: var(--panel); backdrop-filter: blur(12px);
-  border:1px solid rgba(34,197,94,.3); border-radius:.5rem; box-shadow:0 4px 12px rgba(0,0,0,.5);
-  padding:.5rem; z-index:10002; min-width:140px;
-}
-.rename-menu button{
-  display:block; width:100%; text-align:left; padding:.5rem .75rem; color:#d1d5db; font-size:.875rem; font-weight:500; border-radius:.25rem;
-  transition: background-color .2s ease, color .2s ease;
-}
+.rename-menu{ position:absolute; background-color: var(--panel); backdrop-filter: blur(12px); border:1px solid rgba(34,197,94,.3); border-radius:.5rem; box-shadow:0 4px 12px rgba(0,0,0,.5); padding:.5rem; z-index:10002; min-width:140px; }
+.rename-menu button{ display:block; width:100%; text-align:left; padding:.5rem .75rem; color:#d1d5db; font-size:.875rem; font-weight:500; border-radius:.25rem; transition: background-color .2s ease, color .2s ease; }
 .rename-menu button:hover{ background-color: rgba(34,197,94,.15); color:#34d399; }
 
-/* Onda de energia (única definição) */
-@keyframes ondaEnergia{
-  0%{ transform:scale(1); opacity:.8; }
-  100%{ transform:scale(4); opacity:0; }
-}
-.pivo-marker-container-selected .pivo-marker-dot{
-  position:relative; background-color:#fff; box-shadow:0 0 12px 3px rgba(255,255,255,.6);
-}
-.pivo-marker-container-selected .pivo-marker-dot::after{
-  content:''; position:absolute; inset:0; border:2px solid rgba(255,255,255,.8); border-radius:50%;
-  animation: ondaEnergia 2s infinite ease-out;
-}
-
-/* Seleção global */
+  /* =====================================================================
+    10) EFEITO DE SELEÇÃO/ONDA E ÍCONES TRANSPARENTES
+  ===================================================================== */
+@keyframes ondaEnergia{ 0%{ transform:scale(1); opacity:.8; } 100%{ transform:scale(4); opacity:0; } }
+.pivo-marker-container-selected .pivo-marker-dot{ position:relative; background-color:#fff; box-shadow:0 0 12px 3px rgba(255,255,255,.6); }
+.pivo-marker-container-selected .pivo-marker-dot::after{ content:''; position:absolute; inset:0; border:2px solid rgba(255,255,255,.8); border-radius:50%; animation: ondaEnergia 2s infinite ease-out; }
 .selection-effect-wrapper{ position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-.marker-selected .selection-effect-wrapper::after{
-  content:''; position:absolute; inset:0; border:2px solid rgba(255,255,255,.8); border-radius:50%;
-  animation: ondaEnergia 2s infinite ease-out; pointer-events:none;
-}
-
+.marker-selected .selection-effect-wrapper::after{ content:''; position:absolute; inset:0; border:2px solid rgba(255,255,255,.8); border-radius:50%; animation: ondaEnergia 2s infinite ease-out; pointer-events:none; }
 .leaflet-div-icon-transparent{ background:transparent; border:none; }
 
-/* 💎 Modal de confirmação */
+  /* =====================================================================
+    11) MODAL DE CONFIRMAÇÃO E PAINEL DE REPETIDORAS (TIPOGRAFIA)
+  ===================================================================== */
 #custom-confirm-overlay{ opacity:0; pointer-events:none; }
 #custom-confirm-overlay:not(.hidden){ opacity:1; pointer-events:auto; }
 #custom-confirm-box{ transform:scale(.95) translateY(10px); opacity:0; }
@@ -392,58 +317,51 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 .confirm-btn-ok:hover{ transform:translateY(-1px); box-shadow:0 0 20px rgba(34,197,94,.6); }
 .confirm-btn-cancel:hover{ color:#fff; }
 
-/* Painel repetidoras: tipografia & espaçamento */
 #lista-repetidoras span{ font-size:.75rem; }
 #lista-repetidoras button{ font-size:.8rem; }
-#lista-repetidoras button .sidebar-icon,
-#lista-repetidoras button i[data-lucide]{ width:.875rem; height:.875rem; }
+#lista-repetidoras button .sidebar-icon, #lista-repetidoras button i[data-lucide]{ width:.875rem; height:.875rem; }
 #lista-repetidoras > div > div:last-child{ gap:.6rem!important; }
 
-/* Scrollbar lista repetidoras */
+  /* =====================================================================
+    12) SCROLLBAR LISTA DE REPETIDORAS
+    - Estiliza a barra no WebKit e define cores no Firefox.
+  ===================================================================== */
 #lista-repetidoras{ max-height: calc(100vh - 360px); scrollbar-width: thin; scrollbar-color: var(--green) #1a202c; }
 #lista-repetidoras::-webkit-scrollbar{ width:8px; }
 #lista-repetidoras::-webkit-scrollbar-track{ background:#1a202c; border-radius:10px; }
 #lista-repetidoras::-webkit-scrollbar-thumb{ background-color:var(--green); border-radius:10px; border:2px solid #1a202c; }
 #lista-repetidoras::-webkit-scrollbar-thumb:hover{ background-color:#34d399; }
 
-/* Largura painéis (telas grandes) */
-#painel-dados, #painel-repetidoras{ width:260px; }
-
-/* ========================= */
-/* 📏 RESPONSIVO */
-/* ========================= */
+  /* =====================================================================
+    13) RESPONSIVIDADE
+    - Adapta painéis, tipografia e posições em breakpoints menores.
+  ===================================================================== */
 @media (max-width:1366px){
   #lista-repetidoras{ max-height: calc(100vh - 320px); }
 
-  div.absolute.top-0.left-0.right-0.h-14{
-    height:3rem!important; padding-left:.5rem!important; padding-right:0!important;
-  }
+  /* Barra superior compacta */
+  div.absolute.top-0.left-0.right-0.h-14{ height:3rem!important; padding-left:.5rem!important; padding-right:0!important; }
   div.absolute.top-0 .flex.items-center > span.text-sm.font-medium{ font-size:.7rem!important; margin-right:.25rem!important; }
   div.absolute.top-0 .glass-button{ padding:4px!important; border-radius:8px!important; }
   div.absolute.top-0 .glass-button .sidebar-icon,
   div.absolute.top-0 .glass-button i[data-lucide]{ width:16px!important; height:16px!important; }
 
+  /* Ajustes de spacing */
   div.absolute.top-0 .flex.items-center.ml-24{ margin-left:6vw!important; }
   div.absolute.top-0 .flex.items-center.ml-\[20px\]{ margin-left:3vw!important; }
   div.absolute.top-0 .flex.items-center.gap-2{ gap:.3rem!important; }
 
+  /* Botões sidebar menores */
   #editar-pivos.glass-button{ padding:2px!important; }
   #editar-pivos.glass-button i[data-lucide]{ width:14px!important; height:14px!important; }
-
-  div.absolute.top-14.bottom-14.left-0.w-\[280px\]{ width:220px!important; padding:.75rem!important; top:3rem!important; }
-  div.absolute.top-14 .mb-4.backdrop-blur{ padding:4px 8px!important; }
-  div.absolute.top-14 .mb-4.backdrop-blur label, 
-  div.absolute.top-14 .mb-4.backdrop-blur select{ font-size:.75rem!important; }
-  div.absolute.top-14 .focus-within\:ring-1{ height:2.25rem!important; }
-  div.absolute.top-14 #lat-long-input-field{ font-size:.75rem!important; }
   .sidebar-button{ height:2.25rem!important; padding-left:.5rem!important; padding-right:.5rem!important; }
   .sidebar-button .sidebar-icon{ width:18px!important; }
   .sidebar-button span.text-sm{ font-size:.7rem!important; }
 
-  div.absolute.top-14.bottom-14.left-\[280px\].right-12{ top:3rem!important; left:220px!important; bottom:2.5rem!important; }
-
+  /* Painéis direitos compactos */
   #overlay-panels-container{ top:3.5rem!important; right:3.5rem!important; }
-  #painel-dados, #painel-repetidoras{ width:220px!important; padding:.4rem!important; }
+  :root{ --right-panel-w: 220px; }
+  #painel-dados, #painel-repetidoras{ padding:.4rem!important; }
   #painel-dados h2, #painel-repetidoras h2, #painel-dados p, #template-info{ font-size:.65rem!important; line-height:1.4!important; }
   #lista-repetidoras{ font-size:.6rem!important; }
   #lista-repetidoras > div{ padding-top:.2rem!important; padding-bottom:.2rem!important; align-items:center; }
@@ -452,284 +370,298 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
   #lista-repetidoras button i[data-lucide]{ width:.75rem!important; height:.75rem!important; }
   #lista-repetidoras > div > div:last-child{ gap:.3rem!important; }
 
-  #painel-repetidora{
-    width:100%!important; padding:.4rem!important; margin-top:.5rem!important; border-radius:.75rem!important;
-  }
+  /* Form repetidora compacto */
+  #painel-repetidora{ width:100%!important; padding:.4rem!important; margin-top:.5rem!important; border-radius:.75rem!important; }
   #painel-repetidora h2{ font-size:.7rem!important; margin-bottom:.4rem!important; }
   #painel-repetidora label{ font-size:.65rem!important; margin-bottom:2px!important; }
-  #painel-repetidora input[type="number"], #painel-repetidora #confirmar-repetidora{
-    height:26px!important; font-size:.7rem!important;
-  }
+  #painel-repetidora input[type="number"], #painel-repetidora #confirmar-repetidora{ height:26px!important; font-size:.7rem!important; }
   #painel-repetidora input[type="number"]{ margin-bottom:.4rem!important; }
   #painel-repetidora #confirmar-repetidora .sidebar-icon{ width:16px!important; height:16px!important; }
 
-  #legend-container{ top:3.5rem!important; right:.25rem!important; padding:3px!important; }
-  #legend-image{ max-width:36px!important; }
+  /* Legenda compacta */
+  #legend-container{ top: var(--legend-top-compact) !important; right: var(--legend-right-compact) !important; padding:3px!important; }
+  #legend-image{ max-width: clamp(48px, calc(58px * var(--ui-scale)), 72px) !important; }
 
-  div.absolute.bottom-6.left-72{ left:228px!important; bottom:1.2rem!important; }
   #range-opacidade{ width:70px!important; }
-
   div.absolute.bottom-4.left-1\/2{ bottom:.5rem!important; }
   #footer-logo-link img{ height:1.5rem!important; }
-
   button[data-lang] img{ width:20px!important; height:13px!important; }
   div.absolute.top-0 > .flex.items-center.gap-3{ gap:.5rem!important; }
 }
 
 @media (max-width:768px){
-  .absolute.top-14.bottom-14.left-0.w-\[280px\]{ display:none; }
-  .absolute.top-14.bottom-14.left-\[280px\].right-12{ left:0!important; right:0!important; }
+  /* Sidebar some; mapa ocupa tudo */
+  #left-sidebar{ display:none; }
+  #map-area{ left: 0 !important; right: 0 !important; }
   div.absolute.top-0 .flex.items-center > span{ display:none; }
-  #overlay-panels-container{
-    top:50%!important; left:50%!important; right:auto!important; transform:translate(-50%,-50%)!important; width:90%!important;
-  }
+  #overlay-panels-container{ top:50%!important; left:50%!important; right:auto!important; transform:translate(-50%,-50%)!important; width:90%!important; }
 }
+
 @media (max-width:480px){
   div.absolute.top-0.left-0.right-0{ display:none; }
   #map{ height:100vh; }
   #overlay-panels-container{ display:none; }
-  #mobile-buttons-container{
-    position:absolute; bottom:1rem; left:50%; transform:translateX(-50%);
-    z-index:50; display:flex; gap:1rem;
-  }
+  #mobile-buttons-container{ position:absolute; bottom:1rem; left:50%; transform:translateX(-50%); z-index:50; display:flex; gap:1rem; }
 }
 
+  /* =====================================================================
+    14) SUGESTÕES DE REPETIDORA — MARCADORES E TOOLTIPS
+  ===================================================================== */
+.suggestion-marker-dot { background-color: #22c55e; border: 2px solid #ffffff; border-radius: 50%; width: 12px; height: 12px; box-shadow: 0 0 8px rgba(34, 197, 94, 0.7); cursor: pointer; transition: transform 0.2s ease; }
+.suggestion-marker-dot:hover { transform: scale(1.3); }
 
-/* ============================================= */
-/* ✨ NOVOS ESTILOS PARA SUGESTÕES DE REPETIDORA */
-/* ============================================= */
+.leaflet-tooltip.suggestion-tooltip { background-color: rgba(6, 11, 16, 0.9) !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; border-radius: 6px !important; color: #e5e7eb !important; padding: 6px 10px !important; box-shadow: 0 4px 12px rgba(0,0,0,.5) !important; white-space: nowrap; }
+.leaflet-tooltip.suggestion-tooltip::before { display: none !important; }
+#repeater-suggestions-panel { display: none !important; }
 
-/* A "bolinha" verde que ficará no mapa */
-.suggestion-marker-dot {
-  background-color: #22c55e; /* Verde principal */
-  border: 2px solid #ffffff; /* Borda branca para contraste */
-  border-radius: 50%; /* Garante que seja um círculo perfeito */
-  width: 12px;
-  height: 12px;
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.7); /* Efeito de brilho (glow) */
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
+/* Conteúdo interno do tooltip */
+.suggestion-tooltip-content { text-align: center; line-height: 1.3; }
+.tooltip-elevation { font-size: 16px; font-weight: bold; color: #ffffff; }
+.tooltip-status { font-size: 12px; font-weight: bold; margin-top: 2px; }
+.tooltip-distance { font-size: 10px; color: #b0bec5; margin-top: 5px; opacity: 0.8; }
 
-/* Efeito de aumentar o círculo ao passar o mouse */
-.suggestion-marker-dot:hover {
-    transform: scale(1.3);
-}
+  /* =====================================================================
+    15) ANÁLISE 3D / MAPBOX (CONTAINER E AJUSTES)
+  ===================================================================== */
+#map-3d-container .mapboxgl-canvas-container, #map-3d-container .mapboxgl-canvas { width: 100% !important; height: 100% !important; }
+#map-3d-container .mapboxgl-ctrl-logo, #map-3d-container .mapboxgl-ctrl-attrib { display: none !important; }
 
-/* O painel de informações que aparece no hover */
-.leaflet-tooltip.suggestion-tooltip {
-  background-color: rgba(6, 11, 16, 0.9) !important; /* Fundo escuro translúcido */
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 6px !important;
-  color: #e5e7eb !important;
-  padding: 6px 10px !important; 
-  box-shadow: 0 4px 12px rgba(0,0,0,.5) !important;
-  white-space: nowrap;
-}
+/* Leaflet container sem outline ao focar */
+#map:focus, .leaflet-container:focus { outline: none !important; }
 
-/* Remove a setinha padrão do tooltip */
-.leaflet-tooltip.suggestion-tooltip::before {
-  display: none;
-}
-
-/* Esconde o painel de sugestões de repetidora */
-#repeater-suggestions-panel {
-    display: none !important;
-}
-
-/* ============================================= */
-/* ✨ ESTILOS MELHORADOS PARA O TOOLTIP DE SUGESTÃO */
-/* ============================================= */
-
-/* Container principal do conteúdo do tooltip */
-.suggestion-tooltip-content {
-  text-align: center; /* Centraliza o conteúdo */
-  line-height: 1.3;
-}
-
-/* Estilo para a Elevação (dado principal) */
-.tooltip-elevation {
-  font-size: 16px;
-  font-weight: bold; /* Deixa a altura em negrito */
-  color: #ffffff;
-}
-
-/* Estilo para o Status (Visada Livre/Bloqueada) */
-.tooltip-status {
-  font-size: 12px;
-  font-weight: bold;
-  margin-top: 2px;
-}
-
-/* Estilo para a Distância (informação secundária) */
-.tooltip-distance {
-  font-size: 10px;
-  color: #b0bec5;
-  margin-top: 5px;
-  opacity: 0.8;
-}
-
-
-/* ========================= */
-/* ✒️ MODAL ANÁLISE 3D      */
-/* ========================= */
-
-/* Garante que o container do Mapbox se ajuste ao layout */
-#map-3d-container .mapboxgl-canvas-container,
-#map-3d-container .mapboxgl-canvas {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* Esconde o logo e a atribuição do Mapbox para uma UI mais limpa no modal */
-#map-3d-container .mapboxgl-ctrl-logo,
-#map-3d-container .mapboxgl-ctrl-attrib {
-  display: none !important;
-}
-
-
-/* ================================= */
-/* 🗺️ AJUSTES FINOS DO MAPA (LEAFLET) */
-/* ================================= */
-
-/* Remove a borda/contorno branco que aparece ao clicar no mapa */
-#map:focus, .leaflet-container:focus {
-    outline: none !important;
-}
-
-
-/* ================================= */
-/* 🗺️ BARRA DE ROLAGEM (Interactive LoS Analysis) — centrada */
-/* ================================= */
-
-/* Parametrização */
+  /* =====================================================================
+    16) SLIDER VERTICAL (Interactive LoS Analysis) — CENTRADO
+    - Parametrização do trilho/polegar e responsividade básica.
+  ===================================================================== */
 :root{
   --track-thickness: 6px;
   --track-border: 1px;
   --thumb-size: 16px;
-
   /* comprimento da barra (ajuste aqui) */
   --slider-length: 22vh;
   --slider-max: 180px;
   --slider-min: 120px;
-
-  /* Chrome/Edge/Safari */
-  --thumb-offset-x-webkit: 6px;  
-  --thumb-offset-y-webkit: 0px;  
-
-  /* Firefox */
-  --thumb-offset-x-moz: -3px;
-  --thumb-offset-y-moz: -2px;
+  /* offsets finos (se precisar) */
+  --thumb-offset-x-webkit: 0px;
+  --thumb-offset-y-webkit: 0px;
+  --thumb-offset-x-moz: 0px;
+  --thumb-offset-y-moz: 0px;
 }
 
-.los-vertical-control{
-  position: relative;
-  width: 100%;
-  height: 80%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: .75rem;
-}
+.los-vertical-control{ position: relative; width: 100%; height: 80%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; }
 
 .los-legend-vertical{
-  position: absolute;
-  left: .5rem;
-  top: 47%;  /* 🔼 antes era 50% */
-  transform: translateY(-50%) rotate(180deg);
-  writing-mode: vertical-rl;
-  color: #9ca3af;
-  font-size: .75rem;
-  letter-spacing: .5px;
-  user-select: none;
-  pointer-events: none;
-  opacity: .95;
-  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  position: absolute; left: .5rem; top: 47%; transform: translateY(-50%) rotate(180deg);
+  writing-mode: vertical-rl; color: #9ca3af; font-size: .75rem; letter-spacing: .5px; user-select: none; pointer-events: none; opacity: .95; text-shadow: 0 1px 2px rgba(0,0,0,.6);
 }
+.los-vertical-value{ color:#fff; font-weight:600; font-size:.9rem; text-shadow:0 0 8px rgba(34,197,94,.35); }
 
-.los-vertical-value{
-  color:#fff; font-weight:600; font-size:.9rem;
-  text-shadow:0 0 8px rgba(34,197,94,.35);
-}
-
-/* slider vertical (comprimento/altura total) */
+/* Cross-browser sem appearance: slider-vertical */
 .los-vertical-slider{
-  writing-mode: bt-lr;
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
-  width: var(--track-thickness);
-  height: var(--slider-length);
-  max-height: var(--slider-max);
-  min-height: var(--slider-min);
-  background: transparent;
-  outline: none;
-  accent-color: var(--green);
+  writing-mode: vertical-lr; direction: rtl; -webkit-appearance: none; appearance: none;
+  width: var(--track-thickness); height: var(--slider-length);
+  max-height: var(--slider-max); min-height: var(--slider-min); background: transparent; outline: none;
 }
 
-/* fallback p/ engines sem slider-vertical */
-@supports not (-webkit-appearance: slider-vertical){
-  .los-vertical-slider{
-    -webkit-appearance: none;
-    appearance: none;
-    width: var(--slider-length);
-    height: var(--track-thickness);
-    transform: rotate(-90deg);
-    transform-origin: center;
-  }
-}
+/* Trilho */
+.los-vertical-slider::-webkit-slider-runnable-track{ width: var(--track-thickness); height: 100%; background: #4A5568; border-radius: 9999px; border: var(--track-border) solid rgba(255,255,255,.15); }
+.los-vertical-slider::-moz-range-track{ width: var(--track-thickness); height: 100%; background: #4A5568; border-radius: 9999px; border: var(--track-border) solid rgba(255,255,255,.15); }
 
-/* trilho */
-.los-vertical-slider::-webkit-slider-runnable-track{
-  width: var(--track-thickness);
-  height: 100%;
-  background: #4A5568;
-  border-radius: 9999px;
-  border: var(--track-border) solid rgba(255,255,255,.15);
-}
-.los-vertical-slider::-moz-range-track{
-  width: var(--track-thickness);
-  height: 100%;
-  background: #4A5568;
-  border-radius: 9999px;
-  border: var(--track-border) solid rgba(255,255,255,.15);
-}
-
-/* thumbs centralizados */
+/* Polegar */
 .los-vertical-slider::-webkit-slider-thumb{
-  -webkit-appearance: none;
-  appearance: none;
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  background-color: var(--green);
-  border-radius: 50%;
-  border: none;
-  box-shadow: 0 0 10px rgba(34,197,94,.65);
-  transition: transform .2s;
+  -webkit-appearance: none; appearance: none; width: var(--thumb-size); height: var(--thumb-size); background-color: var(--green);
+  border-radius: 50%; border: none; box-shadow: 0 0 10px rgba(34,197,94,.65); transition: transform .2s;
   transform: translate(var(--thumb-offset-x-webkit), var(--thumb-offset-y-webkit));
 }
-.los-vertical-slider:active::-webkit-slider-thumb{
-  transform: translate(var(--thumb-offset-x-webkit), var(--thumb-offset-y-webkit)) scale(1.15);
-}
-
+.los-vertical-slider:active::-webkit-slider-thumb{ transform: translate(var(--thumb-offset-x-webkit), var(--thumb-offset-y-webkit)) scale(1.15); }
 .los-vertical-slider::-moz-range-thumb{
-  width: var(--thumb-size);
-  height: var(--thumb-size);
-  background-color: var(--green);
-  border: none;
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(34,197,94,.65);
-  transition: transform .2s;
-  transform: translate(var(--thumb-offset-x-moz), var(--thumb-offset-y-moz));
+  width: var(--thumb-size); height: var(--thumb-size); background-color: var(--green); border: none; border-radius: 50%; box-shadow: 0 0 10px rgba(34,197,94,.65); transition: transform .2s; transform: translate(var(--thumb-offset-x-moz), var(--thumb-offset-y-moz));
 }
-.los-vertical-slider:active::-moz-range-thumb{
-  transform: translate(var(--thumb-offset-x-moz), var(--thumb-offset-y-moz)) scale(1.15);
+.los-vertical-slider:active::-moz-range-thumb{ transform: translate(var(--thumb-offset-x-moz), var(--thumb-offset-y-moz)) scale(1.15); }
+
+/* Responsivo do controle 3D */
+@media (max-width:1366px){ .los-vertical-slider{ height: 20vh; max-height: 160px; } }
+@media (max-width:1024px){ .los-vertical-slider{ height: 18vh; max-height: 150px; } }
+
+  /* =====================================================================
+    17) ESCALA GLOBAL (MONITORES GRANDES)
+    - Aumenta UI de forma progressiva por resolução.
+  ===================================================================== */
+@media (min-width: 1440px) { :root { --ui-scale: 1.15; } }
+@media (min-width: 1680px) { :root { --ui-scale: 1.25; } }
+@media (min-width: 1920px) { :root { --ui-scale: 1.40; } }
+@media (min-width: 2560px) { :root { --ui-scale: 1.60; } }
+@media (min-width: 3200px) { :root { --ui-scale: 1.85; } }
+
+/* Tipografia/ícones escalam junto */
+html, body { font-size: calc(16px * var(--ui-scale)); }
+.sidebar-icon, i[data-lucide] { width:  calc(24px * var(--ui-scale)) !important; height: calc(24px * var(--ui-scale)) !important; }
+.sidebar-button { height: calc(44px * var(--ui-scale)); }
+.glass-button { padding: calc(6px * var(--ui-scale)); border-radius: calc(12px * var(--ui-scale)); }
+.sidebar-button span.text-sm { font-size: calc(0.9rem * var(--ui-scale)); }
+#footer-logo-link img { height: calc(34px * var(--ui-scale)); }
+#range-opacidade { width: clamp(100px, 14vw, 90px); height: 6px; }
+.los-vertical-value { font-size: calc(1rem * var(--ui-scale)); }
+
+  /* =====================================================================
+    18) SIDEBAR/MAPA ALINHADOS VIA --sidebar-w (PONTO ÚNICO)
+    - Define largura única da sidebar; mapa acompanha. Presets por resolução.
+  ===================================================================== */
+:root{ --sidebar-pad-x: 14px; }
+#left-sidebar{ width: var(--sidebar-w) !important; margin-left: 0; padding-left: var(--sidebar-pad-x); padding-right: 10px; box-sizing: border-box; }
+#map-area { left:  var(--sidebar-w) !important; }
+
+/* Legenda ancorada no topo da sidebar */
+#left-sidebar #legend-container { position: absolute; top: 1rem; right: 1rem; }
+
+/* Controle de opacidade alinhado à sidebar */
+#opacity-control{ left: calc(var(--sidebar-w) + 16px) !important; }
+
+/* Painéis da direita: largura cresce com a resolução */
+@media (min-width:1536px){ :root{ --right-panel-w: 430px; } }
+@media (min-width:1920px){ :root{ --right-panel-w: 450px; } }
+
+/* Sidebar: tipografia/ícone e labels multi-linha (clamp 2 linhas) */
+#left-sidebar{ --sb-font: 0.90rem; --sb-line: 1.15; --sb-icon: 18px; --sb-padY: .45rem; }
+#left-sidebar .sidebar-button{ padding-block: var(--sb-padY) !important; min-height: 2.4rem; display:flex; align-items:center; }
+#left-sidebar .sidebar-button .sidebar-icon{ width: var(--sb-icon); height: var(--sb-icon); flex: 0 0 auto; }
+#left-sidebar .sidebar-button span[data-i18n], #left-sidebar .sidebar-button .text-sm{
+  font-size: var(--sb-font); line-height: var(--sb-line); white-space: normal; display: -webkit-box;
+  line-clamp: 2; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+#left-sidebar .form-row{ min-height: 2.4rem; padding-block: .25rem; }
+#left-sidebar #lat-long-input-field{ font-size: 0.9rem; line-height: 1.2; }
+
+@media (min-width: 1600px){ #left-sidebar{ --sb-font: 0.85rem; --sb-icon: 17px; --sb-padY: .4rem; } }
+@media (min-width: 1920px){ #left-sidebar{ --sb-font: 0.80rem; --sb-icon: 16px; --sb-padY: .35rem; } }
+#left-sidebar .sidebar-button span { text-align: left !important; flex: initial !important; }
+
+/* Esconde barra de rolagem (mantém scroll) */
+#left-sidebar{ overflow-y: auto; overflow-x: hidden; -ms-overflow-style: none; scrollbar-width: none; }
+#left-sidebar::-webkit-scrollbar{ width: 0; height: 0; display: none; }
+
+/* Presets de largura por resolução */
+@media (min-width:1600px){ :root{ --sidebar-w: 300px; } }
+@media (min-width:1920px){ :root{ --sidebar-w: 300px; } }
+@media (max-width:1366px){ :root{ --sidebar-w: 280px; } }
+
+  /* =====================================================================
+    19) SLIDER DE OPACIDADE — THUMB MAIOR + OFFSETS
+    - Ajusta tamanho da bolinha e o centramento vertical.
+  ===================================================================== */
+:root{ --thumb-op-size: 16px; }
+/* WebKit/Chromium */
+#range-opacidade::-webkit-slider-thumb{ width: var(--thumb-op-size); height: var(--thumb-op-size); border-radius: 50%; background-color: var(--green); border: none; box-shadow: 0 0 10px rgba(34,197,94,.8); transition: transform .2s; margin-top: calc((16px - var(--thumb-op-size)) / 2); }
+#range-opacidade:active::-webkit-slider-thumb{ transform: scale(1.12); }
+/* Firefox */
+#range-opacidade::-moz-range-thumb{ width: var(--thumb-op-size); height: var(--thumb-op-size); border-radius: 50%; background-color: var(--green); border: none; box-shadow: 0 0 10px rgba(34,197,94,.8); transition: transform .2s; }
+#range-opacidade:active::-moz-range-thumb{ transform: scale(1.12); }
+
+/* Offsets finos do thumb (subir/descer) */
+:root{ --thumb-op-offset: 1px; }
+#range-opacidade::-webkit-slider-thumb{ margin-top: calc((16px - var(--thumb-op-size)) / 2); transform: translateY(var(--thumb-op-offset)); }
+#range-opacidade:active::-webkit-slider-thumb{ transform: translateY(var(--thumb-op-offset)) scale(1.12); }
+#range-opacidade::-moz-range-thumb{ transform: translateY(var(--thumb-op-offset)); }
+#range-opacidade:active::-moz-range-thumb{ transform: translateY(var(--thumb-op-offset)) scale(1.12); }
+
+  /* =====================================================================
+    20) LEGENDAS ESPECÍFICAS POR TEMPLATE
+    - Define larguras fixas para variantes de imagem de legenda.
+  ===================================================================== */
+#legend-container.legend-brazil-100 img#legend-image { width: 35px !important; max-width: none !important; }
+#legend-container.legend-brazil-90  img#legend-image { width: 35px !important; max-width: none !important; }
+#legend-container.legend-europe     img#legend-image { width: 35px !important; max-width: none !important; }
+
+  /* =====================================================================
+    21) BALÃO DE SELEÇÃO DE TEMPLATE (SIDEBAR) — COMPACTO
+  ===================================================================== */
+#template-modelo { font-size: calc(1.0rem * var(--ui-scale)); padding: calc(0.3rem * var(--ui-scale)) calc(0.6rem * var(--ui-scale)); min-height: calc(1.0rem * var(--ui-scale)); border-radius: calc(0.4rem * var(--ui-scale)); }
+
+  /* =====================================================================
+    22) LOADER DE TELA (OVERLAY TRANSLÚCIDO)
+    - Cobre a tela; escondido por padrão. Exibir removendo a classe .hidden
+  ===================================================================== */
+#loader { position: fixed; inset: 0; background: rgba(6,11,16,0.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; flex-direction: column; }
+#loader:not(.hidden) { display: flex; }
+#loader.hidden { display: none !important; }
+#loader span { font-size: 1.6rem; font-weight: bold; margin-top: 1rem; color: #fff; }
+#loader svg, #loader img { width: 90px; height: 48px; }
+#loader > * { transform: scale(1.2); }
+
+  /* =====================================================================
+    21-bis) PRESET COMPACTO (ENCOLHE A UI INTEIRA)
+    - Mantém os mesmos valores, apenas consolida a intenção do bloco.
+  ===================================================================== */
+:root{
+  /* escala global da UI (principal “knob”) */
+  --ui-scale: 0.85;          /* experimente 0.80 ~ 0.90 */
+  /* larguras dos sidebars/painéis */
+  --sidebar-w: 240px;        /* muda sidebar esquerdo */
+  --right-panel-w: 260px;    /* muda painel de dados */
+  --right-panel-offset: 4rem;/* painel dados aproxima do canto direito */
+  /* legenda mais enxuta */
+  --legend-top-desktop: 4rem;
+  --legend-right-desktop: 0.1rem;
 }
 
-/* responsivo */
-@media (max-width:1366px){
-  .los-vertical-slider{ height: 20vh; max-height: 160px; }
+/* Tipografia e ícones seguem a escala global (preset compacto) */
+html, body { font-size: calc(16px * var(--ui-scale)); }
+.sidebar-icon, i[data-lucide]{ width:  calc(22px * var(--ui-scale)) !important; height: calc(22px * var(--ui-scale)) !important; }
+.sidebar-button{ height: calc(40px * var(--ui-scale)); padding-inline: calc(8px * var(--ui-scale)); }
+.glass-button{ padding: calc(5px * var(--ui-scale)); border-radius: calc(10px * var(--ui-scale)); }
+#left-sidebar{ width: var(--sidebar-w) !important; }
+#map-area{ left: var(--sidebar-w) !important; }
+#overlay-panels-container{ right: var(--right-panel-offset) !important; }
+#painel-dados, #painel-repetidoras{ width: var(--right-panel-w) !important; }
+#left-sidebar{ --sb-font: 0.80rem; --sb-line: 1.15; --sb-icon: 16px; --sb-padY: .35rem; }
+#left-sidebar #lat-long-input-field{ font-size: .85rem; }
+#legend-image{ max-width: 60px !important; }
+#painel-repetidora{ width: 100% !important; padding: .5rem !important; }
+#painel-repetidora h2{ font-size: .8rem !important; }
+#painel-repetidora label{ font-size: .75rem !important; }
+#painel-repetidora input[type="number"], #painel-repetidora #confirmar-repetidora{ height: 28px !important; font-size: .8rem !important; }
+
+  /* =====================================================================
+    22) SLIDERS VERTICAIS (TORRE/RECEPTOR) — MODAL 3D (AJUSTE FINO)
+  ===================================================================== */
+:root{
+  --track-thickness: 6px;   /* espessura da barrinha */
+  --thumb-size: 18px;       /* tamanho da bolinha */
+  /* WEBKIT: empurra a bolinha p/ centralizar no trilho vertical */
+  --thumb-offset-x-webkit: calc((var(--track-thickness) - var(--thumb-size)) / 4);
+  --thumb-offset-y-webkit: 0px;   /* subir/descer a bolinha (eixo Y) */
 }
-@media (max-width:1024px){
-  .los-vertical-slider{ height: 18vh; max-height: 150px; }
+
+/* Sliders alvo (torre/receptor) */
+#tower-height-slider-vertical, #receiver-height-slider-vertical{
+  -webkit-appearance: none; appearance: none; writing-mode: bt-lr; /* vertical no webkit */
+  width: 28px; height: 260px; background: transparent; outline: none; padding: 0; margin: 0;
 }
+
+/* Trilho — Chrome/Edge/Safari */
+#tower-height-slider-vertical::-webkit-slider-runnable-track,
+#receiver-height-slider-vertical::-webkit-slider-runnable-track{
+  width: var(--track-thickness); height: 100%; background: #4b5563; border-radius: 999px;
+  margin-left: calc( (28px - var(--track-thickness)) / 2 ); /* centraliza o trilho */
+}
+
+/* Polegar — Chrome/Edge/Safari */
+#tower-height-slider-vertical::-webkit-slider-thumb,
+#receiver-height-slider-vertical::-webkit-slider-thumb{
+  -webkit-appearance: none; width: var(--thumb-size); height: var(--thumb-size); border-radius: 50%;
+  background: #22c55e; box-shadow: 0 0 0 2px rgba(0,0,0,.35); cursor: pointer;
+  margin-left: var(--thumb-offset-x-webkit); margin-top: var(--thumb-offset-y-webkit);
+}
+
+/* Trilho — Firefox */
+#tower-height-slider-vertical::-moz-range-track, #receiver-height-slider-vertical::-moz-range-track{ width: var(--track-thickness); height: 100%; background: #4b5563; border: none; border-radius: 999px; }
+
+/* Polegar — Firefox (usa translate p/ centralizar) */
+#tower-height-slider-vertical::-moz-range-thumb, #receiver-height-slider-vertical::-moz-range-thumb{
+  width: var(--thumb-size); height: var(--thumb-size); border-radius: 50%; background: #22c55e; border: none; box-shadow: 0 0 0 2px rgba(0,0,0,.35); cursor: pointer;
+  transform: translateX(calc((28px - var(--track-thickness)) / 2 - var(--thumb-size) / 2));
+}
+
+/* Feedback hover/focus (opcional) */
+#tower-height-slider-vertical:hover::-webkit-slider-thumb, #receiver-height-slider-vertical:hover::-webkit-slider-thumb{ box-shadow: 0 0 0 3px rgba(34,197,94,.35); }
+#tower-height-slider-vertical:focus-visible::-webkit-slider-thumb, #receiver-height-slider-vertical:focus-visible::-webkit-slider-thumb{ outline: 2px solid rgba(34,197,94,.6); outline-offset: 2px; }

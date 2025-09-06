@@ -26,7 +26,8 @@
             "move_pivot_center": "Selecione para Mover Apenas o Centro do Pivô",
             "save_position": "Salvar Posição",
             "interactive_los_analysis": "Análise de Visada Interativa",
-            "confirmation_needed": "Confirmação necessária"
+            "confirmation_needed": "Confirmação necessária",
+            "remove_repeater": "Remover Repetidora"
         },
         "labels": {
             "tools": "Ferramentas",
@@ -158,7 +159,8 @@
             "generic_error": "Erro inesperado. Tente novamente.",
             "template_load_fail": "Falha ao buscar templates. Verifique sua conexão.",
             "pdf_export_fail": "Falha ao exportar relatório PDF: {error}",
-            "load_kmz_first": "Importe um arquivo KMZ antes de gerar o relatório."
+            "load_kmz_first": "Importe um arquivo KMZ antes de gerar o relatório.",
+            "los_need_one_signal_source": "Você precisa selecionar pelo menos o centro de um pivô com sinal para rodar a análise de visada."
         },
         "info": {
             "no_towers_found": "Nenhuma antena encontrada no KMZ. Adicione manualmente clicando no mapa.",
