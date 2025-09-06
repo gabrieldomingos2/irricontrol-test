@@ -24,7 +24,10 @@
       "export_pdf_report": "PDF-Bericht exportieren",
       "confirm_needed": "Bestätigung erforderlich",
       "move_pivot_center": "Auswählen, um nur das Pivot-Zentrum zu verschieben",
-      "save_position": "Position speichern"
+      "save_position": "Position speichern",
+      "interactive_los_analysis": "Interaktive Sichtlinienanalyse",
+      "confirmation_needed": "Bestätigung erforderlich",
+      "remove_repeater": "Repeater entfernen"
     },
     "labels": {
       "tools": "Werkzeuge",
@@ -62,7 +65,8 @@
       "central_count": "Zentralen:",
       "shown": "angezeigt",
       "hidden": "ausgeblendet",
-      "editor_group": "Pivots bearbeiten"
+      "editor_group": "Pivots bearbeiten",
+      "tower_height_m": "Turmhöhe (m):"
     },
     "placeholders": {
       "lat_lon_search": "Breitengrad, Längengrad"
@@ -77,8 +81,16 @@
       "simulate": "Simulation ausführen",
       "cancel": "Abbrechen",
       "confirm": "Bestätigen"
-    }
-  },
+        },
+        "chart_labels": {
+            "terrain": "Gelände",
+            "line_of_sight": "Sichtlinie",
+            "elevation_m": "Höhe (m)",
+            "distance_m": "Streckenlänge (m)",
+            "receiver_elevation_m": "Empfängerhöhe (m)",
+            "tower_elevation_m": "Turmhöhe (m)"
+        }
+    },
   "tooltips": {
     "out_of_signal": "Kein Signal",
     "in_signal": "Mit Signal",
@@ -147,7 +159,8 @@
       "generic_error": "Unerwarteter Fehler. Bitte versuchen Sie es erneut.",
       "template_load_fail": "Fehler beim Abrufen der Vorlagen. Überprüfen Sie Ihre Verbindung.",
       "pdf_export_fail": "Fehler beim Exportieren des PDF-Berichts: {error}",
-      "load_kmz_first": "Importieren Sie eine KMZ-Datei, bevor Sie den Bericht erstellen."
+      "load_kmz_first": "Importieren Sie eine KMZ-Datei, bevor Sie den Bericht erstellen.",
+      "los_need_one_signal_source": "Sie müssen mindestens das Zentrum eines Pivots mit Signal auswählen, um die Sichtbarkeitsanalyse auszuführen."
     },
     "info": {
       "no_towers_found": "Keine Antennen in der KMZ gefunden. Fügen Sie eine manuell durch Klicken auf die Karte hinzu.",

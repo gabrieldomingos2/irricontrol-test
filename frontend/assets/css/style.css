@@ -194,8 +194,10 @@ html, body {
 /* ========================= */
 /* 🛰️ LINHAS DIAGNÓSTICO */
 /* ========================= */
-.linha-pontilhada{}
-@keyframes growLine{ to{ stroke-dashoffset:0; } }
+.linha-pontilhada {
+  stroke-dasharray: 4 2; /* padrão tracejado */
+  animation: growLine 1.2s linear forwards;
+}
 
 /* ========================= */
 /* ⚠️ LABEL DE BLOQUEIO */

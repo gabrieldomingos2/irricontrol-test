@@ -24,7 +24,10 @@
       "export_pdf_report": "Exportar Informe PDF",
       "confirm_needed": "Confirmación Necesaria",
       "move_pivot_center": "Seleccione para Mover Solo el Centro del Pivote",
-      "save_position": "Guardar Posición"
+      "save_position": "Guardar Posición",
+      "interactive_los_analysis": "Análisis de Visión Interactivo",
+      "confirmation_needed": "Confirmación necesaria",
+      "remove_repeater": "Eliminar repetidora"
     },
     "labels": {
       "tools": "Herramientas",
@@ -62,7 +65,8 @@
       "central_count": "Centrales:",
       "shown": "mostradas",
       "hidden": "ocultas",
-      "editor_group": "Editar Pivotes"
+      "editor_group": "Editar Pivotes",
+      "tower_height_m": "Altura de la Torre (m):"
     },
     "placeholders": {
       "lat_lon_search": "Latitud, Longitud"
@@ -77,8 +81,16 @@
       "simulate": "Ejecutar Simulación",
       "cancel": "Cancelar",
       "confirm": "Confirmar"
-    }
-  },
+        },
+        "chart_labels": {
+            "terrain": "Terreno",
+            "line_of_sight": "Línea de Visión",
+            "elevation_m": "Elevación (m)",
+            "distance_m": "Distancia del Recorrido (m)",
+            "receiver_elevation_m": "Elevación del Receptor (m)",
+            "tower_elevation_m": "Elevación de la torre (m)"
+        }
+    },
   "tooltips": {
     "out_of_signal": "Sin Señal",
     "in_signal": "Con Señal",
@@ -147,7 +159,8 @@
       "generic_error": "Error inesperado. Por favor, inténtelo de nuevo.",
       "template_load_fail": "Error al buscar plantillas. Verifique su conexión.",
       "pdf_export_fail": "Error al exportar el informe PDF: {error}",
-      "load_kmz_first": "Importe un archivo KMZ antes de generar el informe."
+      "load_kmz_first": "Importe un archivo KMZ antes de generar el informe.",
+      "los_need_one_signal_source": "Necesita seleccionar al menos el centro de un pivote con señal para ejecutar el análisis de visibilidad."
     },
     "info": {
       "no_towers_found": "No se encontraron antenas en el KMZ. Agregue una manualmente haciendo clic en el mapa.",
