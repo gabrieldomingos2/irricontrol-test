@@ -24,7 +24,9 @@
       "export_pdf_report": "Экспорт Отчета в PDF",
       "confirm_needed": "Требуется Подтверждение",
       "move_pivot_center": "Выберите, чтобы Переместить только Центр Пивота",
-      "save_position": "Сохранить Позицию"
+      "save_position": "Сохранить Позицию",
+      "interactive_los_analysis": "Интерактивный анализ LoS",
+      "confirmation_needed": "Требуется подтверждение"
     },
     "labels": {
       "tools": "Инструменты",
@@ -62,7 +64,8 @@
       "central_count": "Централи:",
       "shown": "показаны",
       "hidden": "скрыты",
-      "editor_group": "Редактировать Пивоты"
+      "editor_group": "Редактировать Пивоты",
+      "tower_height_m": "Высота башни (м):"
     },
     "placeholders": {
       "lat_lon_search": "Широта, Долгота"
@@ -77,8 +80,16 @@
       "simulate": "Запустить Симуляцию",
       "cancel": "Отмена",
       "confirm": "Подтвердить"
-    }
-  },
+        },
+        "chart_labels": {
+            "terrain": "Местность",
+            "line_of_sight": "Линия прямой видимости",
+            "elevation_m": "Высота (м)",
+            "distance_m": "Расстояние по курсу (м)",
+            "receiver_elevation_m": "Высота приёмника (м)",
+            "tower_elevation_m": "Высота башни (м)"
+        }
+    },
   "tooltips": {
     "out_of_signal": "Нет Сигнала",
     "in_signal": "Есть Сигнал",

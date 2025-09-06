@@ -24,7 +24,9 @@
             "export_pdf_report": "Exportar Relatório PDF",
             "confirm_needed": "Confirmação Necessária",
             "move_pivot_center": "Selecione para Mover Apenas o Centro do Pivô",
-            "save_position": "Salvar Posição"
+            "save_position": "Salvar Posição",
+            "interactive_los_analysis": "Análise de Visada Interativa",
+            "confirmation_needed": "Confirmação necessária"
         },
         "labels": {
             "tools": "Ferramentas",
@@ -62,7 +64,8 @@
             "central_count": "Centrais:",
             "shown": "exibidas",
             "hidden": "ocultas",
-            "editor_group": "Editar Pivôs"
+            "editor_group": "Editar Pivôs",
+            "tower_height_m": "Altura da Torre (m):"
         },
         "placeholders": {
             "lat_lon_search": "Latitude, Longitude"
@@ -77,6 +80,14 @@
             "simulate": "Executar Simulação",
             "cancel": "Cancelar",
             "confirm": "Confirmar"
+        },
+        "chart_labels": {
+            "terrain": "Terreno",
+            "line_of_sight": "Linha de Visada",
+            "elevation_m": "Elevação (m)",
+            "distance_m": "Distância do Percurso (m)",
+            "receiver_elevation_m": "Elevação do Receptor (m)",
+            "tower_elevation_m": "Elevação da Torre (m)"
         }
     },
     "tooltips": {

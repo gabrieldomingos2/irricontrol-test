@@ -24,7 +24,9 @@
       "export_pdf_report": "Export PDF Report",
       "confirm_needed": "Confirmation Needed",
       "move_pivot_center": "Select to Move Only the Pivot Center",
-      "save_position": "Save Position"
+      "save_position": "Save Position",
+      "interactive_los_analysis": "Interactive LoS Analysis",
+      "confirmation_needed": "Confirmation needed"
     },
     "labels": {
       "tools": "Tools",
@@ -62,7 +64,8 @@
       "central_count": "Centrals:",
       "shown": "shown",
       "hidden": "hidden",
-      "editor_group": "Edit Pivots"
+      "editor_group": "Edit Pivots",
+      "tower_height_m": "Tower Height (m):"
     },
     "placeholders": {
       "lat_lon_search": "Latitude, Longitude"
@@ -77,8 +80,16 @@
       "simulate": "Run Simulation",
       "cancel": "Cancel",
       "confirm": "Confirm"
-    }
-  },
+        },
+        "chart_labels": {
+            "terrain": "Terrain",
+            "line_of_sight": "Line of Sight",
+            "elevation_m": "Elevation (m)",
+            "distance_m": "Course Distance (m)",
+            "receiver_elevation_m": "Receiver Elevation (m)",
+            "tower_elevation_m": "Tower Elevation (m)"
+        }
+    },
   "tooltips": {
     "out_of_signal": "Out of Signal",
     "in_signal": "In Signal",
