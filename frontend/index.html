@@ -16,18 +16,21 @@
       PERFORMANCE: PRECONNECT
       =========================== -->
   <link rel="preconnect" href="https://unpkg.com" />
-
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://api.mapbox.com" crossorigin>
+  
   <!-- ===========================
       BIBLIOTECAS DE TERCEIROS
       =========================== -->
-  <!-- Tailwind CSS (utilitário) -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS (build local) -->
+  <link rel="stylesheet" href="dist/output.css">
   <!-- Ícones Lucide (SVG) -->
   <script src="https://unpkg.com/lucide@latest" defer></script>
   <!-- Leaflet CSS (mapa) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Mapbox (3D) -->
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+  <!-- Mapbox (3D) -->
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js" defer></script>
 
@@ -39,12 +42,11 @@
 
 <body class="bg-[#060B10] text-white h-screen w-screen overflow-hidden">
   <!-- =========================================
-      TOPBAR (FERRAMENTAS, IDIOMA, LEGENDAS, EDIÇÃO)
-      Fixa no topo | Z-50
+      TOPBAR
       ========================================= -->
   <div class="absolute top-0 left-0 right-0 h-14 bg-[#060B10] border-b-[2px] border-white/15 z-50 flex items-center justify-start px-4">
 
-    <!-- Bloco: Seletor de idioma -->
+    <!-- Idiomas -->
     <div class="flex items-center gap-3" aria-label="Idioma">
       <button data-lang="pt-br" class="hover:scale-110 transition" title="Português (BR)" type="button" aria-label="Português (BR)">
         <img src="assets/images/br.svg" class="w-6 h-4" alt="Português">
@@ -63,22 +65,20 @@
       </button>
     </div>
 
-    <!-- Bloco: Ferramentas de análise -->
+    <!-- Ferramentas -->
     <div class="flex items-center gap-2 ml-24">
       <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.tools"></span>
 
-      <!-- LOS entre pivôs -->
       <button id="btn-los-pivot-a-pivot" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.los_pivots" type="button" aria-label="Linha de visada entre pivôs">
         <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio-tower.svg); mask-image: url(assets/images/radio-tower.svg);"></span>
       </button>
 
-      <!-- Buscar locais para repetidora -->
       <button id="btn-buscar-locais-repetidora" class="glass-button p-2" data-i18n-attr="title" data-i18n="ui.titles.find_repeater_locations" type="button" aria-label="Encontrar locais para repetidora">
         <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/view.svg); mask-image: url(assets/images/view.svg);"></span>
       </button>
     </div>
 
-    <!-- Bloco: Legendas/visualizações -->
+    <!-- Legendas -->
     <div class="flex items-center gap-2 ml-[20px]">
       <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.legends_group"></span>
 
@@ -99,7 +99,7 @@
       </button>
     </div>
 
-    <!-- Bloco: Desenho/Edição -->
+    <!-- Desenho/Edição -->
     <div class="flex items-center gap-2 ml-[20px]">
       <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.draw_group"></span>
 
@@ -120,7 +120,7 @@
       </button>
     </div>
 
-    <!-- Bloco: Editor -->
+    <!-- Editor -->
     <div class="flex items-center gap-2 ml-[20px]">
       <span class="text-white/70 text-sm font-medium" data-i18n="ui.labels.editor_group"></span>
 
@@ -139,8 +139,7 @@
   </div>
 
   <!-- =========================================
-      SIDEBAR ESQUERDA (TEMPLATES, BUSCA, KMZ)
-      Ocupa altura entre topbar e footer
+      SIDEBAR ESQUERDA
       ========================================= -->
   <div class="absolute top-14 bottom-14 left-0 w-[280px] bg-[#060B10] z-50 p-4 overflow-y-auto">
     <!-- Template/modelo -->
@@ -168,7 +167,9 @@
       </div>
 
       <!-- Ações gerais -->
-      <button id="simular-btn" class="sidebar-button w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm hidden px-2" type="button" aria-label="Executar estudo">
+      <button id="simular-btn"
+        class="sidebar-button w-full h-10 items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm hidden px-2"
+        type="button" aria-label="Executar estudo">
         <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
         <span class="text-sm font-medium" data-i18n="ui.buttons.run_study"></span>
       </button>
@@ -188,7 +189,7 @@
     <div id="painel-repetidora" class="mt-4 bg-white/5 border border-white/15 backdrop-blur-md rounded-xl shadow-lg w-60 p-2 hidden">
       <div class="flex justify-between items-center mb-3">
         <h2 class="font-semibold text-sm text-white/80" data-i18n="ui.titles.repeater_panel_setup"></h2>
-        <button id="fechar-painel-rep" class="text-red-400 hover:text-red-500 font-bold text-lg" type="button" aria-label="Fechar">✖</button>
+        <button id="fechar-painel-rep" class="close-btn" type="button" aria-label="Fechar">✖</button>
       </div>
 
       <label for="altura-antena-rep" class="text-xs text-white/60 mb-1 block" data-i18n="ui.labels.antenna_height"></label>
@@ -197,7 +198,9 @@
       <label for="altura-receiver-rep" class="text-xs text-white/60 mb-1 block" data-i18n="ui.labels.receiver_height"></label>
       <input id="altura-receiver-rep" type="number" value="3" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 transition mb-3" />
 
-      <button id="confirmar-repetidora" class="w-full h-8 flex items-center justify-center gap-2 border border-white/15 rounded-lg bg-white/10 hover:bg-white/20 text-[#B0BEC5] hover:text-green-500 shadow-sm hover:shadow-[0_0_8px_rgba(34,197,94,0.4)] transition" type="button" aria-label="Simular">
+      <button id="confirmar-repetidora"
+        class="w-full h-9 flex items-center justify-center gap-2"
+        type="button" aria-label="Simular">
         <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
         <span class="text-sm font-medium" data-i18n="ui.buttons.simulate"></span>
       </button>
@@ -205,7 +208,7 @@
   </div>
 
   <!-- =========================================
-      CONTROLES FLUTUANTES (OPACIDADE + LOGO)
+      CONTROLES FLUTUANTES
       ========================================= -->
   <div class="absolute bottom-6 left-72 flex items-center gap-2 z-50">
     <span class="text-xs text-white/60" data-i18n=""></span>
@@ -219,16 +222,14 @@
   </div>
 
   <!-- =========================================
-      ÁREA DO MAPA (Leaflet)
-      Preenche o espaço entre sidebar e painéis
+      ÁREA DO MAPA
       ========================================= -->
   <div class="absolute top-14 bottom-14 left-[280px] right-12 z-10">
     <div id="map" class="w-full h-full bg-neutral-900" role="application" aria-label="Mapa"></div>
   </div>
 
   <!-- =========================================
-      PAINÉIS LATERAIS DIREITOS (DADOS/REPETIDORAS)
-      Agrupados em container
+      PAINÉIS DIREITOS
       ========================================= -->
   <div id="overlay-panels-container" class="absolute top-16 right-16 z-20 flex flex-col space-y-4">
 
@@ -285,33 +286,33 @@
   </div>
 
   <!-- =========================================
-      MENSAGENS, LOADER, LEGENDA, CONFIRM DIALOG
+      MENSAGENS, LOADER, LEGENDA, CONFIRM
       ========================================= -->
   <!-- Toast central -->
   <div id="mensagem"
       class="hidden fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg text-center font-semibold z-[10000]"
       role="status" aria-live="polite"></div>
 
-  <!-- Tela de carregamento -->
-  <div id="loader"
-      class="hidden absolute inset-0 bg-[#060B10] bg-opacity-80 flex flex-col items-center justify-center z-[10001]"
-      role="alert" aria-live="assertive" aria-busy="true" aria-hidden="true">
-    <div class="loading-logo-container">
-      <img src="assets/images/irricontrol-loading.png" alt="Carregando..." class="loading-logo" loading="lazy">
-      <div class="loading-spinner"></div>
-    </div>
-    <span class="mt-4 text-lg font-bold text-green-500" data-i18n="ui.labels.processing"></span>
+  <!-- Loader (corrigido + centralizado) -->
+<div id="loader"
+    class="hidden absolute inset-0 backdrop-blur-sm bg-black/30 items-center justify-center z-[10001]"
+    role="alert" aria-live="assertive" aria-busy="true" aria-hidden="true">
+  <div class="loading-logo-container">
+    <img src="assets/images/irricontrol-loading.png" alt="Carregando..." class="loading-logo" loading="lazy">
+    <div class="loading-spinner"></div>
   </div>
+  <span class="mt-4 text-lg font-bold text-green-500" data-i18n="ui.labels.processing"></span>
+</div>
 
   <!-- Legenda (imagem) -->
   <div id="legend-container" class="absolute top-6 right-6 hidden">
     <img id="legend-image" src="" alt="Legenda de Cores" class="block h-auto rounded-md shadow-lg" />
   </div>
 
-  <!-- Modal de confirmação custom -->
-  <div id="custom-confirm-overlay"
-      class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[20000] transition-opacity duration-300"
-      role="dialog" aria-modal="true" aria-labelledby="custom-confirm-title" aria-describedby="custom-confirm-message">
+  <!-- Modal de confirmação (centralizado) -->
+        <div id="custom-confirm-overlay"
+        class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm items-center justify-center z-[20000] transition-opacity duration-300"
+        role="dialog" aria-modal="true" aria-labelledby="custom-confirm-title" aria-describedby="custom-confirm-message">
     <div id="custom-confirm-box"
         class="flex flex-col gap-4 w-full max-w-md bg-[#0A0F14]/80 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl shadow-green-500/10 transition-all duration-300">
       <div class="px-6 pt-5">
@@ -334,66 +335,62 @@
     </div>
   </div>
 
-<!-- =========================================
-    MODAL 3D (Análise de Visada Interativa)
-    ========================================= -->
-<div id="modal-3d-analysis"
-    class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[19000] transition-opacity duration-300">
-  <div class="flex flex-col w-[90vw] max-w-[1600px] h-[85vh] bg-[#0A0F14]/90 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl shadow-green-500/10 transition-all duration-300">
-    
-    <!-- Cabeçalho -->
-    <div class="flex items-center justify-between bg-black/20 px-6 py-3 rounded-t-xl border-b border-white/10">
-      <h3 class="text-lg font-bold text-green-400 flex items-center gap-3">
-        <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
-        <span data-i18n="ui.titles.interactive_los_analysis">Análise de Visada Interativa</span>
-      </h3>
+  <!-- =========================================
+      MODAL 3D (Análise de Visada Interativa)
+      ========================================= -->
+    <div id="modal-3d-analysis"
+        class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm items-center justify-center z-[19000] transition-opacity duration-300">
+    <div class="flex flex-col w-[90vw] max-w-[1600px] h-[85vh] bg-[#0A0F14]/90 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl shadow-green-500/10 transition-all duration-300">
+      
+      <!-- Cabeçalho -->
+      <div class="flex items-center justify-between bg-black/20 px-6 py-3 rounded-t-xl border-b border-white/10">
+        <h3 class="text-lg font-bold text-green-400 flex items-center gap-3">
+          <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+          <span data-i18n="ui.titles.interactive_los_analysis">Análise de Visada Interativa</span>
+        </h3>
 
-      <!-- Botão Fechar -->
-      <button id="close-3d-modal-btn"
-            class="w-10 h-10 flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500/80 rounded-full font-bold text-3xl transition"
-            type="button" aria-label="Fechar">×</button>
-    </div>
+        <!-- Botão Fechar -->
+        <button id="close-3d-modal-btn" class="close-btn" type="button" aria-label="Fechar">×</button>
+      </div>
 
-    <!-- Conteúdo -->
-    <div class="flex-grow grid grid-cols-[1fr_auto_1fr_auto] gap-px bg-white/10 overflow-hidden rounded-b-xl">
-      <!-- MAPA -->
-      <div id="map-3d-container" class="w-full h-full bg-neutral-800"></div>
+      <!-- Conteúdo -->
+      <div class="flex-grow grid grid-cols-[1fr_auto_1fr_auto] gap-px bg-white/10 overflow-hidden rounded-b-xl">
+        <!-- MAPA -->
+        <div id="map-3d-container" class="w-full h-full bg-neutral-800"></div>
 
-      <!-- COLUNA ESQUERDA: Torre (A) -->
-      <div class="w-16 h-full bg-[#0A0F14] flex items-center justify-center">
-        <div class="los-vertical-control">
-          <div class="los-legend-vertical" data-i18n="ui.chart_labels.tower_elevation_m">
-            Tower Elevation (m)
+        <!-- COLUNA ESQUERDA: Torre (A) -->
+        <div class="w-16 h-full bg-[#0A0F14] flex items-center justify-center">
+          <div class="los-vertical-control">
+            <div class="los-legend-vertical" data-i18n="ui.chart_labels.tower_elevation_m">
+              Tower Elevation (m)
+            </div>
+            <input id="tower-height-slider-vertical" type="range" min="1" max="100" step="1" value="15" class="los-vertical-slider">
+            <div id="tower-height-value-vertical" class="los-vertical-value">15 m</div>
           </div>
-          <input id="tower-height-slider-vertical" type="range" min="1" max="100" step="1" value="15" class="los-vertical-slider">
-          <div id="tower-height-value-vertical" class="los-vertical-value">15 m</div>
         </div>
-      </div>
 
-      <!-- GRÁFICO -->
-      <div class="w-full h-full bg-[#0A0F14] p-4 relative">
-        <canvas id="profile-chart-canvas"></canvas>
-      </div>
+        <!-- GRÁFICO -->
+        <div class="w-full h-full bg-[#0A0F14] p-4 relative">
+          <canvas id="profile-chart-canvas"></canvas>
+        </div>
 
-      <!-- COLUNA DIREITA: Receptor (B) -->
-      <div class="w-16 h-full bg-[#0A0F14] flex items-center justify-center border-l border-white/10">
-        <div class="los-vertical-control">
-          <div class="los-legend-vertical" data-i18n="ui.chart_labels.receiver_elevation_m">
-            Receiver Elevation (m)
+        <!-- COLUNA DIREITA: Receptor (B) -->
+        <div class="w-16 h-full bg-[#0A0F14] flex items-center justify-center border-l border-white/10">
+          <div class="los-vertical-control">
+            <div class="los-legend-vertical" data-i18n="ui.chart_labels.receiver_elevation_m">
+              Receiver Elevation (m)
+            </div>
+            <input id="receiver-height-slider-vertical" type="range" min="1" max="100" step="1" value="3" class="los-vertical-slider">
+            <div id="receiver-height-value-vertical" class="los-vertical-value">3 m</div>
           </div>
-          <input id="receiver-height-slider-vertical" type="range" min="1" max="100" step="1" value="3" class="los-vertical-slider">
-          <div id="receiver-height-value-vertical" class="los-vertical-value">3 m</div>
         </div>
       </div>
     </div>
   </div>
-</div>
-
 
   <!-- =========================================
       SCRIPTS (ORDEM IMPORTA)
       ========================================= -->
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 
   <!-- Módulos da aplicação -->
@@ -401,11 +398,11 @@
   <script src="assets/js/api.js" defer></script>
   <script src="assets/js/map.js" defer></script>
   <script src="assets/js/drawing.js" defer></script>
-  <script src="assets/js/3d_analysis.js" defer></script> 
+  <script src="assets/js/3d_analysis.js" defer></script>
   <script src="assets/js/ui.js" defer></script>
   <script src="assets/js/main.js" defer></script>
 
-  <!-- Inicialização dos ícones Lucide quando o DOM estiver pronto -->
+  <!-- Inicialização dos ícones Lucide -->
   <script>
     window.addEventListener('DOMContentLoaded', () => {
       if (window.lucide && typeof window.lucide.createIcons === 'function') {
