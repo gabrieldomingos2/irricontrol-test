@@ -480,7 +480,7 @@ function setupUIEventListeners() {
         if (icon) {
             const iconPath = AppState.antenaLegendasAtivas
             ? "assets/images/radio.svg"
-            : "assets/images/radio-off.svg"; // forneça esse asset
+            : "assets/images/radio.svg";
             icon.style.webkitMaskImage = `url('${iconPath}')`;
             icon.style.maskImage = `url('${iconPath}')`;
         }
