@@ -114,14 +114,22 @@ function applyTranslationTo(el) {
   const key = el.getAttribute("data-i18n");
   if (!key) return;
 
-  // argumentos opcionais em JSON no atributo
+  // argumentos opcionais em JSON no atributo (parser blindado)
   let args = {};
   const argsAttr = el.getAttribute("data-i18n-args");
   if (argsAttr) {
-    try {
-      args = JSON.parse(argsAttr);
-    } catch {
-      // ignora parse inválido
+    let raw = String(argsAttr).trim();
+
+    // só aceitamos algo que pareça JSON de verdade
+    if (raw.startsWith("{") || raw.startsWith("[")) {
+      try {
+        args = JSON.parse(raw);
+      } catch (e) {
+        console.warn("i18n: data-i18n-args inválido. Ignorando:", raw, e, el);
+        args = {};
+      }
+    } else {
+      console.warn("i18n: data-i18n-args não parece JSON. Ignorando:", raw, el);
     }
   }
 
@@ -138,7 +146,7 @@ function applyTranslationTo(el) {
     } else {
       // só permite atributos "seguros"
       if (!SAFE_ATTRS.has(attr)) {
-        console.warn(`i18n: atributo não permitido "${attr}" para chave '${key}'`);
+        console.warn(`i18n: atributo não permitido "${attr}" para chave '${key}'`, el);
         continue;
       }
       if (attr === "value" && !_isValueAssignable(el)) {

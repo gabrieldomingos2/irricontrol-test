@@ -697,6 +697,13 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 }
 
 
+/* style.css */
+#loader .loading-logo,
+#loader [data-i18n="ui.labels.processing"]{
+  text-shadow: 0 0 14px rgba(0,0,0,.55);
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.35));
+}
+
 /* reforço por ID (sliders LOS) */
 #tower-height-slider-vertical,
 #receiver-height-slider-vertical {
