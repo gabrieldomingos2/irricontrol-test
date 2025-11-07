@@ -8,6 +8,6 @@
         "distDir": "dist"
       }
     }
-  ],
-  "framework": "vite"
+],
+"framework": "vite"
 }
