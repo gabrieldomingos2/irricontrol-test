@@ -213,6 +213,59 @@ function setupMainActionListeners() {
     }
 }
 
+/**
+ * Abre o painel para o usuário reconfigurar os parâmetros da antena principal.
+ */
+function handleReconfigMainStudy() {
+    map.closePopup(); // Closes the popup
+
+    // Opens the side panel and populates it with the current data
+    const painelRepetidora = document.getElementById("painel-repetidora");
+    const inputAltura = document.getElementById("altura-antena-rep");
+    const inputAlturaRx = document.getElementById("altura-receiver-rep");
+
+    if (AppState.antenaGlobal) {
+        inputAltura.value = AppState.antenaGlobal.altura;
+        inputAlturaRx.value = AppState.antenaGlobal.altura_receiver;
+
+        // Saves the data so the "Simulate" button knows which antenna is being reconfigured
+        AppState.clickedCandidateData = AppState.antenaGlobal;
+        AppState.coordenadaClicada = L.latLng(AppState.antenaGlobal.lat, AppState.antenaGlobal.lon);
+
+        painelRepetidora.classList.remove("hidden");
+    }
+}
+
+/**
+ * Removes the main antenna's study, reverting it to a "candidate".
+ */
+async function handleDeleteMainStudy() {
+    map.closePopup();
+
+    if (!AppState.antenaGlobal) return;
+    const antenaOriginalData = AppState.currentProcessedKmzData?.antenas.find(
+        a => a.lat === AppState.antenaGlobal.lat && a.lon === AppState.antenaGlobal.lon
+    );
+
+    if (AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
+    if (AppState.antenaGlobal.overlay) map.removeLayer(AppState.antenaGlobal.overlay);
+    if (AppState.antenaGlobal.label) map.removeLayer(AppState.antenaGlobal.label);
+    document.getElementById("antena-item")?.remove();
+    
+    AppState.overlaysVisiveis = AppState.overlaysVisiveis.filter(o => o !== AppState.antenaGlobal.overlay);
+    AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => l !== AppState.antenaGlobal.label);
+    AppState.antenaGlobal = null;
+    AppState.marcadorAntena = null;
+
+    if (antenaOriginalData) {
+        drawAntenaCandidates([antenaOriginalData]);
+    }
+
+    await reavaliarPivosViaAPI();
+    atualizarPainelDados();
+    updatePdfButtonState(false);
+    mostrarMensagem(t('messages.success.main_study_removed'), "info");
+}
 
 // --- Handlers de Ações ---
 async function handleKmzFileSelect(event) {
@@ -334,99 +387,47 @@ async function startMainSimulation(antenaData) {
     map?.closePopup();
 
     try {
+        if (AppState.antenaGlobal) {
+            if (AppState.antenaGlobal.overlay) map.removeLayer(AppState.antenaGlobal.overlay);
+            if (AppState.antenaGlobal.label) map.removeLayer(AppState.antenaGlobal.label);
+            AppState.overlaysVisiveis = AppState.overlaysVisiveis.filter(o => o !== AppState.antenaGlobal.overlay);
+            AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => l !== AppState.antenaGlobal.label);
+        }
+        if (AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
+
         AppState.templateSelecionado = document.getElementById('template-modelo').value;
+        const pivos_atuais = (AppState.lastPivosDataDrawn || []).map(p => ({ nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo' }));
+        const bombas_atuais = (AppState.lastBombasDataDrawn || []).map(b => ({ nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba' }));
 
-        const pivos_atuais = (AppState.lastPivosDataDrawn || []).map(p => ({
-            nome: p.nome, lat: p.lat, lon: p.lon, type: 'pivo'
-        }));
-        const bombas_atuais = (AppState.lastBombasDataDrawn || []).map(b => ({
-            nome: b.nome, lat: b.lat, lon: b.lon, type: 'bomba'
-        }));
-
-        const payload = {
-            job_id: AppState.jobId, ...antenaData, pivos_atuais,
-            bombas_atuais, template: AppState.templateSelecionado
-        };
-
+        const payload = { job_id: AppState.jobId, ...antenaData, pivos_atuais, bombas_atuais, template: AppState.templateSelecionado };
         const data = await simulateSignal(payload);
-        console.log("✅ Simulação principal concluída:", data);
 
-        if (AppState.antenaCandidatesLayerGroup && antenaData.nome && antenaData.lat) {
+        if (AppState.antenaCandidatesLayerGroup) {
             const idParaRemover = `candidate-${antenaData.nome}-${antenaData.lat}`;
             const camadasParaRemover = [];
-            AppState.antenaCandidatesLayerGroup.eachLayer(layer => {
-                if (layer.options.customId === idParaRemover) {
-                    camadasParaRemover.push(layer);
-                }
-            });
+            AppState.antenaCandidatesLayerGroup.eachLayer(layer => { if (layer.options.customId === idParaRemover) camadasParaRemover.push(layer); });
             camadasParaRemover.forEach(layer => AppState.antenaCandidatesLayerGroup.removeLayer(layer));
             AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter(l => l.options.customId !== idParaRemover);
         }
 
-        AppState.antenaGlobal = {
-            ...antenaData,
-            overlay: drawImageOverlay(data.imagem_salva, data.bounds),
-            bounds: data.bounds,
-            imagem_filename: data.imagem_filename,
-            type: antenaData.type || 'default',
-            original_name: antenaData.nome,
-            is_from_kmz: true,
-            had_height_in_kmz: antenaData.had_height_in_kmz || false
-        };
-
-        if (AppState.marcadorAntena) map.removeLayer(AppState.marcadorAntena);
-
+        AppState.antenaGlobal = { ...antenaData, overlay: drawImageOverlay(data.imagem_salva, data.bounds), bounds: data.bounds, imagem_filename: data.imagem_filename, type: antenaData.type || 'default', original_name: antenaData.nome, is_from_kmz: true, had_height_in_kmz: antenaData.had_height_in_kmz || false };
         AppState.marcadorAntena = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: antenaIcon }).addTo(map);
-
         AppState.marcadorAntena.on('click', (e) => {
-    L.DomEvent.stopPropagation(e);
-    if (AppState.modoLoSPivotAPivot) {
-        const antennaItemData = {
-            ...AppState.antenaGlobal,
-            fora: false,
-            id: 'main_antenna'
-        };
-        handleLoSTargetClick(antennaItemData, AppState.marcadorAntena);
-    } else {
-        handleSpecialMarkerSelection(AppState.marcadorAntena);
-    }
-});
-
-        AppState.marcadorAntena.on('contextmenu', (e) => {
-            L.DomEvent.stop(e);
-            showRenameRepeaterMenu(AppState.marcadorAntena, AppState.antenaGlobal.nome, true, null);
+            L.DomEvent.stopPropagation(e);
+            if (AppState.modoLoSPivotAPivot) {
+                handleLoSTargetClick({ ...AppState.antenaGlobal, fora: false, id: 'main_antenna' }, AppState.marcadorAntena);
+            } else {
+                handleReconfigMainStudy();
+            }
         });
 
-        const alturaAntenaHtml = (AppState.antenaGlobal.altura !== null && AppState.antenaGlobal.altura !== undefined)
-            ? `<span>${t('ui.labels.antenna_height_tooltip', { height: AppState.antenaGlobal.altura })}</span>`
-            : '';
-
-        const tooltipAntenaContent = `
-            <div style="text-align: center;">
-                ${alturaAntenaHtml}
-                <span>${t('ui.labels.receiver_height_tooltip', { height: AppState.antenaGlobal.altura_receiver })}</span>
-            </div>
-        `;
-
-        AppState.marcadorAntena.bindTooltip(tooltipAntenaContent, {
-            permanent: false,
-            direction: 'top',
-            offset: [0, -40],
-            className: 'tooltip-sinal'
-        });
+        const alturaAntenaHtml = (AppState.antenaGlobal.altura !== null) ? `<span>${t('ui.labels.antenna_height_tooltip', { height: AppState.antenaGlobal.altura })}</span>` : '';
+        const tooltipAntenaContent = `<div style="text-align: center;">${alturaAntenaHtml}<span>${t('ui.labels.receiver_height_tooltip', { height: AppState.antenaGlobal.altura_receiver })}</span></div>`;
+        AppState.marcadorAntena.bindTooltip(tooltipAntenaContent, { permanent: false, direction: 'top', offset: [0, -40], className: 'tooltip-sinal' });
 
         const nomeAntenaPrincipalFormatado = getFormattedAntennaOrRepeaterName(AppState.antenaGlobal);
         const labelWidth = (nomeAntenaPrincipalFormatado.length * 7) + 10;
-        const labelPrincipal = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], {
-            icon: L.divIcon({
-                className: 'label-pivo',
-                html: nomeAntenaPrincipalFormatado,
-                iconSize: [labelWidth, 20],
-                iconAnchor: [labelWidth / 2, 45]
-            }),
-            labelType: 'antena'
-        }).addTo(map);
-
+        const labelPrincipal = L.marker([AppState.antenaGlobal.lat, AppState.antenaGlobal.lon], { icon: L.divIcon({ className: 'label-pivo', html: nomeAntenaPrincipalFormatado, iconSize: [labelWidth, 20], iconAnchor: [labelWidth / 2, 45] }), labelType: 'antena' }).addTo(map);
         AppState.marcadoresLegenda.push(labelPrincipal);
         AppState.antenaGlobal.label = labelPrincipal;
         addAntenaAoPainel(AppState.antenaGlobal);
@@ -438,7 +439,6 @@ async function startMainSimulation(antenaData) {
             });
             drawPivos(AppState.lastPivosDataDrawn, false);
         }
-
         if (data.bombas) {
             AppState.lastBombasDataDrawn = JSON.parse(JSON.stringify(data.bombas));
             drawBombas(data.bombas);
@@ -637,6 +637,15 @@ async function handleMapClick(e) {
     }).addTo(map);
 
     document.getElementById("painel-repetidora")?.classList.remove("hidden");
+    const inputAlturaTorre = document.getElementById("altura-antena-rep");
+    const inputAlturaReceiver = document.getElementById("altura-receiver-rep");
+
+    if (inputAlturaTorre) {
+        inputAlturaTorre.value = 5;
+    }
+    if (inputAlturaReceiver) {
+        inputAlturaReceiver.value = 3;
+    }
 }
 
 async function handleIrripumpDrawClick(e) {
@@ -695,17 +704,19 @@ async function handleConfirmRepetidoraClick() {
     mostrarLoader(true);
 
     try {
-        let repetidoraObj;
-        let nomeRep;
-        let id;
-        let isFromKmz = false;
-        let type = 'default';
-        let had_height_in_kmz = false;
+        // Bloco para ressimulação da antena principal
+        if (AppState.antenaGlobal && AppState.clickedCandidateData && AppState.clickedCandidateData.lat === AppState.antenaGlobal.lat && AppState.clickedCandidateData.lon === AppState.antenaGlobal.lon) {
+            console.log("Ressimulando a antena principal...");
+            const antenaDataParaSimular = { ...AppState.antenaGlobal, altura: alturaAntena, altura_receiver: alturaReceiver };
+            await startMainSimulation(antenaDataParaSimular);
+            AppState.clickedCandidateData = null;
+            return;
+        }
 
+        // Lógica para a primeira simulação (quando não há antena principal)
         if (!AppState.antenaGlobal && AppState.clickedCandidateData) {
             const candidateData = { ...AppState.clickedCandidateData };
             AppState.clickedCandidateData = null;
-
             await startMainSimulation({
                 ...candidateData,
                 altura: alturaAntena || candidateData.altura,
@@ -716,92 +727,42 @@ async function handleConfirmRepetidoraClick() {
             return;
         }
 
+        // Lógica para criar uma nova repetidora
         removePositioningMarker();
-
-        if (AppState.clickedCandidateData && AppState.clickedCandidateData.nome) {
-            const candidateData = { ...AppState.clickedCandidateData };
-            AppState.clickedCandidateData = null;
-
-            nomeRep = candidateData.nome;
-            isFromKmz = true;
-            type = candidateData.type || 'default';
-            had_height_in_kmz = candidateData.had_height_in_kmz || false;
-            id = ++AppState.contadorRepetidoras;
-
-            if (AppState.antenaCandidatesLayerGroup) {
-                const idToRemove = `candidate-${candidateData.nome}-${candidateData.lat}`;
-                const camadasParaRemover = [];
-                AppState.antenaCandidatesLayerGroup.eachLayer(layer => {
-                    if (layer.options.customId === idToRemove) camadasParaRemover.push(layer);
-                });
-                camadasParaRemover.forEach(layer => AppState.antenaCandidatesLayerGroup.removeLayer(layer));
-            }
-
-        } else {
-            id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
-            nomeRep = `${t('ui.labels.repeater')} ${id}`;
-            isFromKmz = false;
-            had_height_in_kmz = false;
-            AppState.clickedCandidateData = null;
-        }
-
+        const id = AppState.idsDisponiveis.length > 0 ? AppState.idsDisponiveis.shift() : ++AppState.contadorRepetidoras;
+        const nomeRep = `${t('ui.labels.repeater')} ${id}`;
+        
         const novaRepetidoraMarker = L.marker(AppState.coordenadaClicada, { icon: antenaIcon }).addTo(map);
-
         novaRepetidoraMarker.on('click', (e) => {
-    L.DomEvent.stopPropagation(e);
-    if (AppState.modoLoSPivotAPivot) {
-        const repetidora = AppState.repetidoras.find(r => r.marker === e.target);
-        if (repetidora) {
-            const repeaterItemData = {
-                ...repetidora,
-                fora: false
-            };
-            handleLoSTargetClick(repeaterItemData, e.target);
-        }
-    } else {
-        handleSpecialMarkerSelection(e.target);
-    }
-});
+            L.DomEvent.stopPropagation(e);
+            if (AppState.modoLoSPivotAPivot) {
+                const repetidora = AppState.repetidoras.find(r => r.marker === e.target);
+                if (repetidora) handleLoSTargetClick({ ...repetidora, fora: false }, e.target);
+            } else {
+                handleSpecialMarkerSelection(e.target);
+            }
+        });
 
-        repetidoraObj = {
+        const repetidoraObj = {
             id, marker: novaRepetidoraMarker, overlay: null, label: null,
             altura: alturaAntena, altura_receiver: alturaReceiver,
             lat: AppState.coordenadaClicada.lat, lon: AppState.coordenadaClicada.lng,
             imagem_filename: null, sobre_pivo: AppState.ultimoCliqueFoiSobrePivo || false,
-            nome: nomeRep,
-            original_name: nomeRep,
-            is_from_kmz: isFromKmz,
-            type: type,
-            had_height_in_kmz: had_height_in_kmz
+            nome: nomeRep, original_name: nomeRep, is_from_kmz: false,
+            type: 'default', had_height_in_kmz: false
         };
 
         const nomeRepFormatado = getFormattedAntennaOrRepeaterName(repetidoraObj);
         const labelRepetidora = L.marker(AppState.coordenadaClicada, {
-            icon: L.divIcon({
-                className: 'label-pivo', html: nomeRepFormatado,
-                iconSize: [(nomeRepFormatado.length * 7) + 10, 20],
-                iconAnchor: [((nomeRepFormatado.length * 7) + 10) / 2, 45]
-            }),
+            icon: L.divIcon({ className: 'label-pivo', html: nomeRepFormatado, iconSize: [(nomeRepFormatado.length * 7) + 10, 20], iconAnchor: [((nomeRepFormatado.length * 7) + 10) / 2, 45] }),
             labelType: 'repetidora'
         }).addTo(map);
         AppState.marcadoresLegenda.push(labelRepetidora);
         repetidoraObj.label = labelRepetidora;
 
-        const alturaRepetidoraHtml = (alturaAntena !== null && alturaAntena !== undefined)
-            ? `<span>${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}</span>`
-            : '';
-
-        const tooltipRepetidoraContent = `
-        <div style="text-align: center;">
-            ${alturaRepetidoraHtml}
-            <span>${t('ui.labels.receiver_height_tooltip', { height: alturaReceiver })}</span>
-        </div>
-        `;
-
-        novaRepetidoraMarker.bindTooltip(tooltipRepetidoraContent, {
-            permanent: false, direction: 'top', offset: [0, -40], className: 'tooltip-sinal'
-        });
-
+        const alturaRepetidoraHtml = (alturaAntena !== null) ? `<span>${t('ui.labels.antenna_height_tooltip', { height: alturaAntena })}</span>` : '';
+        const tooltipRepetidoraContent = `<div style="text-align: center;">${alturaRepetidoraHtml}<span>${t('ui.labels.receiver_height_tooltip', { height: alturaReceiver })}</span></div>`;
+        novaRepetidoraMarker.bindTooltip(tooltipRepetidoraContent, { permanent: false, direction: 'top', offset: [0, -40], className: 'tooltip-sinal' });
         AppState.repetidoras.push(repetidoraObj);
 
         const payload = {

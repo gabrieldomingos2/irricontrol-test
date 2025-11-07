@@ -1,8 +1,4 @@
 # logging_config.py
-"""
-Configuração de logging robusta, com contexto por request/job, fallback seguro de formatters
-e arquivo rotativo opcional. Projetado para rodar bem em FastAPI/Uvicorn (mas sem acoplar duro).
-"""
 
 from __future__ import annotations
 
@@ -28,6 +24,7 @@ try:
     LOG_DIR: str | Path = getattr(settings, "LOG_DIR", "")
     LOG_MAX_BYTES: int = int(getattr(settings, "LOG_MAX_BYTES", 10 * 1024 * 1024))  # 10MB
     LOG_BACKUP_COUNT: int = int(getattr(settings, "LOG_BACKUP_COUNT", 5))
+    LOG_CAPTURE_THIRD_PARTY: bool = bool(getattr(settings, "LOG_CAPTURE_THIRD_PARTY", True))
 except Exception:
     # Fallbacks estáveis quando settings não existir
     LOG_LEVEL_STR = "INFO"
@@ -37,6 +34,7 @@ except Exception:
     LOG_DIR = ""
     LOG_MAX_BYTES = 10 * 1024 * 1024  # 10MB
     LOG_BACKUP_COUNT = 5
+    LOG_CAPTURE_THIRD_PARTY = True
 
 # ---------------------------------------------------------------------------
 # Contexto por request/job (ContextVar) + ajudantes
@@ -88,7 +86,7 @@ def job_context(job_id: Optional[str] = None, user: Optional[str] = None):
 class ContextFilter(Filter):
     """Injeta job_id e user em TODOS os registros, sem quebrar terceiros."""
 
-    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003 (nome 'filter' é do contrato)
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
         if not hasattr(record, "job_id"):
             record.job_id = job_id_ctx.get()
         if not hasattr(record, "user"):
@@ -111,6 +109,7 @@ def _resolve_log_file() -> Path:
     """
     Resolve o caminho final do arquivo de log considerando LOG_DIR e LOG_FILE.
     Se LOG_FILE apontar para um diretório, assume 'irricontrol_app.log' dentro dele.
+    Sempre retorna um caminho absoluto.
     """
     log_file_path = Path(LOG_FILE)
     if str(LOG_DIR).strip():
@@ -122,7 +121,7 @@ def _resolve_log_file() -> Path:
             log_file_path = base / "irricontrol_app.log"
     elif log_file_path.is_dir():
         log_file_path = log_file_path / "irricontrol_app.log"
-    return log_file_path
+    return log_file_path.resolve()
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +165,6 @@ def build_logging_config(
             ),
         }
     else:
-        # caso sem lib JSON, mantemos default (mas a chave 'json' precisa existir)
         json_fmt = {
             "format": "%(levelname)s %(asctime)s [%(name)s] [job_id=%(job_id)s user=%(user)s] :: %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
@@ -198,9 +196,7 @@ def build_logging_config(
         }
         logger_handlers.append("rotating_file")
 
-    # Dica: Para usar log assíncrono no futuro, mude para QueueHandler/QueueListener.
-
-    return {
+    config: Dict[str, Any] = {
         "version": 1,
         "disable_existing_loggers": False,
         "filters": {
@@ -212,31 +208,31 @@ def build_logging_config(
         },
         "handlers": handlers,
         "loggers": {
-            # Logger principal do app
             "irricontrol": {
                 "handlers": logger_handlers,
                 "level": use_level,
                 "propagate": False,
             },
-            # Uvicorn (erros também vão pro arquivo)
             "uvicorn.error": {
                 "handlers": logger_handlers,
                 "level": use_level,
                 "propagate": False,
             },
-            # Access: só console por padrão (arquivo enche fácil)
             "uvicorn.access": {
                 "handlers": ["console"],
                 "level": logging.WARNING,
                 "propagate": False,
             },
         },
-        # Opcional: root logger (útil para bibliotecas terceiras que não configuram logger)
-        "root": {
+    }
+
+    if LOG_CAPTURE_THIRD_PARTY:
+        config["root"] = {
             "handlers": logger_handlers,
             "level": max(use_level, logging.WARNING),
-        },
-    }
+        }
+
+    return config
 
 
 # ---------------------------------------------------------------------------
@@ -252,9 +248,7 @@ def setup_logging() -> None:
         json_available = False
 
     try:
-        # Verifica se o formatter do Uvicorn existe (não falhará em ambiente sem uvicorn)
         from uvicorn.logging import DefaultFormatter  # noqa: F401
-
         uvicorn_formatter_available = True
     except Exception:
         uvicorn_formatter_available = False
@@ -266,17 +260,12 @@ def setup_logging() -> None:
     )
     logging.config.dictConfig(config)
 
-    # Mensagem de prova de vida com job_id
+    # Prova de vida com formato estruturado
     logger = logging.getLogger("irricontrol")
     with job_context(job_id="setup"):
         logger.info(
-            "Sistema de logging configurado com sucesso%s. level=%s file=%s",
-            "" if json_available else " (sem JSON)",
+            "event=logging_setup status=ok level=%s file=%s json=%s",
             LOG_LEVEL_STR,
             _resolve_log_file() if LOG_TO_FILE else "-",
+            json_available,
         )
-
-
-# Executa configuração ao importar, se desejar comportamento plug-and-play
-# (Se preferir controle explícito, comente a linha abaixo e chame setup_logging() no bootstrap da app)
-# setup_logging()

@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 import httpx
 
 from backend.config import settings
+from backend.exceptions import CloudRFAPIError  # MUDANÇA 1: Importa a nova exceção
 
 logger = logging.getLogger("irricontrol")
 
@@ -225,13 +226,11 @@ async def run_cloudrf_simulation(
     cache_hash = hashlib.sha256(cache_key_string.encode()).hexdigest()
     cache_file_path = settings.SIMULATIONS_CACHE_PATH / f"{cache_hash}.json"
 
-    # Garante diretório de cache existente (belt & suspenders)
     try:
         cache_file_path.parent.mkdir(parents=True, exist_ok=True)
     except Exception:
         pass
 
-    # CACHE HIT
     if cache_file_path.exists():
         logger.info(f"CACHE HIT: {cache_hash[:12]}")
         with open(cache_file_path, "r", encoding="utf-8") as f:
@@ -241,7 +240,6 @@ async def run_cloudrf_simulation(
             return cached
         logger.warning("CACHE corrompido (arquivos ausentes). Re-simulando.")
 
-    # CACHE MISS
     return await _perform_simulation_and_save_to_cache(
         lat, lon, altura, rx_alt, template_id, is_repeater, tpl, cache_file_path
     )
@@ -268,7 +266,7 @@ async def _perform_simulation_and_save_to_cache(
     payload = _build_cloudrf_payload(tpl, lat, lon, altura, receiver_alt)
 
     headers = {
-        "key": settings.CLOUDRF_API_KEY,      # header ESSENCIAL para autenticar
+        "key": settings.CLOUDRF_API_KEY,
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
@@ -283,21 +281,24 @@ async def _perform_simulation_and_save_to_cache(
             data = resp.json()
         except httpx.HTTPStatusError as e:
             logger.error(f"  -> ❌ Erro HTTP CloudRF: {e.response.status_code} - {e.response.text}", exc_info=True)
-            raise ValueError(f"Erro na API CloudRF ({e.response.status_code}): {e.response.text}")
+            # MUDANÇA 2: Lança a exceção específica em vez de ValueError
+            raise CloudRFAPIError(f"API respondeu com erro ({e.response.status_code}): {e.response.text}")
         except Exception as e:
             logger.error(f"  -> ❌ Erro ao chamar CloudRF: {e}", exc_info=True)
-            raise ValueError(f"Erro de comunicação com a API CloudRF: {e}")
+            # MUDANÇA 3: Lança a exceção específica em vez de ValueError
+            raise CloudRFAPIError(f"Erro de comunicação com a API CloudRF: {e}")
 
     img_url = data.get("PNG_WGS84")
     bounds = data.get("bounds")
     if not img_url or not bounds:
-        raise ValueError("Resposta inválida da CloudRF (faltou PNG_WGS84 ou bounds).")
+        # MUDANÇA 4: Lança a exceção específica para respostas inválidas
+        raise CloudRFAPIError("Resposta inválida da CloudRF (faltou PNG_WGS84 ou bounds).")
 
     # Nome canônico da imagem no cache
     lat_str, lon_str = format_coord(lat), format_coord(lon)
     prefix = "repetidora" if is_repeater else "principal"
     template_name_safe = tpl.id.lower().replace(" ", "_")
-    imagem_filename = f"{prefix}_{template_name_safe}_tx{altura}m_lat{lat_str}_lon{lon_str}.png"
+    imagem_filename = f"{prefix}_{template_name_safe}_tx{altura}m_rx{receiver_alt:.1f}m_lat{lat_str}_lon{lon_str}.png"
     local_img = settings.SIMULATIONS_CACHE_PATH / imagem_filename
 
     # Baixar imagem e salvar bounds

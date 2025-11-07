@@ -1,0 +1,39 @@
+{
+    "antenas": [
+        {
+            "lat": -28.57038429495221,
+            "lon": -54.16799730107914,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "SEDE"
+        }
+    ],
+    "pivos": [],
+    "ciclos": [],
+    "bombas": [],
+    "overlays": [
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/0e7472d0-c79a-4886-9764-2b93629f0f42/0828171808_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "0828171808_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -28.642,
+                -54.2396,
+                -28.4988,
+                -54.0964
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/0e7472d0-c79a-4886-9764-2b93629f0f42/0828171950_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "0828171950_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -28.6493,
+                -54.2409,
+                -28.5061,
+                -54.0977
+            ]
+        }
+    ]
+}

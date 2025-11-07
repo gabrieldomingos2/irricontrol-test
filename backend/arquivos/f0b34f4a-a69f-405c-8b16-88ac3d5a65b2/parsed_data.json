@@ -1,0 +1,435 @@
+{
+    "antenas": [
+        {
+            "lat": -13.878508,
+            "lon": -45.756023,
+            "altura": 25,
+            "had_height_in_kmz": true,
+            "altura_receiver": 3,
+            "nome": "TORRE 25m"
+        },
+        {
+            "lat": -13.795671,
+            "lon": -45.747524,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "POSTE"
+        },
+        {
+            "lat": -13.966627,
+            "lon": -45.769867,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "POSTE"
+        },
+        {
+            "lat": -13.975561,
+            "lon": -45.76519,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "POSTE"
+        },
+        {
+            "lat": -13.76144444,
+            "lon": -45.73258332999999,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "X - Posto Fluviométrico"
+        },
+        {
+            "lat": -13.90841667,
+            "lon": -45.65561111,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "Y - Posto Fluviométrico"
+        },
+        {
+            "lat": -13.97972222,
+            "lon": -45.76213889000001,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "Z - Posto Fluviométrico"
+        },
+        {
+            "lat": -13.352543,
+            "lon": -45.69676,
+            "altura": null,
+            "had_height_in_kmz": false,
+            "altura_receiver": 3,
+            "nome": "POSTE"
+        }
+    ],
+    "pivos": [],
+    "ciclos": [],
+    "bombas": [
+        {
+            "nome": "Irripump",
+            "lat": -13.81254775220401,
+            "lon": -45.69777501227342,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.82737245712883,
+            "lon": -45.7243107876599,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.85409970851877,
+            "lon": -45.76372793520542,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.87551735332729,
+            "lon": -45.80108439780837,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.89701268296529,
+            "lon": -45.7902142104886,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.87538547697453,
+            "lon": -45.74986231092226,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.85667027885046,
+            "lon": -45.7140763868371,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.85644431079961,
+            "lon": -45.69086210872822,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.88106267038339,
+            "lon": -45.70356414653186,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.8991433927314,
+            "lon": -45.73156949765161,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.91441260982785,
+            "lon": -45.75037418855761,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.91661067522009,
+            "lon": -45.77751482806305,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.93522381082232,
+            "lon": -45.76360566265899,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.89927787296273,
+            "lon": -45.68948938742263,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.81367808084627,
+            "lon": -45.81878768043067,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.96307526224563,
+            "lon": -45.73472532052173,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.26008102174176,
+            "lon": -45.37848916804931,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.26154388647143,
+            "lon": -45.37482895000019,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.26483125635124,
+            "lon": -45.37041989795599,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.28844255048008,
+            "lon": -45.64515242981745,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.29855416707014,
+            "lon": -45.66628816047137,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.35140472944699,
+            "lon": -45.7384085281999,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.32980527925125,
+            "lon": -45.72943050468042,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.31334031005936,
+            "lon": -45.71229199342562,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.37828810987754,
+            "lon": -45.71212687774999,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.04911157989101,
+            "lon": -45.19542612779673,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.34312129451468,
+            "lon": -45.71014650168369,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.33545542730104,
+            "lon": -45.68782430426388,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.32474060076884,
+            "lon": -45.66668260393977,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.31762875435463,
+            "lon": -45.64176130223214,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -13.31074197544588,
+            "lon": -45.68918877389109,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.79023041249585,
+            "lon": -45.63773120696729,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.78703483321233,
+            "lon": -45.64001524163785,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.77709250337998,
+            "lon": -45.65202470520583,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.7767704941627,
+            "lon": -45.65051521370079,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.76382006499124,
+            "lon": -45.66918472272275,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.91722604681089,
+            "lon": -45.59388263585063,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.96014995345236,
+            "lon": -45.57586798750296,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.96073933242216,
+            "lon": -45.5525636442982,
+            "type": "bomba"
+        },
+        {
+            "nome": "Irripump",
+            "lat": -11.91928781391344,
+            "lon": -45.57053073061715,
+            "type": "bomba"
+        }
+    ],
+    "overlays": [
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028180015_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028180015_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -13.971,
+                -45.8486,
+                -13.786,
+                -45.6635
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028180352_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028180352_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -13.8882,
+                -45.84,
+                -13.7032,
+                -45.655
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028180530_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028180530_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -13.9429,
+                -45.8976,
+                -13.7579,
+                -45.7125
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028181132_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028181132_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -14.008,
+                -45.7884,
+                -13.8229,
+                -45.6033
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028181219_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028181219_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -14.0592,
+                -45.8624,
+                -13.8741,
+                -45.6773
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028181604_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028181604_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -14.0681,
+                -45.8578,
+                -13.883,
+                -45.6726
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028182815_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028182815_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -13.4072,
+                -45.7655,
+                -13.2226,
+                -45.5809
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028183355_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028183355_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -13.4449,
+                -45.7891,
+                -13.2602,
+                -45.6044
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028182531_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028182531_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -13.3538,
+                -45.4671,
+                -13.1693,
+                -45.2825
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028182114_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028182114_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -11.9061,
+                -45.7357,
+                -11.7225,
+                -45.5521
+            ]
+        },
+        {
+            "nome": "915MHz 0.3W",
+            "imagem": "/static/imagens/f0b34f4a-a69f-405c-8b16-88ac3d5a65b2/1028181852_My_Network_Brazil_V6.4326.png",
+            "imagem_filename": "1028181852_My_Network_Brazil_V6.4326.png",
+            "bounds": [
+                -12.0138,
+                -45.6685,
+                -11.8302,
+                -45.4849
+            ]
+        }
+    ]
+}

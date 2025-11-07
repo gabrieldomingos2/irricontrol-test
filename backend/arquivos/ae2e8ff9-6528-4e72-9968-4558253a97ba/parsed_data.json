@@ -1,0 +1,16 @@
+{
+    "antenas": [
+        {
+            "lat": -21.61273137369811,
+            "lon": -47.11310681410554,
+            "altura": 3,
+            "had_height_in_kmz": true,
+            "altura_receiver": 3,
+            "nome": "Central - 3m"
+        }
+    ],
+    "pivos": [],
+    "ciclos": [],
+    "bombas": [],
+    "overlays": []
+}
