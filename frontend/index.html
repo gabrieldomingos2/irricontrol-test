@@ -159,7 +159,7 @@
 
       <!-- Upload KMZ -->
       <div class="flex flex-col gap-3">
-        <label for="arquivo" class="sidebar-button w-full h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2" aria-label="Selecionar arquivo KMZ">
+        <label for="arquivo" class="sidebar-button w-full h-10 cursor-pointer flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2" aria-label="Selecionar arquivo KMZ" title="Importar arquivo KMZ do estudo" data-i18n-attr="title" data-i18n="tooltips.load_kmz">
           <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/file-up.svg); mask-image: url(assets/images/file-up.svg);"></span>
           <span id="nome-arquivo-label" class="text-sm font-medium truncate" data-i18n="ui.labels.choose_kmz"></span>
         </label>
@@ -169,17 +169,22 @@
       <!-- Ações gerais -->
       <button id="simular-btn"
         class="sidebar-button w-full h-10 items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm hidden px-2"
-        type="button" aria-label="Executar estudo">
+        type="button" aria-label="Executar estudo" data-i18n-attr="title" data-i18n="tooltips.run_signal_simulation">
         <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
         <span class="text-sm font-medium" data-i18n="ui.buttons.run_study"></span>
       </button>
 
-      <button id="exportar-btn" class="sidebar-button w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2" type="button" aria-label="Exportar KMZ">
-        <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/download.svg); mask-image: url(assets/images/download.svg);"></span>
-        <span class="text-sm font-medium" data-i18n="ui.buttons.export_kmz"></span>
+      <button id="exportar-btn"
+              class="sidebar-button w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2"
+              type="button"
+              aria-label="Exportar KMZ"
+              data-i18n-attr="title"
+              data-i18n="tooltips.export_kmz">
+          <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/download.svg); mask-image: url(assets/images/download.svg);"></span>
+          <span class="text-sm font-medium" data-i18n="ui.buttons.export_kmz"></span>
       </button>
 
-      <button id="resetar-btn" class="sidebar-button w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2" type="button" aria-label="Resetar">
+      <button id="resetar-btn" class="sidebar-button w-full h-10 flex items-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm px-2" type="button" aria-label="Resetar" title="Reiniciar a sessão e limpar o mapa">
         <span class="sidebar-icon w-5 h-5 ml-2" style="-webkit-mask-image: url(assets/images/undo-2.svg); mask-image: url(assets/images/undo-2.svg);"></span>
         <span class="text-sm font-medium" data-i18n="ui.buttons.reset"></span>
       </button>
@@ -188,7 +193,7 @@
     <!-- Painel (setup) de repetidora -->
     <div id="painel-repetidora" class="mt-4 bg-white/5 border border-white/15 backdrop-blur-md rounded-xl shadow-lg w-60 p-2 hidden">
       <div class="flex justify-between items-center mb-3">
-        <h2 class="font-semibold text-sm text-white/80" data-i18n="ui.titles.repeater_panel_setup"></h2>
+        <h2 class="font-semibold text-sm text-white/80"><span class="titulo-icone">📡</span><span data-i18n="ui.titles.repeater_panel_setup"></span></h2>
         <button id="fechar-painel-rep" class="close-btn" type="button" aria-label="Fechar">✖</button>
       </div>
 
@@ -199,10 +204,24 @@
       <input id="altura-receiver-rep" type="number" value="3" class="w-full h-8 px-2 rounded-lg border border-white/20 bg-[#060B10]/40 text-white text-sm focus:outline-none focus:ring-1 focus:ring-green-500 transition mb-3" />
 
       <button id="confirmar-repetidora"
-        class="w-full h-9 flex items-center justify-center gap-2"
-        type="button" aria-label="Simular">
+        class="sidebar-button w-full h-9 flex items-center justify-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm mb-3"
+        type="button"
+        data-i18n-attr="title"
+        data-i18n="tooltips.run_signal_simulation"
+        aria-label="Executa a simulação do sinal">
         <span class="sidebar-icon w-5 h-5" style="-webkit-mask-image: url(assets/images/radio.svg); mask-image: url(assets/images/radio.svg);"></span>
         <span class="text-sm font-medium" data-i18n="ui.buttons.simulate"></span>
+      </button>
+
+      <button id="btn-download-active-pngs"
+        class="sidebar-button w-full h-9 flex items-center justify-center gap-2 border border-white/15 rounded-lg backdrop-blur bg-white/5 text-white/70 shadow-sm text-xs mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+        type="button"
+        data-i18n-attr="title"
+        data-i18n="tooltips.download_active_repeaters"
+        aria-label="Baixar Repetidoras ativas no mapa"
+        disabled>
+        <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image: url(assets/images/download.svg); mask-image: url(assets/images/download.svg);"></span>
+        <span class="text-xs font-medium" data-i18n="ui.buttons.download_active_pngs"></span>
       </button>
     </div>
   </div>

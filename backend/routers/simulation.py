@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from backend.config import settings
 from backend.services import cloudrf_service, analysis_service
+from backend.exceptions import CloudRFAPIError, DEMProcessingError
 
 logger = logging.getLogger("irricontrol")
 router = APIRouter(prefix="/simulation", tags=["Simulation & Analysis"])
@@ -162,7 +163,7 @@ async def generate_pivot_in_circle_endpoint(payload: GeneratePivotPayload):
         return {"novo_pivo": novo_pivo}
     except Exception as e:
         logger.error("❌ Erro em /generate_pivot_in_circle: %s", e, exc_info=True)
-        msg = f"Erro ao gerar novo pivô: {type(e).__name__} - {e}" if DEBUG else f"Erro ao gerar novo pivô: {type(e).__name__}"
+        msg = f"Erro ao gerar novo pivô: {e}" if DEBUG else "Erro interno ao gerar novo pivô."
         raise HTTPException(status_code=500, detail=msg)
 
 
@@ -211,11 +212,15 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
             "pivos": pivos_com_status,
             "bombas": bombas_com_status,
         }
+    
+    except CloudRFAPIError as e:
+        logger.error("Falha na API da CloudRF para o job %s: %s", payload.job_id, e)
+        raise HTTPException(status_code=502, detail=f"O serviço de simulação externo falhou: {e}")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("❌ Erro Interno em /run_main: %s", e, exc_info=True)
-        msg = f"Erro na simulação principal: {type(e).__name__} - {e}" if DEBUG else f"Erro na simulação principal: {type(e).__name__}"
+        logger.exception("❌ Erro Interno em /run_main para o job %s: %s", payload.job_id, e)
+        msg = f"Erro na simulação principal: {e}" if DEBUG else "Erro interno inesperado na simulação principal."
         raise HTTPException(status_code=500, detail=msg)
 
 
@@ -253,14 +258,15 @@ async def run_manual_simulation_endpoint(payload: ManualSimPayload):
             "bounds": bounds,
             "status": "Simulação manual concluída",
         }
+    
+    except CloudRFAPIError as e:
+        logger.error("Falha na API da CloudRF para o job %s: %s", payload.job_id, e)
+        raise HTTPException(status_code=502, detail=f"O serviço de simulação externo falhou: {e}")
     except HTTPException:
         raise
-    except ValueError as e:
-        logger.warning("❌ Erro de Validação em /run_manual para sessão %s: %s", payload.job_id, e)
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("❌ Erro Interno em /simulation/run_manual para sessão %s: %s", payload.job_id, e, exc_info=True)
-        msg = f"Erro interno na simulação manual: {type(e).__name__} - {e}" if DEBUG else f"Erro interno na simulação manual: {type(e).__name__}"
+        logger.exception("❌ Erro Interno em /simulation/run_manual para o job %s: %s", payload.job_id, e)
+        msg = f"Erro na simulação manual: {e}" if DEBUG else "Erro interno inesperado na simulação manual."
         raise HTTPException(status_code=500, detail=msg)
 
 
@@ -305,7 +311,7 @@ async def reevaluate_pivots_endpoint(payload: ReavaliarPayload):
         return {"pivos": pivos_atualizados, "bombas": bombas_atualizadas}
     except Exception as e:
         logger.error("❌ Erro em /simulation/reevaluate (sessão %s): %s", payload.job_id, e, exc_info=True)
-        msg = f"Erro ao reavaliar cobertura: {type(e).__name__} - {e}" if DEBUG else f"Erro ao reavaliar cobertura: {type(e).__name__}"
+        msg = f"Erro ao reavaliar cobertura: {e}" if DEBUG else "Erro interno ao reavaliar cobertura."
         raise HTTPException(status_code=500, detail=msg)
 
 
@@ -318,9 +324,14 @@ async def get_elevation_profile_endpoint(payload: PerfilPayload):
         )
         logger.info("✅ Perfil de elevação calculado.")
         return resultado
+    except DEMProcessingError as e:
+        logger.error("Falha ao processar dados de elevação: %s", e)
+        raise HTTPException(status_code=500, detail=f"Erro ao processar dados de terreno: {e}")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error("❌ Erro em /simulation/elevation_profile: %s", e, exc_info=True)
-        msg = f"Erro ao buscar perfil de elevação: {type(e).__name__} - {e}" if DEBUG else f"Erro ao buscar perfil de elevação: {type(e).__name__}"
+        logger.exception("❌ Erro em /simulation/elevation_profile: %s", e)
+        msg = f"Erro ao buscar perfil de elevação: {e}" if DEBUG else "Erro interno ao buscar perfil de elevação."
         raise HTTPException(status_code=500, detail=msg)
 
 
@@ -350,7 +361,12 @@ async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
         )
         logger.info("✅ Busca por locais de repetidora concluída (sessão %s). %d candidatos.", payload.job_id, len(candidate_sites))
         return {"candidate_sites": candidate_sites}
+    except DEMProcessingError as e:
+        logger.error("Falha ao buscar locais para repetidora devido a erro de DEM para o job %s: %s", payload.job_id, e)
+        raise HTTPException(status_code=500, detail=f"Não foi possível analisar o terreno para encontrar locais: {e}")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error("❌ Erro Interno em /find_repeater_sites (sessão %s): %s", payload.job_id, e, exc_info=True)
-        msg = f"Erro interno ao buscar locais para repetidora: {type(e).__name__} - {e}" if DEBUG else f"Erro interno ao buscar locais para repetidora: {type(e).__name__}"
+        logger.exception("❌ Erro Interno em /find_repeater_sites para o job %s: %s", payload.job_id, e)
+        msg = f"Erro ao buscar locais para repetidora: {e}" if DEBUG else "Erro interno ao buscar locais para repetidora."
         raise HTTPException(status_code=500, detail=msg)

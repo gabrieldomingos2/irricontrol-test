@@ -266,6 +266,19 @@ input[type="file"].hidden{ display:none; }
 }
 .range-slider-custom:active::-moz-range-thumb{ transform:scale(1.2); }
 
+/* 🔧 Ajuste de tamanho da barra de opacidade */
+#range-opacidade {
+  width: 80px;   /* menor em telas grandes */
+  height: 6px;
+}
+
+@media (max-width:1366px){
+  #range-opacidade {
+    width: 70px !important; /* já estava previsto */
+    height: 5px;            /* mantém grossura normal */
+  }
+}
+
 /* ================================== */
 /* ✒️ BALÃO DE INFO (tooltip sinal) */
 /* ================================== */
@@ -679,8 +692,26 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
 #painel-repetidora.rep-open{
   display: grid; grid-template-columns: 1fr; row-gap: .55rem;
 }
-#painel-repetidora > .flex.justify-between.items-center{ margin-bottom: .35rem !important; }
-#painel-repetidora h2{ font-size: .9rem !important; line-height: 1.2; color: #e5e7eb; }
+#painel-repetidora > .flex.justify-between.items-center{ margin-bottom: .45rem !important; }
+
+/* 🔧 Ajuste título */
+#painel-repetidora h2{
+  font-size: .9rem !important;
+  line-height: 2.0 !important;
+  color: #e5e7eb;
+  white-space: nowrap;   /* impede quebra de linha */
+  overflow: hidden;      /* garante que não apareça barra */
+}
+
+@media (max-width:1024px){
+  #painel-repetidora h2{ font-size: .8rem !important; }
+}
+@media (max-width: 1440px) {
+  #painel-repetidora h2 .titulo-icone {
+    display: none !important;
+  }
+}
+
 
 /* Overlay do loader cobrindo toda a tela */
 #loader {
@@ -710,3 +741,5 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
   writing-mode: vertical-lr;
   direction: rtl;
 }
+
+/* (Revertido) Estilos de dropdown custom de Template removidos */

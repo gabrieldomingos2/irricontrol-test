@@ -2,7 +2,9 @@
   "name": "frontend",
   "version": "1.0.0",
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "build:css": "tailwindcss -i ./assets/css/tailwind.css -o ./dist/output.css --minify",
+    "build": "npm run build:css"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.13",

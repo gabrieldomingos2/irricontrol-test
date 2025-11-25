@@ -286,7 +286,7 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style, t: Callable):
         for p_data in pivos:
             f_pivos.newpoint(name=p_data["nome"], coords=[(p_data["lon"], p_data["lat"])]).style = style
 
-    f_areas = doc.newfolder(name=t("kml.folders.pivot_areas"))
+    f_areas = None
     nomes_pivos_desenhados_manualmente = set()
 
     pivos_com_area_manual = [p for p in pivos if p.get('tipo') in ['setorial', 'pacman']]
@@ -310,6 +310,8 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style, t: Callable):
                     )
 
                 if coords_area:
+                    if f_areas is None:
+                        f_areas = doc.newfolder(name=t("kml.folders.pivot_areas"))
                     pol = f_areas.newpolygon(name=t("kml.areas.pivot_area", name=pivo_nome))
                     pol.outerboundaryis = coords_area
                     pol.style.polystyle.fill = 0
@@ -331,6 +333,8 @@ def _add_secondary_folders(doc, pivos, ciclos, bombas, style, t: Callable):
 
             coords = ciclo_data.get("coordenadas")
             if coords and len(coords) > 2:
+                if f_areas is None:
+                    f_areas = doc.newfolder(name=t("kml.folders.pivot_areas"))
                 nome_area = nome_ciclo_original.replace(t("kml.prefixes.cycle"), t("kml.prefixes.area")).strip()
                 pol = f_areas.newpolygon(name=nome_area)
                 pol.outerboundaryis = [(lon, lat, 0) for lat, lon in coords]

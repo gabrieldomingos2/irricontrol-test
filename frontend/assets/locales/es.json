@@ -17,7 +17,7 @@
       "draw_sector_pivot": "Nuevo Pivote Sectorial Simple",
       "draw_pacman_pivot": "Nuevo Pivote con Arco Direccional",
       "draw_irripump": "Añadir Estación de Bombeo (Irripump)",
-      "repeater_panel_setup": "📡 Configurar Repetidor",
+      "repeater_panel_setup": "Configurar Repetidor",
       "search_coordinates": "Localizar por Coordenadas",
       "toggle_antenna_legends": "Leyendas de las Antenas",
       "restore_original_name": "Restaurar Nombre Original",
@@ -77,6 +77,7 @@
       "run_los_diagnostic": "Diagnóstico de Visión",
       "export_kmz": "Descargar Archivo KMZ",
       "export_pdf_report": "Exportar Informe PDF",
+      "download_active_pngs": "Descargar Repetidoras",
       "reset": "Reiniciar",
       "simulate": "Ejecutar Simulación",
       "cancel": "Cancelar",
@@ -106,7 +107,13 @@
     "show_legends": "Mostrar Leyendas",
     "run_diagnostic_from_source": "Ejecutar diagnóstico desde esta fuente",
     "los_clear_at_highest_point": "Línea de visión despejada (Punto más alto: {elevation}m)",
-    "export_pdf_disabled": "Exporte el KMZ antes de generar el informe en PDF."
+    "export_pdf_disabled": "Exporte el KMZ antes de generar el informe en PDF",
+    "download_active_repeaters": "Descarga solo las repetidoras activas que están apareciendo en el mapa",
+    "run_signal_simulation": "Ejecuta la simulación de señal",
+    "load_kmz": "Importa y carga un archivo KMZ",
+    "export_kmz": "Descarga el proyecto completo en KMZ",
+    "reset": "Reinicia todo para empezar un nuevo proyecto",
+    "export_pdf_report": "Genera un informe PDF con el resumen del estudio"
   },
   "messages": {
     "success": {
@@ -114,6 +121,7 @@
       "kmz_loaded_select_tower": "KMZ importado. Elija una antena para iniciar la simulación.",
       "simulation_complete": "Simulación completada con éxito.",
       "repeater_added": "Repetidor “{name}” agregado al mapa.",
+      "main_study_removed": "Estudio de la antena principal eliminado.",
       "found_candidate_sites": "{count} ubicaciones candidatas para repetidor identificadas.",
       "pivot_created": "Pivote \"{name}\" creado con éxito.",
       "sector_pivot_created": "Pivote sectorial \"{name}\" creado con éxito.",

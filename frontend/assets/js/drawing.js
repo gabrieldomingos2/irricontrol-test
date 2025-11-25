@@ -269,54 +269,67 @@ function drawAntenaCandidates(antenasList) {
     AppState.antenaCandidatesLayerGroup.clearLayers();
 
     (antenasList || []).forEach((antenaData) => {
-    const uniqueId = `candidate-${antenaData.nome}-${antenaData.lat}`;
+        const uniqueId = `candidate-${antenaData.nome}-${antenaData.lat}`;
 
-    const marker = L.marker([antenaData.lat, antenaData.lon], {
-        icon: antenaIcon,
-        customData: antenaData,
-        customId: uniqueId
-    }).addTo(AppState.antenaCandidatesLayerGroup);
+        const marker = L.marker([antenaData.lat, antenaData.lon], {
+            icon: antenaIcon,
+            customData: antenaData,
+            customId: uniqueId
+        }).addTo(AppState.antenaCandidatesLayerGroup);
 
-    const formattedName = getFormattedAntennaOrRepeaterName({ ...antenaData, is_from_kmz: true });
-    const labelWidth = formattedName.length * 7 + 10;
+        const formattedName = getFormattedAntennaOrRepeaterName({ ...antenaData, is_from_kmz: true });
+        const labelWidth = formattedName.length * 7 + 10;
 
-    const label = L.marker([antenaData.lat, antenaData.lon], {
-        icon: L.divIcon({
-        className: "label-pivo",
-        html: formattedName,
-        iconSize: [labelWidth, 20],
-        iconAnchor: [labelWidth / 2, 45]
-    }),
-        interactive: false,
-        customId: uniqueId,
-        labelType: "antena_candidate"
-    }).addTo(AppState.antenaCandidatesLayerGroup);
+        const label = L.marker([antenaData.lat, antenaData.lon], {
+            icon: L.divIcon({
+                className: "label-pivo",
+                html: formattedName,
+                iconSize: [labelWidth, 20],
+                iconAnchor: [labelWidth / 2, 45]
+            }),
+            interactive: false,
+            customId: uniqueId,
+            labelType: "antena_candidate"
+        }).addTo(AppState.antenaCandidatesLayerGroup);
 
-    AppState.marcadoresLegenda.push(label);
+        AppState.marcadoresLegenda.push(label);
 
-    marker.on("click", (e) => {
-    L.DomEvent.stopPropagation(e);
-    if (typeof handleSpecialMarkerSelection === "function") handleSpecialMarkerSelection(marker);
+        marker.on("click", (e) => {
+            L.DomEvent.stopPropagation(e);
+            if (typeof handleSpecialMarkerSelection === "function") handleSpecialMarkerSelection(marker);
 
-    const data = e.target.options.customData;
-    AppState.coordenadaClicada = e.latlng;
+            const data = e.target.options.customData;
+            AppState.coordenadaClicada = e.latlng;
 
-    const painelRepetidora = document.getElementById("painel-repetidora");
-    const inputAltura = document.getElementById("altura-antena-rep");
+            const painelRepetidora = document.getElementById("painel-repetidora");
+            const inputAltura = document.getElementById("altura-antena-rep");
+            const inputAlturaRx = document.getElementById("altura-receiver-rep");
+            const nomeDaTorre = data.nome || "";
+            const match = nomeDaTorre.match(/\d+/);
 
-    inputAltura.value = data.altura == null ? 5 : data.altura;
-    AppState.clickedCandidateData = data;
+            let alturaParaDefinir;
 
-    if (painelRepetidora) {
-        const inputAlturaRx = document.getElementById("altura-receiver-rep");
-        if (inputAlturaRx && data.altura_receiver) inputAlturaRx.value = data.altura_receiver;
-        painelRepetidora.classList.remove("hidden");
-        if (typeof mostrarMensagem === "function") {
-            mostrarMensagem(t("messages.success.tower_selected_for_simulation", { name: data.nome }), "sucesso");
-        }
-    }
+            if (match && match[0]) {
+                alturaParaDefinir = parseInt(match[0], 10);
+            } else {
+                alturaParaDefinir = data.altura == null ? 5 : data.altura;
+            }
+
+            inputAltura.value = alturaParaDefinir;
+            if (inputAlturaRx) {
+                inputAlturaRx.value = 3;
+            }
+
+            AppState.clickedCandidateData = data;
+
+            if (painelRepetidora) {
+                painelRepetidora.classList.remove("hidden");
+                if (typeof mostrarMensagem === "function") {
+                    mostrarMensagem(t("messages.success.tower_selected_for_simulation", { name: data.nome }), "sucesso");
+                }
+            }
+        });
     });
-});
 
     updateLegendsVisibility();
 }
@@ -549,7 +562,7 @@ function drawBombas(bombasData) {
         className: "tooltip-sinal"
     });
 
-    const nomeBomba = `Irripump ${String(i + 1).padStart(2, "0")}`;
+    const nomeBomba = bomba.nome || `Irripump ${String(i + 1).padStart(2, "0")}`;
 
     marcadorBomba.on("click", (e) => {
         L.DomEvent.stopPropagation(e);
@@ -773,7 +786,10 @@ function addRepetidoraNoPainel(repetidora) {
     AppState.marcadoresLegenda = AppState.marcadoresLegenda.filter((l) => l !== repetidora.label);
 
     if (typeof atualizarPainelDados === "function") atualizarPainelDados();
-    setTimeout(() => reavaliarPivosViaAPI?.(), 100);
+    setTimeout(() => {
+        reavaliarPivosViaAPI?.();
+        updateDownloadActivePngsButtonState?.();
+    }, 100);
 });
 
     const visibilityBtn = item.querySelector('[data-action="toggle-visibility"]');
@@ -790,11 +806,15 @@ function addRepetidoraNoPainel(repetidora) {
         : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
     lucide?.createIcons?.();
 
-    setTimeout(() => reavaliarPivosViaAPI?.(), 100);
+    setTimeout(() => {
+        reavaliarPivosViaAPI?.();
+        updateDownloadActivePngsButtonState?.();
+    }, 100);
     });
 }
 
 function addAntenaAoPainel(antena) {
+    // Garante que o item antigo seja removido antes de adicionar um novo
     document.getElementById("antena-item")?.remove();
 
     const container = document.getElementById("lista-repetidoras");
@@ -810,42 +830,34 @@ function addAntenaAoPainel(antena) {
     <span class="sidebar-icon w-4 h-4" style="-webkit-mask-image:url(assets/images/mountain.svg);mask-image:url(assets/images/mountain.svg);"></span>
 </button>`;
 
-item.innerHTML = `
+    // <<< ALTERAÇÃO AQUI: Adicionado o botão de remover (X) >>>
+    item.innerHTML = `
     <span class="text-white/80 text-sm">${getFormattedAntennaOrRepeaterName(antena)}</span>
     <div class="flex gap-3 items-center">
         ${diagBtnHtml}
-        <button class="text-white/60 hover:text-sky-300 transition" title="${t(
-        "tooltips.show_hide_coverage"
-        )}" data-action="toggle-visibility" data-visible="true">
+        <button class="text-white/60 hover:text-sky-300 transition" title="${t("tooltips.show_hide_coverage")}" data-action="toggle-visibility" data-visible="true">
             <i data-lucide="eye" class="w-4 h-4 text-green-500"></i>
         </button>
+        <button class="text-red-500 hover:text-red-400 text-xs font-bold transition" title="${t('ui.titles.remove_repeater')}" data-action="remover">❌</button>
     </div>`;
 
     container.firstChild ? container.insertBefore(item, container.firstChild) : container.appendChild(item);
     lucide?.createIcons?.();
 
-    item.addEventListener("contextmenu", (e) => {
-    L.DomEvent.stop(e);
-    if (AppState.marcadorAntena) showRenameRepeaterMenu(AppState.marcadorAntena, antena.nome, true, null);
-});
-
+    // Adiciona os listeners para os botões de ação
     item.querySelector('[data-action="diagnostico"]')?.addEventListener("click", () => runTargetedDiagnostic?.(antena));
+    item.querySelector('[data-action="remover"]')?.addEventListener('click', () => handleDeleteMainStudy()); // Chama a função para apagar
 
     const visibilityBtn = item.querySelector('[data-action="toggle-visibility"]');
     visibilityBtn?.addEventListener("click", () => {
-    const isVisible = visibilityBtn.getAttribute("data-visible") === "true";
-    const newState = !isVisible;
-    visibilityBtn.setAttribute("data-visible", String(newState));
-
-    const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
-    if (antena?.overlay) antena.overlay.setOpacity(newState ? opacityValue : 0);
-
-    visibilityBtn.innerHTML = newState
-        ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>`
-        : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
-    lucide?.createIcons?.();
-
-    setTimeout(() => reavaliarPivosViaAPI?.(), 100);
+        const isVisible = visibilityBtn.getAttribute("data-visible") === "true";
+        const newState = !isVisible;
+        visibilityBtn.setAttribute("data-visible", String(newState));
+        const opacityValue = parseFloat(document.getElementById("range-opacidade").value);
+        if (antena?.overlay) antena.overlay.setOpacity(newState ? opacityValue : 0);
+        visibilityBtn.innerHTML = newState ? `<i data-lucide="eye" class="w-4 h-4 text-green-500"></i>` : `<i data-lucide="eye-off" class="w-4 h-4 text-gray-500"></i>`;
+        lucide?.createIcons?.();
+        setTimeout(() => reavaliarPivosViaAPI?.(), 100);
     });
 }
 

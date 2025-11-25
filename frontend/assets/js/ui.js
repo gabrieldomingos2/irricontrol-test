@@ -594,6 +594,8 @@ function removeDrawingTooltip(mapInstance) {
     }
 }
 
+// (Revertido) Dropdown custom de Templates removido
+
 // ==================
 // Exports globais
 // ==================

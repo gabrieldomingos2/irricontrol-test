@@ -1,16 +1,10 @@
-# logging_config.py
-"""
-Configuração de logging robusta, com contexto por request/job, fallback seguro de formatters
-e arquivo rotativo opcional. Projetado para rodar bem em FastAPI/Uvicorn (mas sem acoplar duro).
-"""
-
 from __future__ import annotations
 
 import logging
 import logging.config
 from logging import Filter
 from contextvars import ContextVar
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 from uuid import uuid4
 from pathlib import Path
 from contextlib import contextmanager
@@ -28,8 +22,9 @@ try:
     LOG_DIR: str | Path = getattr(settings, "LOG_DIR", "")
     LOG_MAX_BYTES: int = int(getattr(settings, "LOG_MAX_BYTES", 10 * 1024 * 1024))  # 10MB
     LOG_BACKUP_COUNT: int = int(getattr(settings, "LOG_BACKUP_COUNT", 5))
-except Exception:
-    # Fallbacks estáveis quando settings não existir
+    LOG_CAPTURE_THIRD_PARTY: bool = bool(getattr(settings, "LOG_CAPTURE_THIRD_PARTY", True))
+except (ImportError, AttributeError):
+    # Fallbacks estáveis quando settings não existir ou estiver incompleto
     LOG_LEVEL_STR = "INFO"
     LOG_LEVEL_INT = logging.INFO
     LOG_TO_FILE = True
@@ -37,6 +32,8 @@ except Exception:
     LOG_DIR = ""
     LOG_MAX_BYTES = 10 * 1024 * 1024  # 10MB
     LOG_BACKUP_COUNT = 5
+    LOG_CAPTURE_THIRD_PARTY = True
+
 
 # ---------------------------------------------------------------------------
 # Contexto por request/job (ContextVar) + ajudantes
@@ -69,9 +66,6 @@ def clear_user() -> None:
 def job_context(job_id: Optional[str] = None, user: Optional[str] = None):
     """
     Context manager para executar um bloco com job_id/user temporários.
-    Exemplo:
-        with job_context("import#123", user="gabriel"):
-            logger.info("Processando arquivo...")
     """
     old_jid = job_id_ctx.get()
     old_user = user_ctx.get()
@@ -88,11 +82,9 @@ def job_context(job_id: Optional[str] = None, user: Optional[str] = None):
 class ContextFilter(Filter):
     """Injeta job_id e user em TODOS os registros, sem quebrar terceiros."""
 
-    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003 (nome 'filter' é do contrato)
-        if not hasattr(record, "job_id"):
-            record.job_id = job_id_ctx.get()
-        if not hasattr(record, "user"):
-            record.user = user_ctx.get()
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: A003
+        record.__dict__.setdefault("job_id", job_id_ctx.get())
+        record.__dict__.setdefault("user", user_ctx.get())
         return True
 
 
@@ -101,49 +93,43 @@ class ContextFilter(Filter):
 # ---------------------------------------------------------------------------
 def _ensure_parent_dir(path: Path) -> None:
     try:
-        path.resolve().parent.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        # sem drama se não conseguir criar — handler vai cair no console se falhar
-        pass
+        path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        # não derruba a aplicação, mas registra no stderr
+        logging.getLogger("irricontrol").warning(
+            "Não foi possível criar diretório de log %s: %s", path.parent, exc
+        )
 
 
 def _resolve_log_file() -> Path:
     """
     Resolve o caminho final do arquivo de log considerando LOG_DIR e LOG_FILE.
-    Se LOG_FILE apontar para um diretório, assume 'irricontrol_app.log' dentro dele.
+    Sempre retorna um caminho absoluto.
     """
     log_file_path = Path(LOG_FILE)
     if str(LOG_DIR).strip():
-        # Se LOG_DIR foi fornecido, prioriza-o como diretório pai
         base = Path(LOG_DIR)
-        if log_file_path.suffix:  # tem nome de arquivo
+        if log_file_path.suffix:
             log_file_path = base / log_file_path.name
         else:
             log_file_path = base / "irricontrol_app.log"
     elif log_file_path.is_dir():
         log_file_path = log_file_path / "irricontrol_app.log"
-    return log_file_path
+    return log_file_path.resolve()
 
 
-# ---------------------------------------------------------------------------
-# Construção de configuração dictConfig
-# ---------------------------------------------------------------------------
 def build_logging_config(
     json_available: bool,
     uvicorn_formatter_available: bool,
     level_int: int | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Monta a dictConfig de logging.
-    - json_available: se python-json-logger está instalado
-    - uvicorn_formatter_available: se uvicorn.logging.DefaultFormatter está disponível
-    - level_int: nível numérico opcional; default usa LOG_LEVEL_INT
     """
     use_level = int(level_int if level_int is not None else LOG_LEVEL_INT)
 
-    # Formatter console legível + job_id + user (se disponível)
     if uvicorn_formatter_available:
-        default_fmt: Dict[str, Any] = {
+        default_fmt: dict[str, Any] = {
             "()": "uvicorn.logging.DefaultFormatter",
             "fmt": "%(levelprefix)s %(asctime)s [%(name)s] [job_id=%(job_id)s user=%(user)s] :: %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S",
@@ -154,10 +140,8 @@ def build_logging_config(
             "datefmt": "%Y-%m-%d %H:%M:%S",
         }
 
-    # Formatter JSON estável (uma linha por evento)
-    json_fmt: Dict[str, Any]
     if json_available:
-        json_fmt = {
+        json_fmt: dict[str, Any] = {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
             "format": (
                 "%(asctime)s %(levelname)s %(name)s %(message)s "
@@ -166,13 +150,9 @@ def build_logging_config(
             ),
         }
     else:
-        # caso sem lib JSON, mantemos default (mas a chave 'json' precisa existir)
-        json_fmt = {
-            "format": "%(levelname)s %(asctime)s [%(name)s] [job_id=%(job_id)s user=%(user)s] :: %(message)s",
-            "datefmt": "%Y-%m-%d %H:%M:%S",
-        }
+        json_fmt = default_fmt
 
-    handlers: Dict[str, Any] = {
+    handlers: dict[str, Any] = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "default",
@@ -198,9 +178,7 @@ def build_logging_config(
         }
         logger_handlers.append("rotating_file")
 
-    # Dica: Para usar log assíncrono no futuro, mude para QueueHandler/QueueListener.
-
-    return {
+    config: dict[str, Any] = {
         "version": 1,
         "disable_existing_loggers": False,
         "filters": {
@@ -212,51 +190,45 @@ def build_logging_config(
         },
         "handlers": handlers,
         "loggers": {
-            # Logger principal do app
             "irricontrol": {
                 "handlers": logger_handlers,
                 "level": use_level,
                 "propagate": False,
             },
-            # Uvicorn (erros também vão pro arquivo)
             "uvicorn.error": {
                 "handlers": logger_handlers,
                 "level": use_level,
                 "propagate": False,
             },
-            # Access: só console por padrão (arquivo enche fácil)
             "uvicorn.access": {
                 "handlers": ["console"],
                 "level": logging.WARNING,
                 "propagate": False,
             },
         },
-        # Opcional: root logger (útil para bibliotecas terceiras que não configuram logger)
-        "root": {
-            "handlers": logger_handlers,
-            "level": max(use_level, logging.WARNING),
-        },
     }
 
+    if LOG_CAPTURE_THIRD_PARTY:
+        config["root"] = {
+            "handlers": logger_handlers,
+            "level": max(use_level, logging.WARNING),
+        }
 
-# ---------------------------------------------------------------------------
-# Setup global
-# ---------------------------------------------------------------------------
+    return config
+
+
 def setup_logging() -> None:
     """Aplica configuração, com fallbacks automáticos (JSON e formatter do Uvicorn)."""
     try:
         import pythonjsonlogger  # noqa: F401
         json_available = True
-    except Exception:
-        print("AVISO: 'python-json-logger' não instalado. Mantendo logs legíveis no console/arquivo.")
+    except ImportError:
         json_available = False
 
     try:
-        # Verifica se o formatter do Uvicorn existe (não falhará em ambiente sem uvicorn)
         from uvicorn.logging import DefaultFormatter  # noqa: F401
-
         uvicorn_formatter_available = True
-    except Exception:
+    except ImportError:
         uvicorn_formatter_available = False
 
     config = build_logging_config(
@@ -266,17 +238,11 @@ def setup_logging() -> None:
     )
     logging.config.dictConfig(config)
 
-    # Mensagem de prova de vida com job_id
     logger = logging.getLogger("irricontrol")
     with job_context(job_id="setup"):
         logger.info(
-            "Sistema de logging configurado com sucesso%s. level=%s file=%s",
-            "" if json_available else " (sem JSON)",
+            "event=logging_setup status=ok level=%s file=%s json=%s",
             LOG_LEVEL_STR,
             _resolve_log_file() if LOG_TO_FILE else "-",
+            json_available,
         )
-
-
-# Executa configuração ao importar, se desejar comportamento plug-and-play
-# (Se preferir controle explícito, comente a linha abaixo e chame setup_logging() no bootstrap da app)
-# setup_logging()

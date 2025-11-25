@@ -164,6 +164,12 @@ function applyTranslations(root = document) {
   const nodes = root.querySelectorAll("[data-i18n]");
   nodes.forEach(applyTranslationTo);
 
+  // Ajustes espec��ficos de tooltip que n��o usam data-i18n diretamente
+  const resetButton = document.getElementById("resetar-btn");
+  if (resetButton) {
+    resetButton.setAttribute("title", t("tooltips.reset"));
+  }
+
   // Título do documento (caso exista <title data-i18n="...">)
   const titleEl = document.querySelector("head title[data-i18n]");
   if (titleEl) document.title = titleEl.textContent;

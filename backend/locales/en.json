@@ -17,7 +17,7 @@
       "draw_sector_pivot": "New Simple Sector Pivot",
       "draw_pacman_pivot": "New Pivot with Directional Arc",
       "draw_irripump": "Add Pump Station (Irripump)",
-      "repeater_panel_setup": "📡 Configure Repeater",
+      "repeater_panel_setup": "Configure Repeater",
       "search_coordinates": "Locate by Coordinates",
       "toggle_antenna_legends": "Antenna Legends",
       "restore_original_name": "Restore Original Name",

@@ -17,7 +17,7 @@
       "draw_sector_pivot": "New Simple Sector Pivot",
       "draw_pacman_pivot": "New Pivot with Directional Arc",
       "draw_irripump": "Add Pump Station (Irripump)",
-      "repeater_panel_setup": "📡 Configure Repeater",
+      "repeater_panel_setup": "Configure Repeater",
       "search_coordinates": "Locate by Coordinates",
       "toggle_antenna_legends": "Antenna Legends",
       "restore_original_name": "Restore Original Name",
@@ -78,6 +78,7 @@
       "run_los_diagnostic": "LoS Diagnostic",
       "export_kmz": "Download KMZ File",
       "export_pdf_report": "Export PDF Report",
+      "download_active_pngs": "Download Repeaters",
       "reset": "Reset",
       "simulate": "Run Simulation",
       "cancel": "Cancel",
@@ -107,7 +108,13 @@
     "show_legends": "Show Legends",
     "run_diagnostic_from_source": "Run diagnostic from this source",
     "los_clear_at_highest_point": "Line of sight clear (Highest point: {elevation}m)",
-    "export_pdf_disabled": "Export the KMZ before generating the PDF report."
+    "export_pdf_disabled": "Export the KMZ before generating the PDF report.",
+    "download_active_repeaters": "Downloads only the active repeaters currently visible on the map",
+    "run_signal_simulation": "Runs the signal simulation",
+    "load_kmz": "Imports and loads a KMZ file",
+    "export_kmz": "Downloads the complete project as a KMZ file",
+    "reset": "Clears everything and starts a new project",
+    "export_pdf_report": "Generates a PDF report with the study summary"
   },
   "messages": {
     "success": {
@@ -115,6 +122,7 @@
       "kmz_loaded_select_tower": "KMZ imported. Choose an antenna to start the simulation.",
       "simulation_complete": "Simulation completed successfully.",
       "repeater_added": "Repeater “{name}” added to the map.",
+      "main_study_removed": "Main antenna study removed.",
       "found_candidate_sites": "{count} candidate repeater sites identified.",
       "pivot_created": "Pivot \"{name}\" created successfully.",
       "sector_pivot_created": "Sector pivot \"{name}\" created successfully.",
@@ -210,7 +218,8 @@
       "find_repeater_long_process_warning": "The search for repeater locations can take a minute or more. Please wait.",
       "pdf_report_unlocked": "PDF report unlocked for download.",
       "move_pivot_center_on": "Move pivot center mode enabled. The circle will NOT move. Click the button again to disable.",
-      "move_pivot_center_off": "Move pivot center mode disabled. Position has been updated, please re-evaluate coverage."
+      "move_pivot_center_off": "Move pivot center mode disabled. Position has been updated, please re-evaluate coverage.",
+      "no_active_png_overlays": "No active (visible) antenna/repeater coverages to download."
     },
     "confirm": {
       "remove_pivot": "Are you sure you want to remove the pivot \"{name}\" and its associated areas?",

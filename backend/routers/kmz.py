@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from backend.config import settings
 from backend.services import kmz_parser, kmz_exporter
 from backend.services.i18n_service import i18n_service
+from backend.exceptions import FileParseError
 
 logger = logging.getLogger("irricontrol")
 
@@ -41,7 +42,7 @@ CHUNK_SIZE: int = 1024 * 1024  # 1MB por chunk
 ALLOWED_EXTS: set[str] = {".kmz", ".kml"}
 ALLOWED_CTYPES: set[str] = {
     "application/vnd.google-earth.kmz",
-    "application/octet-stream",  # navegadores costumam mandar isso
+    "application/octet-stream",
     "application/xml",
     "text/xml",
 }
@@ -66,11 +67,9 @@ def _ensure_dir(p: Path) -> None:
 async def _save_upload_stream(upload: UploadFile, dst: Path, max_mb: int) -> int:
     """
     Salva UploadFile em streaming, respeitando limite de tamanho.
-    Retorna total de bytes gravados.
     """
     total = 0
     _ensure_dir(dst.parent)
-
     try:
         upload.file.seek(0)
     except Exception:
@@ -87,17 +86,11 @@ async def _save_upload_stream(upload: UploadFile, dst: Path, max_mb: int) -> int
                     try:
                         f.close()
                     finally:
-                        try:
-                            dst.unlink(missing_ok=True)
-                        except Exception:
-                            pass
+                        dst.unlink(missing_ok=True)
                     raise HTTPException(status_code=413, detail=f"Arquivo excede {max_mb}MB")
                 f.write(chunk)
     finally:
-        try:
-            await upload.close()
-        except Exception:
-            pass
+        await upload.close()
     return total
 
 
@@ -112,7 +105,6 @@ async def iniciar_job_vazio_endpoint() -> Dict[str, str]:
 
     job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / job_id
-
     _ensure_dir(job_input_dir)
     _ensure_dir(job_images_dir)
 
@@ -153,11 +145,10 @@ async def processar_kmz_endpoint(
 
     job_input_dir = settings.ARQUIVOS_DIR_PATH / job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / job_id
-
     _ensure_dir(job_input_dir)
     _ensure_dir(job_images_dir)
 
-    nome_seguro = Path(file.filename).name  # evita path traversal
+    nome_seguro = Path(file.filename).name
     input_file_path = job_input_dir / nome_seguro
 
     ext = Path(nome_seguro).suffix.lower()
@@ -188,9 +179,9 @@ async def processar_kmz_endpoint(
         logger.info("  -> Dados parseados salvos para o job em: %s", parsed_data_path)
         return {"job_id": job_id, **parsed_content}
 
-    except ValueError as ve:
-        logger.error("❌ Erro de Validação de Arquivo (job: %s): %s", job_id, ve, exc_info=True)
-        raise HTTPException(status_code=400, detail=str(ve))
+    except FileParseError as e:
+        logger.error("❌ Erro de parse de arquivo (job: %s): %s", job_id, e, exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -210,7 +201,6 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
 
     job_input_dir = settings.ARQUIVOS_DIR_PATH / payload.job_id
     job_images_dir = settings.IMAGENS_DIR_PATH / payload.job_id
-
     _ensure_dir(job_input_dir)
     _ensure_dir(job_images_dir)
 
@@ -220,41 +210,24 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         logger.info(" -> Antena principal detectada no payload. Verificando arquivos...")
         caminho_imagem_principal = job_images_dir / payload.imagem
         caminho_bounds_principal = job_images_dir / payload.bounds_file
-        if not caminho_imagem_principal.exists():
-            raise HTTPException(
-                status_code=404,
-                detail=f"Imagem principal '{payload.imagem}' não encontrada no job '{payload.job_id}'.",
-            )
-        if not caminho_bounds_principal.exists():
-            raise HTTPException(
-                status_code=404,
-                detail=f"Bounds '{payload.bounds_file}' não encontrados no job '{payload.job_id}'.",
-            )
+        if not caminho_imagem_principal.exists() or not caminho_bounds_principal.exists():
+            raise HTTPException(status_code=404, detail=f"Arquivos da antena principal não encontrados para o job '{payload.job_id}'.")
+        
         with open(caminho_bounds_principal, "r", encoding="utf-8") as f:
-            bounds_principal_json = json.load(f)
-            bounds_principal_data = bounds_principal_json.get("bounds")
+            bounds_principal_data = json.load(f).get("bounds")
     else:
         logger.info(" -> Nenhuma antena principal no payload. Exportando sem ela.")
 
     try:
         selected_template = settings.obter_template(payload.template_id)
-        if not selected_template:
-            raise HTTPException(
-                status_code=404, detail=f"O template com ID '{payload.template_id}' não foi encontrado."
-            )
-        logger.info("  -> Usando template '%s' do payload.", selected_template.id)
-
+        
         t = i18n_service.get_translator(payload.language)
-
         kml = simplekml.Kml(name=t("kml.main_name"))
-        doc = kml.document
 
         arquivos_de_imagem_para_kmz = kmz_exporter.build_kml_document_and_get_image_list(
-            doc=doc,
-            lang=payload.language,
+            doc=kml.document, lang=payload.language,
             antena_data=payload.antena_principal_data,
-            pivos_data=payload.pivos_data,
-            ciclos_data=payload.ciclos_data,
+            pivos_data=payload.pivos_data, ciclos_data=payload.ciclos_data,
             bombas_data=payload.bombas_data,
             imagem_principal_nome_relativo=payload.imagem,
             bounds_principal_data=bounds_principal_data,
@@ -264,8 +237,6 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         )
 
         caminho_kml_temp = job_input_dir / "estudo_temp.kml"
-        _ensure_dir(caminho_kml_temp.parent)
-
         kml.save(str(caminho_kml_temp))
         logger.info("  -> KML temporário salvo em: %s", caminho_kml_temp)
 
@@ -277,21 +248,17 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         logger.info("  -> Criando KMZ final: %s", caminho_kmz_final)
         with zipfile.ZipFile(str(caminho_kmz_final), "w", zipfile.ZIP_DEFLATED) as kmz_zip:
             kmz_zip.write(str(caminho_kml_temp), "doc.kml")
-
             added_to_zip: set[str] = set()
             for src_path, dest_name in arquivos_de_imagem_para_kmz:
-                src = Path(src_path)
-                if dest_name not in added_to_zip:
-                    if src.exists():
-                        kmz_zip.write(str(src), dest_name)
-                        added_to_zip.add(dest_name)
-                        logger.info("      -> Arquivo '%s' adicionado ao KMZ.", dest_name)
-                    else:
-                        logger.warning("      -> ⚠️ Imagem '%s' não encontrada, não adicionada ao KMZ.", src)
+                if dest_name not in added_to_zip and Path(src_path).exists():
+                    kmz_zip.write(str(src_path), dest_name)
+                    added_to_zip.add(dest_name)
+                else:
+                    logger.warning("      -> ⚠️ Imagem '%s' não encontrada ou duplicada, não adicionada ao KMZ.", src_path)
 
-        background_tasks.add_task(Path.unlink, caminho_kml_temp, missing_ok=True)
-
+        background_tasks.add_task(caminho_kml_temp.unlink, missing_ok=True)
         logger.info("  -> Exportação KMZ concluída.")
+        
         return FileResponse(
             str(caminho_kmz_final),
             media_type="application/vnd.google-earth.kmz",
@@ -300,12 +267,7 @@ async def exportar_kmz_endpoint(payload: ExportPayload, background_tasks: Backgr
         )
 
     except FileNotFoundError as fnfe:
-        logger.error(
-            "❌ Arquivo não encontrado durante a exportação (job: %s): %s",
-            payload.job_id,
-            fnfe,
-            exc_info=True,
-        )
+        logger.error("❌ Arquivo não encontrado durante a exportação (job: %s): %s", payload.job_id, fnfe, exc_info=True)
         raise HTTPException(status_code=404, detail=f"Arquivo necessário não encontrado: {str(fnfe)}")
     except HTTPException:
         raise

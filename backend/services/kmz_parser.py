@@ -13,6 +13,7 @@ from typing import List, Tuple, Dict, Optional, TypedDict, Union
 from shapely.geometry import Polygon, Point
 
 from backend.config import settings
+from backend.exceptions import FileParseError
 from backend.services.i18n_service import i18n_service
 
 logger = logging.getLogger("irricontrol")
@@ -25,7 +26,6 @@ KML_NAMESPACE = {"kml": "http://www.opengis.net/kml/2.2"}
 PONTA_RETA_KEYWORDS: List[str] = ["ponta 1 reta", "ponta 2 reta"]
 DEFAULT_RECEIVER_HEIGHT: int = 3
 CIRCLE_CLOSENESS_THRESHOLD: float = 0.0005
-# Regex robusta para encontrar a altura no final de um nome (ex.: "Antena 12 m")
 HEIGHT_REGEX = re.compile(r"[\s-]*(\d+)\s*(m|metros)\s*$", re.IGNORECASE)
 
 
@@ -85,13 +85,12 @@ def ponto_central_da_reta_maior(
     Retorna o ponto médio e as duas pontas.
     """
     if not coords_list or len(coords_list) < 2:
-        raise ValueError("São necessários pelo menos dois pontos para calcular a reta maior.")
+        raise FileParseError("Dados de geometria inválidos: são necessários pelo menos dois pontos para calcular a reta maior.")
     max_dist_sq = 0.0
     ponta1_final, ponta2_final = coords_list[0], coords_list[1]
     for i in range(len(coords_list)):
         for j in range(i + 1, len(coords_list)):
             p1, p2 = coords_list[i], coords_list[j]
-            # distância em “graus” (suficiente para centro aproximado)
             dist_sq = (p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2
             if dist_sq > max_dist_sq:
                 max_dist_sq, ponta1_final, ponta2_final = dist_sq, p1, p2
@@ -106,11 +105,9 @@ def ponto_central_da_reta_maior(
 def eh_um_circulo(coords_list: List[List[float]], threshold: float = CIRCLE_CLOSENESS_THRESHOLD) -> bool:
     """
     Considera “círculo” quando o primeiro e o último ponto estão bem próximos (fechado).
-    coords no formato [lat, lon].
     """
     if len(coords_list) < 3:
         return False
-    # shapely espera (x, y) = (lon, lat)
     p0 = Point(coords_list[0][1], coords_list[0][0])
     pn = Point(coords_list[-1][1], coords_list[-1][0])
     return p0.distance(pn) < threshold
@@ -119,7 +116,7 @@ def eh_um_circulo(coords_list: List[List[float]], threshold: float = CIRCLE_CLOS
 def gerar_nome_pivo_sequencial_unico(
     lista_de_nomes_existentes_normalizados: set[str], nome_base: str
 ) -> str:
-    """Gera nome sequencial não colidente a partir de um base (ex.: 'Pivô 1', 'Pivô 2')."""
+    """Gera nome sequencial não colidente a partir de um base."""
     contador = 1
     while True:
         nome_candidato = f"{nome_base} {contador}"
@@ -135,13 +132,11 @@ def _consolidate_pivos(
     nome_base_pivo: str,
 ) -> List[PivoData]:
     """
-    - Associa pivôs (pontos) a ciclos (polígonos) quando o ponto está contido no polígono;
-    - Para ciclos “órfãos”, gera pivôs no centro (pelo par de pontas mais distante ou média).
+    Associa pivôs (pontos) a ciclos (polígonos) e cria pivôs para ciclos órfãos.
     """
     final_pivos_list: List[PivoData] = []
     ciclos_ja_associados = set()
 
-    # 1) Associa pivo->ciclo por “contains”
     for pivo in pivos_de_pontos:
         pivo_geom = Point(pivo["lon"], pivo["lat"])
         ciclo_associado = None
@@ -150,7 +145,6 @@ def _consolidate_pivos(
         for i, ciclo in enumerate(ciclos_parsed):
             if i in ciclos_ja_associados:
                 continue
-
             try:
                 poligono_ciclo = Polygon([(lon, lat) for lat, lon in ciclo["coordenadas"]])
                 if not poligono_ciclo.is_valid:
@@ -164,18 +158,14 @@ def _consolidate_pivos(
                 break
 
         pivo_final = pivo.copy()
-
         if ciclo_associado:
-            # guarda a geometria no pivo (tipo “custom”)
             pivo_final["tipo"] = "custom"
             pivo_final["coordenadas"] = ciclo_associado["coordenadas"]
             ciclos_ja_associados.add(indice_ciclo_associado)
             ciclo_associado["nome_original_circulo"] = f"Ciclo {pivo['nome']}"
             logger.info("  -> ✅ Pivô '%s' associado a um polígono de círculo existente.", pivo["nome"])
-
         final_pivos_list.append(pivo_final)
 
-    # 2) Cria pivos para ciclos não associados
     nomes_pivos_existentes_normalizados = {normalizar_nome(p["nome"]) for p in final_pivos_list}
     for i, ciclo_info in enumerate(ciclos_parsed):
         if i in ciclos_ja_associados:
@@ -185,11 +175,9 @@ def _consolidate_pivos(
         centro_lat: Optional[float] = None
         centro_lon: Optional[float] = None
 
-        # tenta usar “ponta 1/2 reta <nome do ciclo>”
         nome_ciclo_norm = normalizar_nome(ciclo_info["nome_original_circulo"])
         ponta1 = pontas_retas_map.get(f"ponta 1 reta {nome_ciclo_norm}")
         ponta2 = pontas_retas_map.get(f"ponta 2 reta {nome_ciclo_norm}")
-        # fallback genérico
         if not (ponta1 and ponta2):
             ponta1 = pontas_retas_map.get("ponta 1 reta")
             ponta2 = pontas_retas_map.get("ponta 2 reta")
@@ -199,7 +187,7 @@ def _consolidate_pivos(
         elif len(coordenadas_ciclo) >= 2:
             try:
                 centro_lat, centro_lon, _, _ = ponto_central_da_reta_maior(coordenadas_ciclo)
-            except (ValueError, Exception):
+            except (FileParseError, Exception): # Captura o erro específico e outros genéricos
                 if coordenadas_ciclo:
                     centro_lat = mean([c[0] for c in coordenadas_ciclo])
                     centro_lon = mean([c[1] for c in coordenadas_ciclo])
@@ -209,12 +197,8 @@ def _consolidate_pivos(
                 nomes_pivos_existentes_normalizados, nome_base=nome_base_pivo
             )
             pivo_dict: PivoData = {
-                "nome": nome_pivo_gerado,
-                "lat": centro_lat,
-                "lon": centro_lon,
-                "type": "pivo",
-                "tipo": "custom",
-                "coordenadas": coordenadas_ciclo,
+                "nome": nome_pivo_gerado, "lat": centro_lat, "lon": centro_lon,
+                "type": "pivo", "tipo": "custom", "coordenadas": coordenadas_ciclo,
             }
             final_pivos_list.append(pivo_dict)
             nomes_pivos_existentes_normalizados.add(normalizar_nome(nome_pivo_gerado))
@@ -226,27 +210,25 @@ def _consolidate_pivos(
 
 def _extract_kml_from_zip(caminho_kmz: Path, pasta_extracao: Path) -> Path:
     """
-    Extrai o primeiro .kml encontrado dentro do .kmz para `pasta_extracao`,
-    preservando subpastas do zip se existirem.
+    Extrai o primeiro .kml encontrado dentro do .kmz.
     """
     try:
         pasta_extracao.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(caminho_kmz, "r") as kmz_file:
             kml_file_name = next((f for f in kmz_file.namelist() if f.lower().endswith(".kml")), None)
             if not kml_file_name:
-                raise ValueError("Nenhum arquivo .kml encontrado dentro do KMZ.")
+                raise FileParseError("Nenhum arquivo .kml encontrado dentro do KMZ.")
             kmz_file.extract(kml_file_name, path=pasta_extracao)
             caminho_kml_extraido = pasta_extracao / kml_file_name
             logger.info("  -> Arquivo KML '%s' extraído para '%s'", kml_file_name, caminho_kml_extraido)
             return caminho_kml_extraido
     except zipfile.BadZipFile:
-        raise ValueError(f"Arquivo KMZ '{caminho_kmz.name}' inválido ou corrompido.")
+        raise FileParseError(f"Arquivo KMZ '{caminho_kmz.name}' inválido ou corrompido.")
 
 
 def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Union[str, List[List[float]]]]]:
     """
-    Extrai nome, tipo de geometria e lista de coordenadas (formato [lat, lon]) de um Placemark.
-    Suporta Point, LineString e Polygon (outer boundary).
+    Extrai nome, tipo de geometria e coordenadas de um Placemark.
     """
     nome_tag = placemark_node.find("kml:name", KML_NAMESPACE)
     nome_original = nome_tag.text.strip() if nome_tag is not None and nome_tag.text else ""
@@ -270,7 +252,6 @@ def _parse_placemark_data(placemark_node: ET.Element) -> Optional[Dict[str, Unio
     data["geometry_type"] = geometry_type
 
     try:
-        # KML coord: "lon,lat[,alt]" -> guardamos [lat, lon]
         parsed_coords: List[List[float]] = []
         for token in coords_text.split():
             parts = token.split(",")
@@ -295,9 +276,7 @@ def parse_gis_file(
     caminho_gis_str: str, pasta_extracao_str: str, lang: str = "pt-br"
 ) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
     """
-    Lê um KML/KMZ, identifica antenas, pivôs, ciclos e bombas usando keywords do settings
-    e algumas heurísticas (altura no nome, pontas de reta, etc.).
-    Retorna (antenas, pivos_finais, ciclos, bombas).
+    Lê um KML/KMZ, identifica entidades e retorna listas de dados.
     """
     t = i18n_service.get_translator(lang)
     caminho_gis = Path(caminho_gis_str)
@@ -322,7 +301,6 @@ def parse_gis_file(
     logger.info("Usando keywords para Bombas: %s", bomba_kws)
 
     try:
-        # --- Seleciona fonte (KML direto ou KMZ extraído) ---
         if caminho_gis.suffix.lower() == ".kmz":
             logger.info("Processando arquivo KMZ: %s", caminho_gis.name)
             kml_extraido_path_temp = _extract_kml_from_zip(caminho_gis, pasta_extracao)
@@ -331,15 +309,18 @@ def parse_gis_file(
             logger.info("Processando arquivo KML direto: %s", caminho_gis.name)
             caminho_kml_a_ser_lido = caminho_gis
         else:
-            raise ValueError("Formato de arquivo não suportado. Envie um arquivo .kml ou .kmz.")
+            raise FileParseError("Formato de arquivo não suportado. Envie um arquivo .kml ou .kmz.")
 
-        tree = ET.parse(str(caminho_kml_a_ser_lido))
+        try:
+            tree = ET.parse(str(caminho_kml_a_ser_lido))
+        except ET.ParseError as e:
+            raise FileParseError(f"Arquivo KML mal formatado ou corrompido: {e}")
+
         root = tree.getroot()
 
         pivot_num_regex = re.compile(r"(?:piv(?:o|ô|ot)?)\s*(\d+)", re.IGNORECASE)
         bomba_name_regex = re.compile(r"^(casa\s+de\s+bomba|pump\s+house|bomba\s*\d*)$", re.IGNORECASE)
 
-        # --- Varre todos os Placemarks ---
         for placemark_node in root.findall(".//kml:Placemark", KML_NAMESPACE):
             parsed_data = _parse_placemark_data(placemark_node)
             if not parsed_data:
@@ -349,69 +330,45 @@ def parse_gis_file(
             coords = parsed_data["coordenadas_lista"]
             geo_type = str(parsed_data["geometry_type"])
 
-            # 1) Primeiro, extrai altura do NOME ORIGINAL (mantém compat com KMZs que embutem isso no fim)
             match = HEIGHT_REGEX.search(nome_original)
-
             if match:
                 altura = int(match.group(1))
                 had_height = True
-                # nome "limpo" para keywords, sem a terminação de altura
                 nome_limpo_para_keywords = nome_original[: match.start()].strip()
             else:
                 altura = None
                 had_height = False
                 nome_limpo_para_keywords = nome_original
 
-            # 2) Normaliza o nome limpo para comparar com keywords
             nome_norm = normalizar_nome(nome_limpo_para_keywords)
 
-            # 3) Classificação por tipo/keyword
             if geo_type == "Point" and coords:
                 lat, lon = coords[0][0], coords[0][1]
-
                 if any(kw in nome_norm for kw in antena_kws):
-                    antenas_list.append(
-                        {
-                            "lat": lat,
-                            "lon": lon,
-                            "altura": altura,
-                            "had_height_in_kmz": had_height,
-                            "altura_receiver": DEFAULT_RECEIVER_HEIGHT,
-                            "nome": nome_original,  # preserva o original pro frontend
-                        }
-                    )
-
+                    antenas_list.append({
+                        "lat": lat, "lon": lon, "altura": altura,
+                        "had_height_in_kmz": had_height, "altura_receiver": DEFAULT_RECEIVER_HEIGHT,
+                        "nome": nome_original,
+                    })
                 elif any(kw in nome_norm for kw in pivo_kws) or pivot_num_regex.search(nome_original):
                     final_pivo_name = nome_original
                     match_pivot_num = pivot_num_regex.search(nome_original)
                     if match_pivot_num:
                         pivo_num = match_pivot_num.group(1)
                         final_pivo_name = f"{t('entity_names.pivot')} {pivo_num}"
-
-                    pivo_dict: PivoData = {
-                        "nome": final_pivo_name,
-                        "lat": lat,
-                        "lon": lon,
-                        "type": "pivo",
-                        "tipo": None,
-                        "coordenadas": None,
-                    }
-                    pivos_de_pontos_list.append(pivo_dict)
-
+                    pivos_de_pontos_list.append({
+                        "nome": final_pivo_name, "lat": lat, "lon": lon,
+                        "type": "pivo", "tipo": None, "coordenadas": None,
+                    })
                 elif any(kw in nome_norm for kw in bomba_kws) or bomba_name_regex.search(nome_original):
                     final_bomba_name = t("entity_names.irripump")
                     bombas_list.append({"nome": final_bomba_name, "lat": lat, "lon": lon, "type": "bomba"})
-
                 elif any(kw in nome_norm for kw in PONTA_RETA_KEYWORDS):
-                    # guarda com a chave igual ao nome normalizado inteiro (permite “ponta 1 reta <ciclo>”)
                     pontas_retas_map[nome_norm] = {"lat": lat, "lon": lon}
-
             elif geo_type in ["LineString", "Polygon"] and len(coords) >= 3:
-                # LineString fechado ≈ círculo ou Polygon já é área
                 if eh_um_circulo(coords) or geo_type == "Polygon":
                     ciclos_list.append({"nome_original_circulo": nome_original, "coordenadas": coords})
 
-        # Consolida pivôs com ciclos descobertos
         nome_base_pivo_traduzido = t("entity_names.pivot")
         pivos_finais_list = _consolidate_pivos(
             pivos_de_pontos_list, ciclos_list, pontas_retas_map, nome_base_pivo_traduzido
@@ -419,14 +376,10 @@ def parse_gis_file(
 
         logger.info(
             "✅ Processamento do arquivo concluído: %d antenas, %d pivôs, %d ciclos, %d bombas.",
-            len(antenas_list),
-            len(pivos_finais_list),
-            len(ciclos_list),
-            len(bombas_list),
+            len(antenas_list), len(pivos_finais_list), len(ciclos_list), len(bombas_list),
         )
         return antenas_list, pivos_finais_list, ciclos_list, bombas_list
 
     finally:
-        # limpeza do KML extraído (se veio de KMZ)
         if kml_extraido_path_temp and kml_extraido_path_temp.exists():
             kml_extraido_path_temp.unlink(missing_ok=True)

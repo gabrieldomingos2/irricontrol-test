@@ -1,10 +1,10 @@
-# backend/middlewares.py
-
 from __future__ import annotations
 
 import logging
-from typing import Callable, Awaitable, Dict, Any
+from typing import Any
 from uuid import uuid4
+
+from starlette.types import Scope, Receive, Send
 
 from backend.logging_config import set_job_id, clear_job_id, set_user, clear_user
 
@@ -21,10 +21,10 @@ class RequestContextMiddleware:
     - Funciona apenas para requests HTTP (ignora websockets e lifespan).
     """
 
-    def __init__(self, app: Callable[..., Awaitable[None]]):
+    def __init__(self, app: Any):
         self.app = app
 
-    async def __call__(self, scope: Dict[str, Any], receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "http":
             # Não é HTTP (ex.: websocket/lifespan) → segue reto
             await self.app(scope, receive, send)
@@ -43,11 +43,9 @@ class RequestContextMiddleware:
         set_job_id(req_id)
 
         # Extrai user se existir (depende de autenticação própria do app)
-        user_identifier: str | None = None
-        state = scope.get("state")
-        if state is not None and hasattr(state, "user") and getattr(state, "user"):
-            user_identifier = str(getattr(state, "user"))
-            set_user(user_identifier)
+        user_identifier = getattr(scope.get("state"), "user", None)
+        if user_identifier:
+            set_user(str(user_identifier))
 
         method: str = scope.get("method", "-")
         path: str = scope.get("path", "-")
@@ -55,7 +53,7 @@ class RequestContextMiddleware:
 
         logger.info("➡️ %s %s (req_id=%s user=%s)", method, path, req_id, user_identifier or "-")
 
-        async def send_wrapper(message: Dict[str, Any]):
+        async def send_wrapper(message: dict[str, Any]):
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message.get("status", None)
@@ -86,5 +84,6 @@ class RequestContextMiddleware:
             )
             raise
         finally:
+            # Garante que contexto não vaza para outros requests
             clear_user()
             clear_job_id()
