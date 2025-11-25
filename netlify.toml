@@ -1,11 +1,6 @@
 [build]
-  # entra na pasta frontend pra rodar o build
   base = "frontend"
-
-  # nada de generate-env, é só instalar e rodar o build de CSS
-  command = "npm install --no-optional && npm run build"
-
-  # como o base é "frontend", "." aqui significa: publicar a própria pasta frontend
+  command = "npm install && npm run build"
   publish = "."
 
 [[redirects]]
