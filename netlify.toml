@@ -1,7 +1,7 @@
 [build]
   base = "frontend"
-  publish = "frontend/dist"
-  command = "node ../scripts/generate-env.js && npm install --no-optional && npm run build"
+  command = "npm install --no-optional && npm run build"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"
