@@ -131,6 +131,10 @@ class AppSettings(BaseSettings):
 
     # --- Templates ---
     TEMPLATES_DISPONIVEIS: list[TemplateSettings] = Field(default_factory=default_templates)
+    TEMPLATES_DESABILITADOS: list[str] = Field(
+        default_factory=lambda: [TemplateID.BRAZIL_V6_90DBM.value],
+        description="Templates listados mas temporariamente bloqueados"
+    )
 
     # --- Métodos ---
     def obter_template(self, template_id: str | TemplateID) -> TemplateSettings:
@@ -151,6 +155,20 @@ class AppSettings(BaseSettings):
         """Retorna uma lista com os IDs (strings) de todos os templates disponíveis."""
         return [t.id for t in self.TEMPLATES_DISPONIVEIS]
 
+    def listar_templates_permitidos(self) -> list[str]:
+        """Lista de templates habilitados para uso (exclui os bloqueados)."""
+        bloqueados = set(self.TEMPLATES_DESABILITADOS)
+        return [t.id for t in self.TEMPLATES_DISPONIVEIS if t.id not in bloqueados]
+
+    def listar_templates_com_status(self) -> list[dict[str, str | bool]]:
+        """Lista templates indicando se estǭo desativados."""
+        bloqueados = set(self.TEMPLATES_DESABILITADOS)
+        return [{"id": t.id, "disabled": t.id in bloqueados} for t in self.TEMPLATES_DISPONIVEIS]
+
+    def template_desabilitado(self, template_id: str | TemplateID) -> bool:
+        tid = template_id.value if isinstance(template_id, TemplateID) else str(template_id)
+        return tid in set(self.TEMPLATES_DESABILITADOS)
+
     @model_validator(mode="after")
     def _validate_templates(self):
         ids = [t.id for t in self.TEMPLATES_DISPONIVEIS]
@@ -159,6 +177,9 @@ class AppSettings(BaseSettings):
             raise ValueError(f"IDs de template duplicados: {dupes}")
         if self.DEFAULT_TEMPLATE_ID.value not in ids:
             raise ValueError(f"DEFAULT_TEMPLATE_ID '{self.DEFAULT_TEMPLATE_ID.value}' não está em TEMPLATES_DISPONIVEIS")
+        invalid_disabled = sorted({i for i in self.TEMPLATES_DESABILITADOS if i not in ids})
+        if invalid_disabled:
+            raise ValueError(f"TEMPLATES_DESABILITADOS com IDs desconhecidos: {invalid_disabled}")
         return self
 
 

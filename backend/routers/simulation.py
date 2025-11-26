@@ -144,11 +144,26 @@ def _copy_cached_with_json(cached_image_path: Path, dest_image_path: Path) -> No
 
 
 # ---------------------------------------------------------------------------
+# Template validation (includes temporarily disabled templates)
+# ---------------------------------------------------------------------------
+def _validate_template_id_legacy(template_id: str) -> None:
+    available = set(settings.listar_templates_ids())
+    allowed = set(settings.listar_templates_permitidos())
+    if template_id not in available:
+        raise HTTPException(status_code=400, detail=f"Template invalido: '{template_id}'")
+    if template_id not in allowed:
+        raise HTTPException(status_code=403, detail="Template desativado no momento. Fale com um administrador.")
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 @router.get("/templates")
 async def get_templates_endpoint():
-    return settings.listar_templates_ids()
+    return {
+        "templates": settings.listar_templates_ids(),
+        "disabled": settings.TEMPLATES_DESABILITADOS,
+        "default": settings.DEFAULT_TEMPLATE_ID.value,
+    }
 
 
 @router.post("/generate_pivot_in_circle")

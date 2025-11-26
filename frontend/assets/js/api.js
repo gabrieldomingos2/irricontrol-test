@@ -208,10 +208,22 @@ async function reevaluatePivots(payload) {
 }
 
 async function getTemplates() {
-  return apiRequest("/simulation/templates").catch((error) => {
+  try {
+    const response = await apiRequest("/simulation/templates");
+    if (Array.isArray(response)) {
+      return { templates: response, disabled: [] };
+    }
+    if (response && Array.isArray(response.templates)) {
+      return {
+        templates: response.templates,
+        disabled: Array.isArray(response.disabled) ? response.disabled : [],
+      };
+    }
+    throw new Error("Formato inesperado ao carregar templates");
+  } catch (error) {
     notify(`Falha ao buscar templates: ${error.message}`, "erro");
     throw error;
-  });
+  }
 }
 
 async function getElevationProfile(payload) {

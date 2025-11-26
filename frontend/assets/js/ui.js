@@ -325,9 +325,16 @@ function reposicionarPaineisLaterais() {
 // ===================
 async function loadAndPopulateTemplates() {
     try {
-        const templates = await getTemplates();
-        const arr = Array.isArray(templates) ? templates.slice() : [];
+        const tplResponse = await getTemplates();
+        const arr = Array.isArray(tplResponse?.templates)
+            ? tplResponse.templates.slice()
+            : Array.isArray(tplResponse)
+            ? tplResponse.slice()
+            : [];
         if (!arr.length) throw new Error("Lista de templates vazia");
+
+        const disabled = Array.isArray(tplResponse?.disabled) ? tplResponse.disabled : [];
+        const disabledSet = new Set(disabled);
 
         // remove duplicados
         const uniq = [...new Set(arr)];
@@ -338,13 +345,17 @@ async function loadAndPopulateTemplates() {
             : /europe/i.test(tname)
             ? "🇪🇺 "
             : "🌐 ";
-            return `<option value="${tname}">${prefix}${tname}</option>`;
+            const isDisabled = disabledSet.has(tname);
+            const label = `${prefix}${tname}`;
+            const disabledAttr = isDisabled ? ' disabled aria-disabled="true"' : "";
+            return `<option value="${tname}"${disabledAttr}>${label}</option>`;
         })
         .join("");
 
         const saved = localStorage.getItem("templateSelecionado");
-        const hasSaved = saved && uniq.includes(saved);
-        templateSelect.value = hasSaved ? saved : uniq[0];
+        const hasSaved = saved && uniq.includes(saved) && !disabledSet.has(saved);
+        const primeiroHabilitado = uniq.find((tname) => !disabledSet.has(tname)) ?? "";
+        templateSelect.value = hasSaved ? saved : primeiroHabilitado || uniq[0] || "";
         templateSelect.dispatchEvent(new Event("change"));
     } catch (err) {
         console.error("⚠️ Erro ao carregar templates:", err);

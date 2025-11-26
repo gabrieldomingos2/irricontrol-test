@@ -750,4 +750,10 @@ button, .glass-button, label[for="arquivo"]{ cursor:pointer!important; }
   direction: rtl;
 }
 
+/* Estado visual para templates desativados */
+#template-modelo option:disabled {
+  color: #9ca3af;
+  background-color: #0b1220;
+}
+
 /* (Revertido) Estilos de dropdown custom de Template removidos */

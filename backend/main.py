@@ -137,8 +137,8 @@ async def version_info() -> dict[str, str]:
 
 
 @app.get(f"{settings.API_V1_STR}/templates", tags=["Simulation"])
-async def list_templates() -> dict[str, list[str]]:
+async def list_templates() -> dict[str, list[str] | str]:
     """Lista IDs de templates disponíveis (sem expor segredos)."""
     ids = settings.listar_templates_ids()
     logger.info("event=endpoint_access endpoint=/templates templates=%s", ids)
-    return {"templates": ids}
+    return {"templates": ids, "disabled": settings.TEMPLATES_DESABILITADOS, "default": settings.DEFAULT_TEMPLATE_ID.value}
