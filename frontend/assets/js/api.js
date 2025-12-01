@@ -85,9 +85,8 @@ async function apiRequest(endpoint, options = {}) {
   ) {
     fetchOpts.headers["Content-Type"] = "application/json";
   }
-  if (!("Accept" in fetchOpts.headers) && expects !== "blob") {
-    fetchOpts.headers["Accept"] = "application/json";
-  }
+  if (!("Accept" in fetchOpts.headers) && expects !== "blob") {  fetchOpts.headers["Accept"] = "application/json"; }
+  if (window.AppState?.templateOverrideEnabled && !("X-Template-Unlock" in fetchOpts.headers)) { fetchOpts.headers["X-Template-Unlock"] = "1"; }
   // Injeta X-Request-ID para correlação com logs do backend (middleware)
   if (!("X-Request-ID" in fetchOpts.headers)) {
     fetchOpts.headers["X-Request-ID"] = _makeRequestId();
@@ -320,3 +319,4 @@ async function exportPdfReport(payload) {
     throw error;
   }
 }
+

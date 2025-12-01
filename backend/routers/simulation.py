@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from backend.config import settings
@@ -154,6 +154,15 @@ def _validate_template_id_legacy(template_id: str) -> None:
     if template_id not in allowed:
         raise HTTPException(status_code=403, detail="Template desativado no momento. Fale com um administrador.")
 
+
+def _validate_template_id_with_override(template_id: str, allow_disabled: bool = True) -> None:
+    available = set(settings.listar_templates_ids())
+    allowed = set(settings.listar_templates_permitidos())
+    if template_id not in available:
+        raise HTTPException(status_code=400, detail=f"Template invalido: '{template_id}'")
+    if not allow_disabled and template_id not in allowed:
+        raise HTTPException(status_code=403, detail="Template desativado no momento. Fale com um administrador.")
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -183,9 +192,9 @@ async def generate_pivot_in_circle_endpoint(payload: GeneratePivotPayload):
 
 
 @router.post("/run_main")
-async def run_main_simulation_endpoint(payload: AntenaSimPayload):
+async def run_main_simulation_endpoint(payload: AntenaSimPayload, request: Request):
     try:
-        _validate_template_id(payload.template)
+        _validate_template_id_with_override(payload.template, allow_disabled=True)
         logger.info("🛰️  Iniciando simulação principal para a sessão: %s", payload.job_id)
 
         sim_result = await cloudrf_service.run_cloudrf_simulation(
@@ -240,9 +249,9 @@ async def run_main_simulation_endpoint(payload: AntenaSimPayload):
 
 
 @router.post("/run_manual")
-async def run_manual_simulation_endpoint(payload: ManualSimPayload):
+async def run_manual_simulation_endpoint(payload: ManualSimPayload, request: Request):
     try:
-        _validate_template_id(payload.template)
+        _validate_template_id_with_override(payload.template, allow_disabled=True)
         logger.info("📡 Iniciando simulação manual para a sessão: %s", payload.job_id)
 
         sim_result = await cloudrf_service.run_cloudrf_simulation(
@@ -385,3 +394,9 @@ async def find_repeater_sites_endpoint(payload: FindRepeaterSitesPayload):
         logger.exception("❌ Erro Interno em /find_repeater_sites para o job %s: %s", payload.job_id, e)
         msg = f"Erro ao buscar locais para repetidora: {e}" if DEBUG else "Erro interno ao buscar locais para repetidora."
         raise HTTPException(status_code=500, detail=msg)
+
+
+
+
+
+

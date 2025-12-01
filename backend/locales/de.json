@@ -77,6 +77,7 @@
       "run_los_diagnostic": "Sichtlinien-Diagnose",
       "export_kmz": "KMZ-Datei herunterladen",
       "export_pdf_report": "PDF-Bericht exportieren",
+      "download_active_pngs": "Repeater herunterladen",
       "reset": "Zurücksetzen",
       "simulate": "Simulation ausführen",
       "cancel": "Abbrechen",
@@ -106,7 +107,13 @@
     "show_legends": "Legenden anzeigen",
     "run_diagnostic_from_source": "Diagnose von dieser Quelle ausführen",
     "los_clear_at_highest_point": "Sichtlinie frei (Höchster Punkt: {elevation}m)",
-    "export_pdf_disabled": "Exportieren Sie die KMZ, bevor Sie den PDF-Bericht erstellen."
+    "export_pdf_disabled": "Exportieren Sie die KMZ, bevor Sie den PDF-Bericht erstellen.",
+    "download_active_repeaters": "Lädt nur die aktiven Repeater herunter, die auf der Karte sichtbar sind",
+    "run_signal_simulation": "Führt die Signalsimulation aus",
+    "load_kmz": "Importiert und lädt eine KMZ-Datei",
+    "export_kmz": "Lädt das gesamte Projekt als KMZ-Datei herunter",
+    "reset": "Setzt alles zurück und startet ein neues Projekt",
+    "export_pdf_report": "Erstellt einen PDF-Bericht mit der Studienzusammenfassung"
   },
   "messages": {
     "success": {
@@ -114,6 +121,7 @@
       "kmz_loaded_select_tower": "KMZ importiert. Wählen Sie eine Antenne, um die Simulation zu starten.",
       "simulation_complete": "Simulation erfolgreich abgeschlossen.",
       "repeater_added": "Repeater „{name}“ zur Karte hinzugefügt.",
+      "main_study_removed": "Studie der Hauptantenne entfernt.",
       "found_candidate_sites": "{count} geeignete Repeater-Standorte gefunden.",
       "pivot_created": "Pivot \"{name}\" erfolgreich erstellt.",
       "sector_pivot_created": "Sektor-Pivot \"{name}\" erfolgreich erstellt.",
@@ -135,7 +143,9 @@
       "action_undone_move": "Verschiebung des Pivots \"{pivot_name}\" rückgängig gemacht.",
       "action_undone_delete": "Löschung des Pivots \"{pivot_name}\" rückgängig gemacht.",
       "main_antenna_renamed": "Hauptantenne umbenannt in \"{name}\".",
-      "repeater_renamed": "Repeater umbenannt in \"{name}\"."
+      "repeater_renamed": "Repeater umbenannt in \"{name}\".",
+      "template_unlocked": "Template Brazil V6 90dBm für diese Sitzung vorübergehend freigeschaltet.",
+      "template_locked": "Template Brazil V6 90dBm wieder gesperrt."
     },
     "errors": {
       "session_start_fail": "Kritischer Fehler beim Starten der neuen Sitzung. Bitte laden Sie die Seite neu.",

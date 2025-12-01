@@ -143,7 +143,9 @@
       "action_undone_move": "Movimiento del pivote \"{pivot_name}\" deshecho.",
       "action_undone_delete": "Eliminación del pivote \"{pivot_name}\" revertida.",
       "main_antenna_renamed": "Antena principal renombrada a \"{name}\".",
-      "repeater_renamed": "Repetidor renombrado a \"{name}\"."
+      "repeater_renamed": "Repetidor renombrado a \"{name}\".",
+      "template_unlocked": "Plantilla Brazil V6 90dBm liberada temporalmente en esta sesión.",
+      "template_locked": "Plantilla Brazil V6 90dBm bloqueada nuevamente."
     },
     "errors": {
       "session_start_fail": "Fallo crítico al iniciar nueva sesión. Por favor, recargue la página.",

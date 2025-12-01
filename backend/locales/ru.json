@@ -77,6 +77,7 @@
       "run_los_diagnostic": "Диагностика Видимости",
       "export_kmz": "Скачать KMZ Файл",
       "export_pdf_report": "Экспорт Отчета в PDF",
+      "download_active_pngs": "Скачать ретрансляторы",
       "reset": "Сброс",
       "simulate": "Запустить Симуляцию",
       "cancel": "Отмена",
@@ -106,7 +107,13 @@
     "show_legends": "Показать Легенду",
     "run_diagnostic_from_source": "Запустить диагностику из этого источника",
     "los_clear_at_highest_point": "Прямая видимость свободна (Самая высокая точка: {elevation}м)",
-    "export_pdf_disabled": "Экспортируйте KMZ перед созданием отчета в PDF."
+    "export_pdf_disabled": "Экспортируйте KMZ перед созданием отчета в PDF.",
+    "download_active_repeaters": "Скачивает только активные ретрансляторы, которые видны на карте",
+    "run_signal_simulation": "Выполняет симуляцию сигнала",
+    "load_kmz": "Импортирует и загружает файл KMZ",
+    "export_kmz": "Скачивает весь проект в формате KMZ",
+    "reset": "Сбрасывает всё и начинает новый проект",
+    "export_pdf_report": "Создаёт PDF-отчёт с кратким итогом исследования"
   },
   "messages": {
     "success": {
@@ -114,6 +121,7 @@
       "kmz_loaded_select_tower": "KMZ импортирован. Выберите антенну для начала симуляции.",
       "simulation_complete": "Симуляция успешно завершена.",
       "repeater_added": "Ретранслятор «{name}» добавлен на карту.",
+      "main_study_removed": "Исследование главной антенны удалено.",
       "found_candidate_sites": "Найдено {count} кандидатных мест для ретранслятора.",
       "pivot_created": "Пивот \"{name}\" успешно создан.",
       "sector_pivot_created": "Секторный пивот \"{name}\" успешно создан.",
@@ -135,7 +143,9 @@
       "action_undone_move": "Перемещение пивота \"{pivot_name}\" отменено.",
       "action_undone_delete": "Удаление пивота \"{pivot_name}\" отменено.",
       "main_antenna_renamed": "Основная антенна переименована в \"{name}\".",
-      "repeater_renamed": "Ретранслятор переименован в \"{name}\"."
+      "repeater_renamed": "Ретранслятор переименован в \"{name}\".",
+      "template_unlocked": "Шаблон Brazil V6 90dBm временно разблокирован для этой сессии.",
+      "template_locked": "Шаблон Brazil V6 90dBm снова заблокирован."
     },
     "errors": {
       "session_start_fail": "Критическая ошибка при запуске новой сессии. Пожалуйста, перезагрузите страницу.",

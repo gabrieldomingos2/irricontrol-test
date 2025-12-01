@@ -77,6 +77,7 @@
       "run_los_diagnostic": "Diagnóstico de Visión",
       "export_kmz": "Descargar Archivo KMZ",
       "export_pdf_report": "Exportar Informe PDF",
+      "download_active_pngs": "Descargar Repetidoras",
       "reset": "Reiniciar",
       "simulate": "Ejecutar Simulación",
       "cancel": "Cancelar",
@@ -106,7 +107,13 @@
     "show_legends": "Mostrar Leyendas",
     "run_diagnostic_from_source": "Ejecutar diagnóstico desde esta fuente",
     "los_clear_at_highest_point": "Línea de visión despejada (Punto más alto: {elevation}m)",
-    "export_pdf_disabled": "Exporte el KMZ antes de generar el informe en PDF."
+    "export_pdf_disabled": "Exporte el KMZ antes de generar el informe en PDF",
+    "download_active_repeaters": "Descarga solo las repetidoras activas que están apareciendo en el mapa",
+    "run_signal_simulation": "Ejecuta la simulación de señal",
+    "load_kmz": "Importa y carga un archivo KMZ",
+    "export_kmz": "Descarga el proyecto completo en KMZ",
+    "reset": "Reinicia todo para empezar un nuevo proyecto",
+    "export_pdf_report": "Genera un informe PDF con el resumen del estudio"
   },
   "messages": {
     "success": {
@@ -114,6 +121,7 @@
       "kmz_loaded_select_tower": "KMZ importado. Elija una antena para iniciar la simulación.",
       "simulation_complete": "Simulación completada con éxito.",
       "repeater_added": "Repetidor “{name}” agregado al mapa.",
+      "main_study_removed": "Estudio de la antena principal eliminado.",
       "found_candidate_sites": "{count} ubicaciones candidatas para repetidor identificadas.",
       "pivot_created": "Pivote \"{name}\" creado con éxito.",
       "sector_pivot_created": "Pivote sectorial \"{name}\" creado con éxito.",
@@ -135,7 +143,9 @@
       "action_undone_move": "Movimiento del pivote \"{pivot_name}\" deshecho.",
       "action_undone_delete": "Eliminación del pivote \"{pivot_name}\" revertida.",
       "main_antenna_renamed": "Antena principal renombrada a \"{name}\".",
-      "repeater_renamed": "Repetidor renombrado a \"{name}\"."
+      "repeater_renamed": "Repetidor renombrado a \"{name}\".",
+      "template_unlocked": "Plantilla Brazil V6 90dBm liberada temporalmente en esta sesión.",
+      "template_locked": "Plantilla Brazil V6 90dBm bloqueada nuevamente."
     },
     "errors": {
       "session_start_fail": "Fallo crítico al iniciar nueva sesión. Por favor, recargue la página.",

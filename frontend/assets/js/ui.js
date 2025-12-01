@@ -53,7 +53,7 @@ function ensureAppState() {
     st.templateSelecionado ??= "";
     st.legendasAtivas ??= true;
     st.antenaLegendasAtivas ??= true;
-    st.modoEdicaoPivos ??= false;
+    st.modoEdicaoPivos ??= false; st.templateOverrideEnabled ??= false;
 }
 
 // ===============================
@@ -334,7 +334,9 @@ async function loadAndPopulateTemplates() {
         if (!arr.length) throw new Error("Lista de templates vazia");
 
         const disabled = Array.isArray(tplResponse?.disabled) ? tplResponse.disabled : [];
-        const disabledSet = new Set(disabled);
+        templateDisabledList = disabled.slice();
+        templateOverrideEnabled = Boolean(window.AppState?.templateOverrideEnabled);
+        const disabledSet = new Set(templateOverrideEnabled ? [] : disabled);
 
         // remove duplicados
         const uniq = [...new Set(arr)];
@@ -625,3 +627,72 @@ window.removeDrawingTooltip = removeDrawingTooltip;
 window.ensureAppState = ensureAppState;
 window.showOverlay = showOverlay;
 window.hideOverlay = hideOverlay;
+
+
+
+
+// Atalho secreto para liberar template desativado
+function toggleTemplateOverrideShortcut() {
+    ensureAppState();
+    templateOverrideEnabled = !templateOverrideEnabled;
+    AppState.templateOverrideEnabled = templateOverrideEnabled;
+    const disabledSet = new Set(templateOverrideEnabled ? [] : templateDisabledList);
+    if (templateSelect) {
+        Array.from(templateSelect.options || []).forEach((opt) => {
+            const shouldDisable = disabledSet.has(opt.value);
+            opt.disabled = shouldDisable;
+            if (shouldDisable) opt.setAttribute("aria-disabled", "true");
+            else opt.removeAttribute("aria-disabled");
+        });
+        const current = templateSelect.value;
+        if (disabledSet.has(current)) {
+            const firstEnabled = Array.from(templateSelect.options).find((o) => !o.disabled);
+            if (firstEnabled) templateSelect.value = firstEnabled.value;
+        }
+        templateSelect.dispatchEvent(new Event("change"));
+    }
+    const msg = templateOverrideEnabled
+        ? "Template Brazil V6 90dBm liberado nesta sessão."
+        : "Template Brazil V6 90dBm bloqueado novamente.";
+    if (typeof mostrarMensagem === "function") mostrarMensagem(msg, "sucesso");
+}
+if (!window.__tplShortcutBound) {
+    window.__tplShortcutBound = true;
+    window.addEventListener("keydown", (e) => {
+        if (e.shiftKey && String(e.key || "").toLowerCase() === "a") {
+            e.preventDefault();
+            toggleTemplateOverrideShortcut();
+        }
+    });
+}
+
+
+
+
+
+// --- Rebind: atalho secreto com mensagens localizadas ---
+window.toggleTemplateOverrideShortcut = function () {
+    ensureAppState();
+    templateOverrideEnabled = !templateOverrideEnabled;
+    AppState.templateOverrideEnabled = templateOverrideEnabled;
+    const disabledSet = new Set(templateOverrideEnabled ? [] : templateDisabledList);
+    if (templateSelect) {
+        Array.from(templateSelect.options || []).forEach((opt) => {
+            const shouldDisable = disabledSet.has(opt.value);
+            opt.disabled = shouldDisable;
+            if (shouldDisable) opt.setAttribute("aria-disabled", "true");
+            else opt.removeAttribute("aria-disabled");
+        });
+        const current = templateSelect.value;
+        if (disabledSet.has(current)) {
+            const firstEnabled = Array.from(templateSelect.options).find((o) => !o.disabled);
+            if (firstEnabled) templateSelect.value = firstEnabled.value;
+        }
+        templateSelect.dispatchEvent(new Event("change"));
+    }
+    const msg = templateOverrideEnabled
+        ? (typeof t === "function" && t("messages.success.template_unlocked")) || "Template Brazil V6 90dBm liberado nesta sessão."
+        : (typeof t === "function" && t("messages.success.template_locked")) || "Template Brazil V6 90dBm bloqueado novamente.";
+    if (typeof mostrarMensagem === "function") mostrarMensagem(msg, "sucesso");
+};
+
