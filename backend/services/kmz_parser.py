@@ -16,6 +16,12 @@ from backend.config import settings
 from backend.exceptions import FileParseError
 from backend.services.i18n_service import i18n_service
 
+# Tentamos importar o parser complexo (para KMZ com milhares de linhas/arcos)
+try:
+    from backend.services.kmz_parser_complex import parse_gis_file_complex
+except ImportError:  # se o arquivo ainda não existir, não quebra o simples
+    parse_gis_file_complex = None  # type: ignore
+
 logger = logging.getLogger("irricontrol")
 
 KML_NAMESPACE = {"kml": "http://www.opengis.net/kml/2.2"}
@@ -187,7 +193,7 @@ def _consolidate_pivos(
         elif len(coordenadas_ciclo) >= 2:
             try:
                 centro_lat, centro_lon, _, _ = ponto_central_da_reta_maior(coordenadas_ciclo)
-            except (FileParseError, Exception): # Captura o erro específico e outros genéricos
+            except (FileParseError, Exception):  # Captura o erro específico e outros genéricos
                 if coordenadas_ciclo:
                     centro_lat = mean([c[0] for c in coordenadas_ciclo])
                     centro_lon = mean([c[1] for c in coordenadas_ciclo])
@@ -277,6 +283,11 @@ def parse_gis_file(
 ) -> Tuple[List[AntenaData], List[PivoData], List[CicloData], List[BombaData]]:
     """
     Lê um KML/KMZ, identifica entidades e retorna listas de dados.
+
+    COMPORTAMENTO:
+    - Continua funcionando igual para KMZ simples (fazenda manda pivôs desenhados).
+    - Se detectar "cara de KMZ complexo" (muitos LineString circulares e nenhum ponto de pivô),
+        delega para o parser complexo (kmz_parser_complex.parse_gis_file_complex).
     """
     t = i18n_service.get_translator(lang)
     caminho_gis = Path(caminho_gis_str)
@@ -291,6 +302,9 @@ def parse_gis_file(
 
     caminho_kml_a_ser_lido: Optional[Path] = None
     kml_extraido_path_temp: Optional[Path] = None
+
+    # contadores para detectar "arquivo complexo"
+    num_circular_linestrings = 0
 
     antena_kws = settings.ENTITY_KEYWORDS["ANTENA"]
     pivo_kws = settings.ENTITY_KEYWORDS["PIVO"]
@@ -365,17 +379,46 @@ def parse_gis_file(
                     bombas_list.append({"nome": final_bomba_name, "lat": lat, "lon": lon, "type": "bomba"})
                 elif any(kw in nome_norm for kw in PONTA_RETA_KEYWORDS):
                     pontas_retas_map[nome_norm] = {"lat": lat, "lon": lon}
+
             elif geo_type in ["LineString", "Polygon"] and len(coords) >= 3:
-                if eh_um_circulo(coords) or geo_type == "Polygon":
+                if geo_type == "LineString":
+                    # Só considera LineString que fecha como círculo/arco
+                    if eh_um_circulo(coords):
+                        num_circular_linestrings += 1
+                        ciclos_list.append({"nome_original_circulo": nome_original, "coordenadas": coords})
+                else:  # Polygon
                     ciclos_list.append({"nome_original_circulo": nome_original, "coordenadas": coords})
 
+        # ------------------------------
+        # DETECÇÃO DE ARQUIVO COMPLEXO
+        # ------------------------------
+        # Heurística super conservadora:
+        # - muitos LineString circulares (>= 40)
+        # - nenhum ponto de pivô definido
+        # - e parser complexo disponível
+        if (
+            parse_gis_file_complex is not None
+            and num_circular_linestrings >= 40
+            and len(pivos_de_pontos_list) == 0
+        ):
+            logger.info(
+                "🔁 Detetado padrão de KMZ complexo (%d LineStrings circulares, 0 pivôs de ponto). "
+                "Delegando para parser COMPLEXO.",
+                num_circular_linestrings,
+            )
+            # Usa diretamente o arquivo original (kmz/kml) para o parser complexo
+            return parse_gis_file_complex(caminho_gis_str, pasta_extracao_str, lang=lang)
+
+        # ------------------------------
+        # Fluxo normal (KMZ simples)
+        # ------------------------------
         nome_base_pivo_traduzido = t("entity_names.pivot")
         pivos_finais_list = _consolidate_pivos(
             pivos_de_pontos_list, ciclos_list, pontas_retas_map, nome_base_pivo_traduzido
         )
 
         logger.info(
-            "✅ Processamento do arquivo concluído: %d antenas, %d pivôs, %d ciclos, %d bombas.",
+            "✅ Processamento do arquivo concluído (parser simples): %d antenas, %d pivôs, %d ciclos, %d bombas.",
             len(antenas_list), len(pivos_finais_list), len(ciclos_list), len(bombas_list),
         )
         return antenas_list, pivos_finais_list, ciclos_list, bombas_list

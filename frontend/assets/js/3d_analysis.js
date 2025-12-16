@@ -120,7 +120,7 @@ function updateVisualization(newTowerHeight = null) {
     if (map3d && map3d.getLayer('los-line-layer')) {
         map3d.setPaintProperty('los-line-layer', 'line-color', losData.isBlocked ? '#ef4444' : '#22c55e');
     }
-  }
+}
 
 function initMapbox(initialData, initialLos, featuresToDraw) {
     mapboxgl.accessToken = 'pk.eyJ1IjoiMzYzMzUzMzZnYSIsImEiOiJjbWVsaHZmN2YwaGZvMmxwemtyOHlzczNwIn0.V6Y5GLafCzXd6Bnqjtu89Q';

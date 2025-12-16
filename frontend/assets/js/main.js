@@ -312,6 +312,9 @@ async function handleKmzFileSelect(event) {
     try {
         await handleResetClick(false);
 
+        // Mantém o loader ativo durante o processamento pesado do KMZ
+        mostrarLoader(true);
+
         const data = await processKmz(formData);
         console.log("✅ KMZ Processado:", data);
 
@@ -2161,7 +2164,7 @@ function handleCoordinateSearch() {
     const inputField = document.getElementById('lat-long-input-field');
     const coordString = inputField.value;
 
-      if (!coordString) {
+    if (!coordString) {
         mostrarMensagem(t('messages.errors.coordinate_input_empty'), "erro");
         return;
     }
@@ -2177,7 +2180,7 @@ function handleCoordinateSearch() {
         document.getElementById("painel-repetidora")?.classList.remove("hidden");
         inputField.value = '';
     } else {
-        mostrarMensagem(t('messages.error.invalid_coordinate_format'), "erro");
+        mostrarMensagem(t('messages.errors.invalid_coordinate_format'), "erro");
     }
 }
 

@@ -69,7 +69,7 @@ let tempCircle = null;
 function getDynamicIconSize(zoom) {
     const minZoom = 10;
     const maxZoom = 17;
-    const minSize = 6;
+    const minSize = 10;
     const maxSize = 20;
 
     if (zoom <= minZoom) return minSize;
@@ -82,28 +82,27 @@ function getDynamicIconSize(zoom) {
 }
 
 function updatePivotIcons() {
-    if (!map || !Array.isArray(AppState.lastPivosDataDrawn)) return;
-    if (AppState.modoEdicaoPivos) return;
+    if (!map || !Array.isArray(AppState.lastPivosDataDrawn) || !Array.isArray(AppState.marcadoresPivos)) return;
 
     const newSize = getDynamicIconSize(map.getZoom());
 
-    AppState.lastPivosDataDrawn.forEach((pivo) => {
-    const marker = AppState.pivotsMap[pivo.nome];
-    if (!marker) return;
+    AppState.lastPivosDataDrawn.forEach((pivo, idx) => {
+        const marker = AppState.marcadoresPivos[idx];
+        if (!marker) return;
 
-    const cor = pivo.fora ? "red" : "green";
-    let iconClasses = "pivo-marker-container";
-    if (AppState.selectedPivoNome === pivo.nome) {
-        iconClasses += " pivo-marker-container-selected";
-    }
+        const cor = pivo.fora ? "red" : "green";
+        let iconClasses = "pivo-marker-container";
+        if (AppState.selectedPivoNome === pivo.nome) {
+            iconClasses += " pivo-marker-container-selected";
+        }
 
-    const newIcon = L.divIcon({
-        className: iconClasses,
-        iconSize: [newSize, newSize],
-        html: `<div class="pivo-marker-dot" style="background-color:${cor};"></div>`
-    });
+        const newIcon = L.divIcon({
+            className: iconClasses,
+            iconSize: [newSize, newSize],
+            html: `<div class="pivo-marker-dot" style="background-color:${cor};"></div>`
+        });
 
-    marker.setIcon(newIcon);
+        marker.setIcon(newIcon);
     });
 }
 
@@ -160,13 +159,17 @@ function findClosestSignalSource(targetLatLng) {
 function getFormattedAntennaOrRepeaterName(entity) {
     if (!entity) return "";
     const baseName = entity.nome || "";
-    const regexLimpezaAltura = /\s-\s\d+(\.\d+)?m$/i;
-    const cleanBaseName = baseName.replace(regexLimpezaAltura, "").trim();
+    const hasKmzHeight = entity.is_from_kmz && entity.had_height_in_kmz;
+    // remove alturas finais já presentes, com ou sem hífen (ex: "Central 5m", "Central - 5m", "Central 5m - 5m")
+    const regexLimpezaAltura = /(?:\s*-?\s*\d+(?:\.\d+)?\s*m)+$/i;
+    const cleanBaseName = hasKmzHeight
+        ? baseName.replace(regexLimpezaAltura, "").trim()
+        : baseName.trim();
 
-    if (entity.is_from_kmz && entity.had_height_in_kmz) {
-    const alturaValida = entity.altura !== null && entity.altura !== undefined;
-    const alturaStr = alturaValida ? ` - ${entity.altura}m` : "";
-    return `${cleanBaseName}${alturaStr}`;
+    if (hasKmzHeight) {
+        const alturaValida = entity.altura !== null && entity.altura !== undefined;
+        const alturaStr = alturaValida ? ` - ${entity.altura}m` : "";
+        return `${cleanBaseName}${alturaStr}`;
     }
     return cleanBaseName;
 }
@@ -510,6 +513,9 @@ function drawPivos(pivosData, useEdited = false) {
     AppState.marcadoresPivos.push(marker);
     AppState.pivotsMap[pivo.nome] = marker;
     });
+
+    // Garante que o tamanho do ícone seja recalculado com o zoom atual
+    updatePivotIcons();
 
 updateLegendsVisibility();
 }
