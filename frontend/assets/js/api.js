@@ -7,7 +7,7 @@ const isLocal =
 
 const BACKEND_URL =
   window.BACKEND_URL ||
-  (isLocal ? "http://localhost:8000" : "https://irricontrol-test.onrender.com");
+  (isLocal ? "http://localhost:8000" : "https://irricontrol-test-5wea.onrender.com");
 
 const API_PREFIX = window.API_PREFIX || "/api/v1";
 
